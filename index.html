@@ -121,7 +121,7 @@
       font-size: 14px !important;
     }
 
-    /* Убираем серый фон с дней недели и выравниваем по ширине */
+    /* Дни недели без серой обертки */
     .flatpickr-weekdays {
       background: transparent !important;
       padding: 0 4px !important;
@@ -158,6 +158,13 @@
       line-height: 36px !important;
     }
 
+    /* ПОЛНОСТЬЮ СКРЫВАЕМ ДНИ ДРУГИХ МЕСЯЦЕВ */
+    .flatpickr-day.prevMonthDay, 
+    .flatpickr-day.nextMonthDay {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+
     .flatpickr-day.selected, 
     .flatpickr-day.startRange, 
     .flatpickr-day.endRange {
@@ -174,6 +181,7 @@
 
     .flatpickr-day.flatpickr-disabled {
       color: #2e343d !important;
+      opacity: 0.3;
     }
 
     /* Сводка выбора */
