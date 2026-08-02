@@ -1,110 +1,234 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Выбор дат неактива</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Заявление на неактив</title>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Flatpickr (Календарь) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/ru.js"></script>
 
-    <!-- Telegram WebApp SDK -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-color: #121417;
+      --card-bg: #1b1e23;
+      --border-color: #2e343d;
+      --text-main: #e1e4e8;
+      --text-muted: #8b949e;
+      --accent-color: #3182ce;
+      --accent-hover: #2b6cb0;
+    }
 
-    <!-- Flatpickr CSS & JS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" type="text/css" href="https://npmcdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+    body {
+      margin: 0;
+      padding: 20px 16px;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
 
-    <style>
-        body {
-            background-color: #1a1a1a;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 15px;
-            margin: 0;
-        }
-        #calendar-input {
-            display: none; /* Скрытое поле для привязки flatpickr */
-        }
-        .info-text {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #aaaaaa;
-            text-align: center;
-        }
-        /* Стилизация под тёмную тему TG */
-        .flatpickr-calendar {
-            background: #242424 !important;
-            box-shadow: none !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            margin: 0 auto;
-        }
-    </style>
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .header {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0 0 4px 0;
+      color: var(--text-main);
+    }
+
+    .header p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    /* Кастомизация Flatpickr в строгом стиле */
+    .flatpickr-calendar {
+      background: transparent !important;
+      box-shadow: none !important;
+      border: none !important;
+      margin: 0 auto;
+      width: 100% !important;
+    }
+
+    .flatpickr-months .flatpickr-month {
+      color: var(--text-main) !important;
+      fill: var(--text-main) !important;
+    }
+
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
+      font-weight: 600;
+    }
+
+    .flatpickr-weekday {
+      color: var(--text-muted) !important;
+      font-weight: 500 !important;
+      font-size: 12px !important;
+    }
+
+    .flatpickr-day {
+      color: var(--text-main) !important;
+      border-radius: 4px !important;
+    }
+
+    .flatpickr-day.selected, 
+    .flatpickr-day.startRange, 
+    .flatpickr-day.endRange {
+      background: var(--accent-color) !important;
+      border-color: var(--accent-color) !important;
+      color: #ffffff !important;
+      font-weight: 600;
+    }
+
+    .flatpickr-day.inRange {
+      background: rgba(49, 130, 206, 0.2) !important;
+      box-shadow: -5px 0 0 rgba(49, 130, 206, 0.2), 5px 0 0 rgba(49, 130, 206, 0.2) !important;
+    }
+
+    .flatpickr-day.flatpickr-disabled {
+      color: #363b44 !important;
+    }
+
+    /* Форма сводки о выборе */
+    .summary-box {
+      margin-top: 16px;
+      padding: 12px;
+      background: #141619;
+      border: 1px dashed var(--border-color);
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .summary-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .summary-label {
+      color: var(--text-muted);
+    }
+
+    .summary-value {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+  </style>
 </head>
 <body>
 
-    <input type="text" id="calendar-input">
-    <div class="info-text" id="info">Выберите дату начала и окончания неактива</div>
+  <div class="container">
+    <div class="header">
+      <h1>Форма выбора периода</h1>
+      <p>Укажите даты начала и окончания неактива</p>
+    </div>
+    
+    <!-- Календарь -->
+    <div id="calendar-container"></div>
 
-    <script>
-        // Инициализация Telegram WebApp
-        const tg = window.Telegram?.WebApp;
-        if (tg) {
-            tg.ready();
-            tg.expand();
+    <!-- Информационный блок сводки -->
+    <div id="summary" class="summary-box">
+      <div class="summary-row">
+        <span class="summary-label">Начало:</span>
+        <span id="start-val" class="summary-value">-</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Окончание:</span>
+        <span id="end-val" class="summary-value">-</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    // Настройка кнопки Telegram в строгом стиле
+    tg.MainButton.setParams({
+      text: "ПОДТВЕРДИТЬ ВЫБОР",
+      color: "#3182ce",
+      text_color: "#ffffff"
+    });
+
+    let selectedStart = "";
+    let selectedEnd = "";
+
+    const picker = flatpickr("#calendar-container", {
+      inline: true,
+      mode: "range",
+      locale: "ru",
+      dateFormat: "d.m.Y",
+      minDate: "today",
+      onChange: function(selectedDates, dateStr, instance) {
+        const summaryBox = document.getElementById("summary");
+        const startVal = document.getElementById("start-val");
+        const endVal = document.getElementById("end-val");
+
+        if (selectedDates.length === 1) {
+          selectedStart = instance.formatDate(selectedDates[0], "d.m.Y");
+          selectedEnd = selectedStart;
+          
+          startVal.innerText = selectedStart;
+          endVal.innerText = selectedEnd;
+          summaryBox.style.display = "block";
+          
+          tg.MainButton.show();
+        } else if (selectedDates.length === 2) {
+          selectedStart = instance.formatDate(selectedDates[0], "d.m.Y");
+          selectedEnd = instance.formatDate(selectedDates[1], "d.m.Y");
+          
+          startVal.innerText = selectedStart;
+          endVal.innerText = selectedEnd;
+          summaryBox.style.display = "block";
+
+          tg.MainButton.show();
+        } else {
+          summaryBox.style.display = "none";
+          tg.MainButton.hide();
         }
+      }
+    });
 
-        let selectedStart = null;
-        let selectedEnd = null;
-
-        // Инициализация Flatpickr
-        flatpickr("#calendar-input", {
-            inline: true,             // Отображать календарь сразу
-            mode: "range",            // Режим диапазона
-            locale: "ru",             // Русский язык
-            minDate: "today",         // Запрет прошлых дат
-            dateFormat: "Y-m-d",
-            onChange: function(selectedDates, dateStr, instance) {
-                const infoEl = document.getElementById("info");
-
-                if (selectedDates.length === 2) {
-                    selectedStart = instance.formatDate(selectedDates[0], "Y-m-d");
-                    selectedEnd = instance.formatDate(selectedDates[1], "Y-m-d");
-
-                    const diffTime = Math.abs(selectedDates[1] - selectedDates[0]);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-                    infoEl.innerHTML = `Выбрано дней: <b>${diffDays}</b><br>С <b>${selectedStart}</b> по <b>${selectedEnd}</b>`;
-
-                    if (tg && tg.MainButton) {
-                        tg.MainButton.text = `ПОДТВЕРДИТЬ (${diffDays} дн.)`;
-                        tg.MainButton.textColor = "#FFFFFF";
-                        tg.MainButton.color = "#2ea64d";
-                        tg.MainButton.show();
-                    }
-                } else {
-                    if (tg && tg.MainButton) tg.MainButton.hide();
-                    infoEl.innerText = "Выберите дату окончания неактива";
-                }
-            }
-        });
-
-        // Отправка данных при клике на главную кнопку Telegram
-        if (tg && tg.MainButton) {
-            tg.MainButton.onClick(() => {
-                if (selectedStart && selectedEnd) {
-                    const payload = {
-                        start_date: selectedStart,
-                        end_date: selectedEnd
-                    };
-                    tg.sendData(JSON.stringify(payload));
-                    tg.close();
-                }
-            });
-        }
-    </script>
+    tg.MainButton.onClick(function() {
+      if (selectedStart) {
+        tg.sendData(JSON.stringify({
+          start_date: selectedStart,
+          end_date: selectedEnd
+        }));
+      }
+    });
+  </script>
 </body>
 </html>
