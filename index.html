@@ -93,7 +93,7 @@
       color: #fff;
     }
 
-    /* Календарь */
+    /* Календарь — чистые стили и выравнивание */
     .flatpickr-calendar {
       background: transparent !important;
       box-shadow: none !important;
@@ -104,25 +104,51 @@
 
     .flatpickr-months {
       background: #141619 !important;
-      border-radius: 6px;
-      margin-bottom: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      padding: 2px 0;
     }
 
     .flatpickr-months .flatpickr-month {
       color: #ffffff !important;
       fill: #ffffff !important;
-      height: 34px !important;
+      height: 36px !important;
     }
 
     .flatpickr-current-month {
       padding-top: 6px !important;
-      font-size: 13px !important;
+      font-size: 14px !important;
+    }
+
+    /* Убираем серый фон с дней недели и выравниваем по ширине */
+    .flatpickr-weekdays {
+      background: transparent !important;
+      padding: 0 4px !important;
+    }
+
+    .flatpickr-weekdaycontainer {
+      max-width: 100% !important;
+      justify-content: space-around;
     }
 
     .flatpickr-weekday {
+      background: transparent !important;
       color: var(--text-muted) !important;
       font-weight: 600 !important;
-      font-size: 11px !important;
+      font-size: 12px !important;
+      text-transform: uppercase;
+    }
+
+    .flatpickr-days {
+      width: 100% !important;
+    }
+
+    .dayContainer {
+      width: 100% !important;
+      min-width: 100% !important;
+      max-width: 100% !important;
+      justify-content: space-around;
     }
 
     .flatpickr-day {
