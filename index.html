@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Заявление на неактив</title>
-  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- Flatpickr (Календарь) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -20,46 +18,47 @@
       --text-main: #e1e4e8;
       --text-muted: #8b949e;
       --accent-color: #3182ce;
-      --accent-hover: #2b6cb0;
+      --accent-alpha: rgba(49, 130, 206, 0.25);
     }
 
     body {
       margin: 0;
-      padding: 20px 16px;
+      padding: 16px;
       background-color: var(--bg-color);
       color: var(--text-main);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       min-height: 100vh;
       box-sizing: border-box;
     }
 
     .container {
       width: 100%;
-      max-width: 380px;
+      max-width: 360px;
       background: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 20px;
+      border-radius: 12px;
+      padding: 18px;
       box-sizing: border-box;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
 
     .header {
       border-bottom: 1px solid var(--border-color);
       padding-bottom: 12px;
-      margin-bottom: 16px;
-      text-align: left;
+      margin-bottom: 14px;
     }
 
     .header h1 {
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 15px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.8px;
       margin: 0 0 4px 0;
-      color: var(--text-main);
+      color: #ffffff;
     }
 
     .header p {
@@ -68,7 +67,33 @@
       margin: 0;
     }
 
-    /* Кастомизация Flatpickr в строгом стиле */
+    /* Быстрые пресеты */
+    .presets {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .preset-btn {
+      flex: 1;
+      background: #141619;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 0;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .preset-btn:active {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      color: #fff;
+    }
+
+    /* Календарь */
     .flatpickr-calendar {
       background: transparent !important;
       box-shadow: none !important;
@@ -77,24 +102,34 @@
       width: 100% !important;
     }
 
-    .flatpickr-months .flatpickr-month {
-      color: var(--text-main) !important;
-      fill: var(--text-main) !important;
+    .flatpickr-months {
+      background: #141619 !important;
+      border-radius: 6px;
+      margin-bottom: 8px;
     }
 
-    .flatpickr-current-month .flatpickr-monthDropdown-months {
-      font-weight: 600;
+    .flatpickr-months .flatpickr-month {
+      color: #ffffff !important;
+      fill: #ffffff !important;
+      height: 34px !important;
+    }
+
+    .flatpickr-current-month {
+      padding-top: 6px !important;
+      font-size: 13px !important;
     }
 
     .flatpickr-weekday {
       color: var(--text-muted) !important;
-      font-weight: 500 !important;
-      font-size: 12px !important;
+      font-weight: 600 !important;
+      font-size: 11px !important;
     }
 
     .flatpickr-day {
       color: var(--text-main) !important;
-      border-radius: 4px !important;
+      border-radius: 6px !important;
+      height: 36px !important;
+      line-height: 36px !important;
     }
 
     .flatpickr-day.selected, 
@@ -103,26 +138,26 @@
       background: var(--accent-color) !important;
       border-color: var(--accent-color) !important;
       color: #ffffff !important;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     .flatpickr-day.inRange {
-      background: rgba(49, 130, 206, 0.2) !important;
-      box-shadow: -5px 0 0 rgba(49, 130, 206, 0.2), 5px 0 0 rgba(49, 130, 206, 0.2) !important;
+      background: var(--accent-alpha) !important;
+      box-shadow: -5px 0 0 var(--accent-alpha), 5px 0 0 var(--accent-alpha) !important;
     }
 
     .flatpickr-day.flatpickr-disabled {
-      color: #363b44 !important;
+      color: #2e343d !important;
     }
 
-    /* Форма сводки о выборе */
+    /* Сводка выбора */
     .summary-box {
-      margin-top: 16px;
-      padding: 12px;
+      margin-top: 14px;
+      padding: 10px 12px;
       background: #141619;
       border: 1px dashed var(--border-color);
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 12px;
       display: none;
     }
 
@@ -141,8 +176,13 @@
     }
 
     .summary-value {
-      color: var(--text-main);
+      color: #ffffff;
       font-weight: 600;
+    }
+
+    .days-count {
+      color: var(--accent-color);
+      font-weight: 700;
     }
   </style>
 </head>
@@ -150,22 +190,29 @@
 
   <div class="container">
     <div class="header">
-      <h1>Форма выбора периода</h1>
-      <p>Укажите даты начала и окончания неактива</p>
+      <h1>Период неактива</h1>
+      <p>Выберите даты в календаре или используйте быстрый выбор</p>
+    </div>
+
+    <!-- Кнопки быстрого выбора -->
+    <div class="presets">
+      <button class="preset-btn" onclick="selectToday()">Сегодня</button>
+      <button class="preset-btn" onclick="selectDays(3)">На 3 дня</button>
+      <button class="preset-btn" onclick="selectDays(7)">На неделю</button>
     </div>
     
-    <!-- Календарь -->
+    <!-- Контейнер календаря -->
     <div id="calendar-container"></div>
 
-    <!-- Информационный блок сводки -->
+    <!-- Сводка с рассчётом дней -->
     <div id="summary" class="summary-box">
       <div class="summary-row">
-        <span class="summary-label">Начало:</span>
-        <span id="start-val" class="summary-value">-</span>
+        <span class="summary-label">Период:</span>
+        <span id="dates-val" class="summary-value">-</span>
       </div>
       <div class="summary-row">
-        <span class="summary-label">Окончание:</span>
-        <span id="end-val" class="summary-value">-</span>
+        <span class="summary-label">Длительность:</span>
+        <span id="days-val" class="summary-value days-count">-</span>
       </div>
     </div>
   </div>
@@ -175,7 +222,6 @@
     tg.ready();
     tg.expand();
 
-    // Настройка кнопки Telegram в строгом стиле
     tg.MainButton.setParams({
       text: "ПОДТВЕРДИТЬ ВЫБОР",
       color: "#3182ce",
@@ -192,37 +238,59 @@
       dateFormat: "d.m.Y",
       minDate: "today",
       onChange: function(selectedDates, dateStr, instance) {
-        const summaryBox = document.getElementById("summary");
-        const startVal = document.getElementById("start-val");
-        const endVal = document.getElementById("end-val");
-
-        if (selectedDates.length === 1) {
-          selectedStart = instance.formatDate(selectedDates[0], "d.m.Y");
-          selectedEnd = selectedStart;
-          
-          startVal.innerText = selectedStart;
-          endVal.innerText = selectedEnd;
-          summaryBox.style.display = "block";
-          
-          tg.MainButton.show();
-        } else if (selectedDates.length === 2) {
-          selectedStart = instance.formatDate(selectedDates[0], "d.m.Y");
-          selectedEnd = instance.formatDate(selectedDates[1], "d.m.Y");
-          
-          startVal.innerText = selectedStart;
-          endVal.innerText = selectedEnd;
-          summaryBox.style.display = "block";
-
-          tg.MainButton.show();
-        } else {
-          summaryBox.style.display = "none";
-          tg.MainButton.hide();
+        if (tg.HapticFeedback) {
+          tg.HapticFeedback.impactOccurred('light');
         }
+        updateSummary(selectedDates, instance);
       }
     });
 
+    function updateSummary(selectedDates, instance) {
+      const summaryBox = document.getElementById("summary");
+      const datesVal = document.getElementById("dates-val");
+      const daysVal = document.getElementById("days-val");
+
+      if (selectedDates.length > 0) {
+        const start = selectedDates[0];
+        const end = selectedDates[1] || start;
+
+        selectedStart = instance.formatDate(start, "d.m.Y");
+        selectedEnd = instance.formatDate(end, "d.m.Y");
+
+        // Расчет количества дней (включая обе даты)
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        datesVal.innerText = selectedStart === selectedEnd ? selectedStart : `с ${selectedStart} по ${selectedEnd}`;
+        daysVal.innerText = `${diffDays} дн.`;
+        
+        summaryBox.style.display = "block";
+        tg.MainButton.show();
+      } else {
+        summaryBox.style.display = "none";
+        tg.MainButton.hide();
+      }
+    }
+
+    // Пресет: Только сегодня
+    function selectToday() {
+      const today = new Date();
+      picker.setDate([today, today], true);
+    }
+
+    // Пресет: На N дней вперёд
+    function selectDays(days) {
+      const start = new Date();
+      const end = new Date();
+      end.setDate(start.getDate() + (days - 1));
+      picker.setDate([start, end], true);
+    }
+
     tg.MainButton.onClick(function() {
       if (selectedStart) {
+        if (tg.HapticFeedback) {
+          tg.HapticFeedback.notificationOccurred('success');
+        }
         tg.sendData(JSON.stringify({
           start_date: selectedStart,
           end_date: selectedEnd
