@@ -93,7 +93,7 @@
       color: #fff;
     }
 
-    /* Календарь — чистые стили и выравнивание */
+    /* Календарь */
     .flatpickr-calendar {
       background: transparent !important;
       box-shadow: none !important;
@@ -121,7 +121,6 @@
       font-size: 14px !important;
     }
 
-    /* Дни недели без серой обертки */
     .flatpickr-weekdays {
       background: transparent !important;
       padding: 0 4px !important;
@@ -256,14 +255,16 @@
     tg.ready();
     tg.expand();
 
+    let selectedStartData = "";
+    let selectedEndData = "";
+
+    // Настройка MainButton при старте
     tg.MainButton.setParams({
       text: "ПОДТВЕРДИТЬ ВЫБОР",
       color: "#3182ce",
-      text_color: "#ffffff"
+      text_color: "#ffffff",
+      is_visible: false
     });
-
-    let selectedStart = "";
-    let selectedEnd = "";
 
     const picker = flatpickr("#calendar-container", {
       inline: true,
@@ -288,31 +289,29 @@
         const start = selectedDates[0];
         const end = selectedDates[1] || start;
 
-        selectedStart = instance.formatDate(start, "d.m.Y");
-        selectedEnd = instance.formatDate(end, "d.m.Y");
+        selectedStartData = instance.formatDate(start, "d.m.Y");
+        selectedEndData = instance.formatDate(end, "d.m.Y");
 
-        // Расчет количества дней (включая обе даты)
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-        datesVal.innerText = selectedStart === selectedEnd ? selectedStart : `с ${selectedStart} по ${selectedEnd}`;
+        datesVal.innerText = selectedStartData === selectedEndData ? selectedStartData : `с ${selectedStartData} по ${selectedEndData}`;
         daysVal.innerText = `${diffDays} дн.`;
         
         summaryBox.style.display = "block";
         tg.MainButton.show();
+        tg.MainButton.enable();
       } else {
         summaryBox.style.display = "none";
         tg.MainButton.hide();
       }
     }
 
-    // Пресет: Только сегодня
     function selectToday() {
       const today = new Date();
       picker.setDate([today, today], true);
     }
 
-    // Пресет: На N дней вперёд
     function selectDays(days) {
       const start = new Date();
       const end = new Date();
@@ -320,16 +319,24 @@
       picker.setDate([start, end], true);
     }
 
-    tg.MainButton.onClick(function() {
-      if (selectedStart) {
-        if (tg.HapticFeedback) {
-          tg.HapticFeedback.notificationOccurred('success');
-        }
-        tg.sendData(JSON.stringify({
-          start_date: selectedStart,
-          end_date: selectedEnd
-        }));
+    // Обработчик нажатия на главную кнопку Telegram
+    tg.onEvent('mainButtonClicked', function() {
+      if (!selectedStartData) return;
+
+      if (tg.HapticFeedback) {
+        tg.HapticFeedback.notificationOccurred('success');
       }
+
+      const payload = JSON.stringify({
+        start_date: selectedStartData,
+        end_date: selectedEndData
+      });
+
+      // Отправка данных боту
+      tg.sendData(payload);
+      
+      // Закрываем WebApp после отправки
+      tg.close();
     });
   </script>
 </body>
