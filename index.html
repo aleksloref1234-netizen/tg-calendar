@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Выбор дат неактива</title>
+
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Flatpickr CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            margin: 0;
+        }
+        #calendar-input {
+            display: none; /* Скрытое поле для привязки flatpickr */
+        }
+        .info-text {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaaaaa;
+            text-align: center;
+        }
+        /* Стилизация под тёмную тему TG */
+        .flatpickr-calendar {
+            background: #242424 !important;
+            box-shadow: none !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+
+    <input type="text" id="calendar-input">
+    <div class="info-text" id="info">Выберите дату начала и окончания неактива</div>
+
+    <script>
+        // Инициализация Telegram WebApp
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+        }
+
+        let selectedStart = null;
+        let selectedEnd = null;
+
+        // Инициализация Flatpickr
+        flatpickr("#calendar-input", {
+            inline: true,             // Отображать календарь сразу
+            mode: "range",            // Режим диапазона
+            locale: "ru",             // Русский язык
+            minDate: "today",         // Запрет прошлых дат
+            dateFormat: "Y-m-d",
+            onChange: function(selectedDates, dateStr, instance) {
+                const infoEl = document.getElementById("info");
+
+                if (selectedDates.length === 2) {
+                    selectedStart = instance.formatDate(selectedDates[0], "Y-m-d");
+                    selectedEnd = instance.formatDate(selectedDates[1], "Y-m-d");
+
+                    const diffTime = Math.abs(selectedDates[1] - selectedDates[0]);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+                    infoEl.innerHTML = `Выбрано дней: <b>${diffDays}</b><br>С <b>${selectedStart}</b> по <b>${selectedEnd}</b>`;
+
+                    if (tg && tg.MainButton) {
+                        tg.MainButton.text = `ПОДТВЕРДИТЬ (${diffDays} дн.)`;
+                        tg.MainButton.textColor = "#FFFFFF";
+                        tg.MainButton.color = "#2ea64d";
+                        tg.MainButton.show();
+                    }
+                } else {
+                    if (tg && tg.MainButton) tg.MainButton.hide();
+                    infoEl.innerText = "Выберите дату окончания неактива";
+                }
+            }
+        });
+
+        // Отправка данных при клике на главную кнопку Telegram
+        if (tg && tg.MainButton) {
+            tg.MainButton.onClick(() => {
+                if (selectedStart && selectedEnd) {
+                    const payload = {
+                        start_date: selectedStart,
+                        end_date: selectedEnd
+                    };
+                    tg.sendData(JSON.stringify(payload));
+                    tg.close();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
