@@ -269,12 +269,16 @@
       is_visible: false
     });
 
+    // Вычисляем минимальную дату: текущий день минус 2 дня
+    const minAllowedDate = new Date();
+    minAllowedDate.setDate(minAllowedDate.getDate() - 2);
+
     const picker = flatpickr("#calendar-container", {
       inline: true,
       mode: "range",
       locale: "ru",
       dateFormat: "d.m.Y",
-      minDate: "today",
+      minDate: minAllowedDate, // Установлено разрешением на 2 дня назад
       onChange: function(selectedDates, dateStr, instance) {
         if (tg.HapticFeedback) {
           tg.HapticFeedback.impactOccurred('light');
@@ -334,7 +338,6 @@
 
       const queryId = tg.initDataUnsafe?.query_id;
 
-      // Если откроемся из Inline-кнопки (есть query_id)
       if (queryId) {
         try {
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerWebAppQuery`, {
@@ -361,7 +364,6 @@
           tg.close();
         }
       } else {
-        // Резервный метод sendData (на случай открытия из Reply-кнопки)
         const payload = JSON.stringify({
           start_date: selectedStartData,
           end_date: selectedEndData
