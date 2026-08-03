@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-color: var(--tg-theme-bg-color, #18222d);
+      --text-color: var(--tg-theme-text-color, #ffffff);
+      --hint-color: var(--tg-theme-hint-color, #7f8c8d);
+      --card-bg: var(--tg-theme-secondary-bg-color, #212d3b);
+      --accent-color: var(--tg-theme-button-color, #2481cc);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    .profile-card {
+      display: flex;
+      align-items: center;
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 20px;
+      margin-right: 14px;
+    }
+
+    .user-info .name {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .user-info .role {
+      font-size: 13px;
+      color: var(--hint-color);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-card .value {
+      font-size: 22px;
+      font-weight: bold;
+      color: var(--accent-color);
+    }
+
+    .stat-card .label {
+      font-size: 12px;
+      color: var(--hint-color);
+      margin-top: 4px;
+    }
+
+    .chart-container {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .progress-section {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .progress-bar-bg {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      height: 10px;
+      width: 100%;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-bar-fill {
+      background: var(--accent-color);
+      height: 100%;
+      width: 70%; /* Динамически подгружать процент */
+      border-radius: 8px;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Профиль -->
+  <div class="profile-card">
+    <div class="avatar" id="avatar-placeholder">A</div>
+    <div class="user-info">
+      <div class="name" id="user-name">Загрузка...</div>
+      <div class="role" id="user-role">Администратор</div>
+    </div>
+  </div>
+
+  <!-- Карточки метрик -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="value" id="stat-reports">0</div>
+      <div class="label">Репортов за неделю</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-norm">100%</div>
+      <div class="label">Выполнение нормы</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-active-days">0</div>
+      <div class="label">Дней без неактива</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-warns">0/3</div>
+      <div class="label">Выговоры</div>
+    </div>
+  </div>
+
+  <!-- График активности -->
+  <div class="chart-container">
+    <div class="chart-title">📊 Активность (Репорты / Дни)</div>
+    <canvas id="activityChart"></canvas>
+  </div>
+
+  <!-- Прогресс -->
+  <div class="progress-section">
+    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+      <span>Прогресс до следующего уровня</span>
+      <span id="progress-text">70%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    // Инициализация данных пользователя из Telegram
+    const user = tg.initDataUnsafe?.user;
+    if (user) {
+      document.getElementById('user-name').innerText = user.first_name + (user.last_name ? ' ' + user.last_name : '');
+      document.getElementById('avatar-placeholder').innerText = user.first_name.charAt(0).toUpperCase();
+    }
+
+    // Инициализация графика Chart.js
+    const ctx = document.getElementById('activityChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+        datasets: [{
+          label: 'Репорты',
+          data: [25, 40, 30, 55, 60, 90, 75], // Сюда передаются данные с сервера/бота
+          borderColor: '#2481cc',
+          backgroundColor: 'rgba(36, 129, 204, 0.2)',
+          fill: true,
+          tension: 0.4,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#7f8c8d' } },
+          y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#7f8c8d' } }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
