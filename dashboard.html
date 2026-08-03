@@ -107,9 +107,9 @@
 
         .blocked-badge {
             display: inline-block;
-            background: rgba(239, 68, 68, 0.15);
-            color: var(--danger);
-            border: 1px solid var(--danger);
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border: 1px solid var(--warning);
             padding: 4px 8px;
             border-radius: 6px;
             font-size: 12px;
@@ -247,9 +247,17 @@
 
                 const d = result.data;
 
-                // Заполняем данные на странице
+                // Заполняем ник
                 document.getElementById('nickname').innerText = d.nickname || "Без ника";
-                document.getElementById('role').innerText = d.role || "Без должности";
+                
+                // Выводим категорию (Младший модератор и т.д.) крупно, а под ней — должность (Следящий)
+                const categoryName = d.group_header || "Администратор";
+                const roleName = d.role || "Без должности";
+                const roleElement = document.getElementById('role');
+                if (roleElement) {
+                    roleElement.innerHTML = `<span style="font-size: 15px; font-weight: 600; color: #e2e8f0;">${categoryName}</span><br><span style="font-size: 13px; color: #94a3b8;">${roleName}</span>`;
+                }
+
                 document.getElementById('reports-week').innerText = d.reports_week ?? 0;
                 document.getElementById('days-on-role').innerText = d.days_on_role ?? 0;
                 document.getElementById('reports-left').innerText = d.reports_left ?? 0;
@@ -259,16 +267,26 @@
                 document.getElementById('punishments').innerText = `${d.reprimands ?? 0} / ${d.warnings ?? 0}`;
                 document.getElementById('meeting-percent').innerText = d.meeting_percent ?? "0%";
 
-                // Рендерим прогресс повышения
+                // Рендерим прогресс повышения и предупреждения
                 if (d.promotion) {
                     const prog = d.promotion.progress || 0;
                     document.getElementById('promo-percent').innerText = prog + "%";
-                    document.getElementById('promo-fill').style.width = prog + "%";
+                    
+                    const fillElement = document.getElementById('promo-fill');
+                    fillElement.style.width = prog + "%";
 
-                    if (d.promotion.is_blocked) {
+                    // Если есть предупреждения (посещаемость < 70% или выговоры)
+                    if (d.promotion.block_reason) {
                         const blockBadge = document.getElementById('promo-blocked');
-                        blockBadge.style.display = "inline-block";
-                        blockBadge.innerText = "⚠️ " + d.promotion.block_reason;
+                        if (blockBadge) {
+                            blockBadge.style.display = "inline-block";
+                            blockBadge.innerText = d.promotion.block_reason;
+                        }
+
+                        // Если проблема именно с посещаемостью — красим шкалу в предупреждающий жёлтый цвет (#f59e0b)
+                        if (d.promotion.block_reason.includes("Посещаемость")) {
+                            fillElement.style.background = "linear-gradient(90deg, #d97706, #f59e0b)";
+                        }
                     }
                 }
 
