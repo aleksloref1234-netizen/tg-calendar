@@ -112,9 +112,18 @@
 
         #loading {
             text-align: center;
-            padding: 40px;
-            font-size: 16px;
+            padding: 30px 15px;
+            font-size: 15px;
             color: var(--text-sub);
+            line-height: 1.5;
+            word-break: break-word;
+        }
+        
+        .error-title {
+            color: var(--danger);
+            font-weight: bold;
+            font-size: 17px;
+            margin-bottom: 8px;
         }
     </style>
 </head>
@@ -190,41 +199,59 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Раскрываем окно на весь экран
+        tg.expand();
 
-        // Укажи URL твоего опубликованного приложения на Render:
-        const BACKEND_URL = "https://твой-домен.onrender.com"; 
+        // 🟢 Ссылка на твой Render вставлена:
+        const RAW_BACKEND_URL = "https://tg-admin-bot-6cig.onrender.com"; 
+        const BACKEND_URL = RAW_BACKEND_URL.replace(/\/+$/, "");
 
         async function loadDashboard() {
+            const loadingEl = document.getElementById('loading');
             try {
-                // Забираем user_id из инициализационных данных Telegram
-                const userId = tg.initDataUnsafe?.user?.id || "5388579854"; // Фоллбэк для тестов в браузере
+                // Определяем Telegram ID пользователя
+                const userId = tg.initDataUnsafe?.user?.id || "5388579854";
+                const targetUrl = `${BACKEND_URL}/api/dashboard/${userId}`;
 
-                const response = await fetch(`${BACKEND_URL}/api/dashboard/${userId}`);
+                console.log("Запрос к API:", targetUrl);
+
+                const response = await fetch(targetUrl);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    let errorMsg = `HTTP Error ${response.status}`;
+                    try {
+                        const errJson = JSON.parse(errorText);
+                        if (errJson.message) errorMsg += `: ${errJson.message}`;
+                    } catch(e) {}
+                    
+                    showError("Ошибка ответа сервера", errorMsg);
+                    return;
+                }
+
                 const result = await response.json();
 
                 if (result.status !== "success") {
-                    document.getElementById('loading').innerText = "Ошибка: " + (result.message || "Данные не найдены");
+                    showError("Ошибка данных", result.message || "Пользователь не найден");
                     return;
                 }
 
                 const d = result.data;
 
-                // Заполняем текстовые элементы
-                document.getElementById('nickname').innerText = d.nickname;
-                document.getElementById('role').innerText = d.role;
-                document.getElementById('reports-week').innerText = d.reports_week;
-                document.getElementById('days-on-role').innerText = d.days_on_role;
-                document.getElementById('reports-left').innerText = d.reports_left;
-                document.getElementById('days-left').innerText = d.days_left;
-                document.getElementById('days-without-norm').innerText = d.days_without_norm;
-                document.getElementById('activity-coef').innerText = d.activity_coef + "%";
-                document.getElementById('punishments').innerText = `${d.reprimands} / ${d.warnings}`;
-                document.getElementById('meeting-percent').innerText = d.meeting_percent;
+                // Заполняем данные на странице
+                document.getElementById('nickname').innerText = d.nickname || "Без ника";
+                document.getElementById('role').innerText = d.role || "Без должности";
+                document.getElementById('reports-week').innerText = d.reports_week ?? 0;
+                document.getElementById('days-on-role').innerText = d.days_on_role ?? 0;
+                document.getElementById('reports-left').innerText = d.reports_left ?? 0;
+                document.getElementById('days-left').innerText = d.days_left ?? 0;
+                document.getElementById('days-without-norm').innerText = d.days_without_norm ?? 0;
+                document.getElementById('activity-coef').innerText = (d.activity_coef ?? 0) + "%";
+                document.getElementById('punishments').innerText = `${d.reprimands ?? 0} / ${d.warnings ?? 0}`;
+                document.getElementById('meeting-percent').innerText = d.meeting_percent ?? "0%";
 
-                // Прогресс повышения
+                // Рендерим прогресс повышения
                 if (d.promotion) {
-                    const prog = d.promotion.progress;
+                    const prog = d.promotion.progress || 0;
                     document.getElementById('promo-percent').innerText = prog + "%";
                     document.getElementById('promo-fill').style.width = prog + "%";
 
@@ -235,17 +262,25 @@
                     }
                 }
 
-                // Рендерим график репортов
-                renderChart(d.reports_daily);
+                // Рендерим график
+                renderChart(d.reports_daily || [0,0,0,0,0,0,0]);
 
-                // Показываем контент
-                document.getElementById('loading').style.display = 'none';
+                // Переключаем блоки
+                loadingEl.style.display = 'none';
                 document.getElementById('content').style.display = 'block';
 
             } catch (err) {
-                console.error(err);
-                document.getElementById('loading').innerText = "Ошибка загрузки данных.";
+                console.error("Dashboard Fetch Error:", err);
+                showError("Ошибка подключения", `${err.message}. Проверь доступность сервиса.`);
             }
+        }
+
+        function showError(title, detail) {
+            const loadingEl = document.getElementById('loading');
+            loadingEl.innerHTML = `
+                <div class="error-title">❌ ${title}</div>
+                <div>${detail}</div>
+            `;
         }
 
         function renderChart(dailyData) {
