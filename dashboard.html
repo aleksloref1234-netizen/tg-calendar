@@ -83,6 +83,12 @@
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
+        .chart-wrapper {
+            position: relative;
+            height: 160px;
+            width: 100%;
+        }
+
         .progress-bar-bg {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 8px;
@@ -153,7 +159,9 @@
         <!-- График активности репортов ПН-ВС -->
         <div class="chart-container">
             <div class="card-label">Репорты за неделю (ПН - ВС)</div>
-            <canvas id="reportsChart" height="150"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="reportsChart"></canvas>
+            </div>
         </div>
 
         <!-- Основная статистика -->
@@ -201,9 +209,11 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // 🟢 Ссылка на твой Render вставлена:
+        // 🟢 Ссылка на твой Render
         const RAW_BACKEND_URL = "https://tg-admin-bot-1k1g.onrender.com"; 
         const BACKEND_URL = RAW_BACKEND_URL.replace(/\/+$/, "");
+
+        let myChartInstance = null;
 
         async function loadDashboard() {
             const loadingEl = document.getElementById('loading');
@@ -262,7 +272,7 @@
                     }
                 }
 
-                // Рендерим график
+                // Рендерим новый красивый график
                 renderChart(d.reports_daily || [0,0,0,0,0,0,0]);
 
                 // Переключаем блоки
@@ -285,22 +295,57 @@
 
         function renderChart(dailyData) {
             const ctx = document.getElementById('reportsChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
+            
+            if (myChartInstance) {
+                myChartInstance.destroy();
+            }
+
+            myChartInstance = new Chart(ctx, {
+                type: 'line',
                 data: {
                     labels: ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'],
                     datasets: [{
+                        label: 'Репорты',
                         data: dailyData,
-                        backgroundColor: '#38bdf8',
-                        borderRadius: 6
+                        borderColor: '#38bdf8',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: function(context) {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) return null;
+                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            gradient.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
+                            gradient.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+                            return gradient;
+                        },
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#38bdf8',
+                        pointBorderColor: '#1e293b',
+                        pointBorderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
-                    plugins: { legend: { display: false } },
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#38bdf8',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            displayColors: false,
+                            callbacks: {
+                                label: (context) => `Репорты: ${context.parsed.y}`
+                            }
+                        }
+                    },
                     scales: {
                         y: {
-                            beginAtZero: true,
                             grid: { color: 'rgba(255, 255, 255, 0.05)' },
                             ticks: { color: '#94a3b8' }
                         },
