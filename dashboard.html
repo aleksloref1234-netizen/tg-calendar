@@ -1,211 +1,284 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    :root {
-      --bg-color: var(--tg-theme-bg-color, #18222d);
-      --text-color: var(--tg-theme-text-color, #ffffff);
-      --hint-color: var(--tg-theme-hint-color, #7f8c8d);
-      --card-bg: var(--tg-theme-secondary-bg-color, #212d3b);
-      --accent-color: var(--tg-theme-button-color, #2481cc);
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дашборд Администратора</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Chart.js для графика -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+        }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      margin: 0;
-      padding: 16px;
-      box-sizing: border-box;
-    }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 16px;
+            box-sizing: border-box;
+        }
 
-    .profile-card {
-      display: flex;
-      align-items: center;
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 16px;
-    }
+        .header {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
 
-    .avatar {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: var(--accent-color);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 20px;
-      margin-right: 14px;
-    }
+        .user-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 4px 0;
+            color: var(--accent-color);
+        }
 
-    .user-info .name {
-      font-size: 18px;
-      font-weight: bold;
-    }
+        .user-role {
+            font-size: 14px;
+            color: var(--text-sub);
+            margin: 0;
+        }
 
-    .user-info .role {
-      font-size: 13px;
-      color: var(--hint-color);
-    }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
 
-    .stat-card {
-      background: var(--card-bg);
-      border-radius: 10px;
-      padding: 12px;
-      text-align: center;
-    }
+        .card-label {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-bottom: 6px;
+        }
 
-    .stat-card .value {
-      font-size: 22px;
-      font-weight: bold;
-      color: var(--accent-color);
-    }
+        .card-value {
+            font-size: 18px;
+            font-weight: 600;
+        }
 
-    .stat-card .label {
-      font-size: 12px;
-      color: var(--hint-color);
-      margin-top: 4px;
-    }
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
 
-    .chart-container {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 16px;
-    }
+        .progress-bar-bg {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            height: 12px;
+            width: 100%;
+            overflow: hidden;
+            margin-top: 8px;
+        }
 
-    .chart-title {
-      font-size: 14px;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
+        .progress-bar-fill {
+            background: linear-gradient(90deg, #3b82f6, #38bdf8);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease-in-out;
+        }
 
-    .progress-section {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 14px;
-    }
+        .blocked-badge {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-top: 8px;
+        }
 
-    .progress-bar-bg {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      height: 10px;
-      width: 100%;
-      overflow: hidden;
-      margin-top: 8px;
-    }
-
-    .progress-bar-fill {
-      background: var(--accent-color);
-      height: 100%;
-      width: 70%; /* Динамически подгружать процент */
-      border-radius: 8px;
-      transition: width 0.3s ease;
-    }
-  </style>
+        #loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 16px;
+            color: var(--text-sub);
+        }
+    </style>
 </head>
 <body>
 
-  <!-- Профиль -->
-  <div class="profile-card">
-    <div class="avatar" id="avatar-placeholder">A</div>
-    <div class="user-info">
-      <div class="name" id="user-name">Загрузка...</div>
-      <div class="role" id="user-role">Администратор</div>
-    </div>
-  </div>
+    <div id="loading">Загрузка данных...</div>
 
-  <!-- Карточки метрик -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="value" id="stat-reports">0</div>
-      <div class="label">Репортов за неделю</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" id="stat-norm">100%</div>
-      <div class="label">Выполнение нормы</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" id="stat-active-days">0</div>
-      <div class="label">Дней без неактива</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" id="stat-warns">0/3</div>
-      <div class="label">Выговоры</div>
-    </div>
-  </div>
+    <div id="content" style="display: none;">
+        <!-- Хедер админа -->
+        <div class="header">
+            <h1 class="user-title" id="nickname">-</h1>
+            <p class="user-role" id="role">-</p>
+        </div>
 
-  <!-- График активности -->
-  <div class="chart-container">
-    <div class="chart-title">📊 Активность (Репорты / Дни)</div>
-    <canvas id="activityChart"></canvas>
-  </div>
+        <!-- Прогресс повышения -->
+        <div class="card" style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="card-label">Прогресс повышения</span>
+                <span id="promo-percent" style="font-weight: bold; color: var(--accent-color);">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="promo-fill"></div>
+            </div>
+            <div id="promo-blocked" style="display: none;" class="blocked-badge"></div>
+        </div>
 
-  <!-- Прогресс -->
-  <div class="progress-section">
-    <div style="display: flex; justify-content: space-between; font-size: 13px;">
-      <span>Прогресс до следующего уровня</span>
-      <span id="progress-text">70%</span>
+        <!-- График активности репортов ПН-ВС -->
+        <div class="chart-container">
+            <div class="card-label">Репорты за неделю (ПН - ВС)</div>
+            <canvas id="reportsChart" height="150"></canvas>
+        </div>
+
+        <!-- Основная статистика -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-label">Репортов за неделю</div>
+                <div class="card-value" id="reports-week">0</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Дней на должности</div>
+                <div class="card-value" id="days-on-role">0</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Осталось репортов</div>
+                <div class="card-value" id="reports-left">0</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Осталось дней</div>
+                <div class="card-value" id="days-left">0</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Дни без нормы</div>
+                <div class="card-value" style="color: var(--warning);" id="days-without-norm">0</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Выполнение нормы</div>
+                <div class="card-value" style="color: var(--success);" id="activity-coef">0%</div>
+            </div>
+        </div>
+
+        <!-- Взыскания и Собрания -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-label">Выговоры / Предупреждения</div>
+                <div class="card-value" style="color: var(--danger);" id="punishments">0 / 0</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Посещаемость собраний</div>
+                <div class="card-value" id="meeting-percent">0%</div>
+            </div>
+        </div>
     </div>
-    <div class="progress-bar-bg">
-      <div class="progress-bar-fill" id="progress-fill"></div>
-    </div>
-  </div>
 
-  <script>
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Раскрываем окно на весь экран
 
-    // Инициализация данных пользователя из Telegram
-    const user = tg.initDataUnsafe?.user;
-    if (user) {
-      document.getElementById('user-name').innerText = user.first_name + (user.last_name ? ' ' + user.last_name : '');
-      document.getElementById('avatar-placeholder').innerText = user.first_name.charAt(0).toUpperCase();
-    }
+        // Укажи URL твоего опубликованного приложения на Render:
+        const BACKEND_URL = "https://твой-домен.onrender.com"; 
 
-    // Инициализация графика Chart.js
-    const ctx = document.getElementById('activityChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
-        datasets: [{
-          label: 'Репорты',
-          data: [25, 40, 30, 55, 60, 90, 75], // Сюда передаются данные с сервера/бота
-          borderColor: '#2481cc',
-          backgroundColor: 'rgba(36, 129, 204, 0.2)',
-          fill: true,
-          tension: 0.4,
-          borderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { color: '#7f8c8d' } },
-          y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#7f8c8d' } }
+        async function loadDashboard() {
+            try {
+                // Забираем user_id из инициализационных данных Telegram
+                const userId = tg.initDataUnsafe?.user?.id || "5388579854"; // Фоллбэк для тестов в браузере
+
+                const response = await fetch(`${BACKEND_URL}/api/dashboard/${userId}`);
+                const result = await response.json();
+
+                if (result.status !== "success") {
+                    document.getElementById('loading').innerText = "Ошибка: " + (result.message || "Данные не найдены");
+                    return;
+                }
+
+                const d = result.data;
+
+                // Заполняем текстовые элементы
+                document.getElementById('nickname').innerText = d.nickname;
+                document.getElementById('role').innerText = d.role;
+                document.getElementById('reports-week').innerText = d.reports_week;
+                document.getElementById('days-on-role').innerText = d.days_on_role;
+                document.getElementById('reports-left').innerText = d.reports_left;
+                document.getElementById('days-left').innerText = d.days_left;
+                document.getElementById('days-without-norm').innerText = d.days_without_norm;
+                document.getElementById('activity-coef').innerText = d.activity_coef + "%";
+                document.getElementById('punishments').innerText = `${d.reprimands} / ${d.warnings}`;
+                document.getElementById('meeting-percent').innerText = d.meeting_percent;
+
+                // Прогресс повышения
+                if (d.promotion) {
+                    const prog = d.promotion.progress;
+                    document.getElementById('promo-percent').innerText = prog + "%";
+                    document.getElementById('promo-fill').style.width = prog + "%";
+
+                    if (d.promotion.is_blocked) {
+                        const blockBadge = document.getElementById('promo-blocked');
+                        blockBadge.style.display = "inline-block";
+                        blockBadge.innerText = "⚠️ " + d.promotion.block_reason;
+                    }
+                }
+
+                // Рендерим график репортов
+                renderChart(d.reports_daily);
+
+                // Показываем контент
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loading').innerText = "Ошибка загрузки данных.";
+            }
         }
-      }
-    });
-  </script>
+
+        function renderChart(dailyData) {
+            const ctx = document.getElementById('reportsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'],
+                    datasets: [{
+                        data: dailyData,
+                        backgroundColor: '#38bdf8',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        }
+
+        loadDashboard();
+    </script>
 </body>
 </html>
