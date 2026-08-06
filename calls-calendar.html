@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Дата и время обзвона</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #101318; color: #f2f5f8; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { max-width: 440px; margin: 0 auto; padding: 24px 18px 34px; }
+    .card { background: #1a2029; border: 1px solid #2b3543; border-radius: 16px; padding: 20px; box-shadow: 0 12px 36px #0008; }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    p { margin: 0 0 20px; color: #aeb9c7; font-size: 14px; line-height: 1.45; }
+    label { display: block; margin: 0 0 8px; color: #d7dfe9; font-size: 13px; font-weight: 650; }
+    input { width: 100%; padding: 14px; border: 1px solid #3a485b; border-radius: 10px; background: #11161d; color: #fff; font: inherit; color-scheme: dark; }
+    .value { margin-top: 16px; padding: 12px; border-radius: 10px; background: #11161d; color: #66c9ff; font-weight: 650; text-align: center; }
+    .hint { margin-top: 14px; color: #8995a5; font-size: 12px; text-align: center; }
+  </style>
+</head>
+<body>
+  <main><section class="card">
+    <h1>Дата и время обзвона</h1>
+    <p>Выберите планируемую дату и время. После подтверждения бот подставит значение автоматически.</p>
+    <label for="callDateTime">Дата и время</label>
+    <input id="callDateTime" type="datetime-local" required>
+    <div class="value" id="preview">Выберите дату и время</div>
+    <div class="hint">Часовой пояс — время на вашем устройстве</div>
+  </section></main>
+  <script>
+    const tg = window.Telegram.WebApp;
+    const input = document.getElementById('callDateTime');
+    const preview = document.getElementById('preview');
+    tg.ready(); tg.expand();
+    const pad = number => String(number).padStart(2, '0');
+    const toInputValue = date => `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    const toBotValue = value => {
+      const [date, time] = value.split('T');
+      if (!date || !time) return '';
+      const [year, month, day] = date.split('-');
+      return `${day}.${month}.${year} ${time}`;
+    };
+    const now = new Date(); now.setMinutes(Math.ceil(now.getMinutes() / 5) * 5, 0, 0);
+    input.min = toInputValue(now);
+    input.value = toInputValue(new Date(now.getTime() + 60 * 60 * 1000));
+    function refresh() {
+      const value = toBotValue(input.value);
+      preview.textContent = value || 'Выберите дату и время';
+      if (value) { tg.MainButton.show(); tg.MainButton.enable(); }
+      else tg.MainButton.hide();
+    }
+    input.addEventListener('input', refresh);
+    tg.MainButton.setParams({ text: 'ПОДТВЕРДИТЬ ВЫБОР', color: '#3182ce', text_color: '#ffffff' });
+    tg.onEvent('mainButtonClicked', () => {
+      const value = toBotValue(input.value);
+      if (!value) return;
+      tg.sendData(JSON.stringify({ call_datetime: value }));
+      tg.close();
+    });
+    refresh();
+  </script>
+</body>
+</html>
