@@ -228,13 +228,37 @@
         async function loadDashboard() {
             const loadingEl = document.getElementById('loading');
             try {
-                // Определяем Telegram ID пользователя
-                const userId = tg.initDataUnsafe?.user?.id || "5388579854";
-                const targetUrl = `${BACKEND_URL}/api/dashboard/${userId}`;
+                const params = new URLSearchParams(window.location.search);
+                const selectedAdminId = params.get('admin_id');
+                const isAdminView = /^\d+$/.test(selectedAdminId || '');
+                let targetUrl;
+                let fetchOptions = {};
+
+                if (isAdminView) {
+                    if (!tg.initData) {
+                        showError("Доступ запрещён", "Общую статистику можно открыть только из Telegram.");
+                        return;
+                    }
+                    targetUrl = `${BACKEND_URL}/api/admin/dashboard/${selectedAdminId}`;
+                    fetchOptions = {
+                        method: 'POST',
+                        headers: { 'X-Telegram-Init-Data': tg.initData }
+                    };
+                } else {
+                    const userId = tg.initDataUnsafe?.user?.id;
+                    if (!userId || !tg.initData) {
+                        showError("Доступ запрещён", "Личную статистику можно открыть только из Telegram.");
+                        return;
+                    }
+                    targetUrl = `${BACKEND_URL}/api/dashboard/${userId}`;
+                    fetchOptions = {
+                        headers: { 'X-Telegram-Init-Data': tg.initData }
+                    };
+                }
 
                 console.log("Запрос к API:", targetUrl);
 
-                const response = await fetch(targetUrl);
+                const response = await fetch(targetUrl, fetchOptions);
 
                 if (!response.ok) {
                     const errorText = await response.text();
