@@ -164,6 +164,16 @@
             </div>
         </div>
 
+        <!-- Результаты аттестаций -->
+        <div class="card" style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <span class="card-label" style="margin-bottom: 0;">Результат тестирований</span>
+                <span id="tests-average" style="font-weight: bold; color: var(--success);">—</span>
+            </div>
+            <div id="tests-latest" class="card-value" style="margin-top: 10px; font-size: 16px;">Нет результатов</div>
+            <div id="tests-levels" class="card-label" style="margin-top: 8px; margin-bottom: 0; line-height: 1.45;"></div>
+        </div>
+
         <!-- Основная статистика -->
         <div class="grid-2">
             <div class="card">
@@ -266,6 +276,7 @@
                 document.getElementById('activity-coef').innerText = (d.activity_coef ?? 0) + "%";
                 document.getElementById('punishments').innerText = `${d.reprimands ?? 0} / ${d.warnings ?? 0}`;
                 document.getElementById('meeting-percent').innerText = d.meeting_percent ?? "0%";
+                renderTestResults(d.test_results);
 
                 // Рендерим прогресс повышения и предупреждения
                 if (d.promotion) {
@@ -309,6 +320,34 @@
                 <div class="error-title">❌ ${title}</div>
                 <div>${detail}</div>
             `;
+        }
+
+        function formatTestPercent(value) {
+            if (value === null || value === undefined) return "—";
+            const numberValue = Number(value);
+            return `${Number.isInteger(numberValue) ? numberValue : numberValue.toFixed(1)}%`;
+        }
+
+        function renderTestResults(testResults) {
+            const averageElement = document.getElementById('tests-average');
+            const latestElement = document.getElementById('tests-latest');
+            const levelsElement = document.getElementById('tests-levels');
+            const levels = testResults?.levels || [];
+
+            if (!testResults?.has_results) {
+                averageElement.innerText = "Нет данных";
+                averageElement.style.color = "var(--text-sub)";
+                latestElement.innerText = "Результаты тестов не найдены";
+                levelsElement.innerText = "Совпадение выполняется по NickName.";
+                return;
+            }
+
+            averageElement.innerText = `Средний: ${formatTestPercent(testResults.average_percent)}`;
+            averageElement.style.color = "var(--success)";
+            latestElement.innerText = `Последний тест: ${formatTestPercent(testResults.latest_percent)} · ${testResults.latest_level || "Уровень не указан"}`;
+            levelsElement.innerText = levels
+                .map(item => `${item.level}: ${formatTestPercent(item.percent)}`)
+                .join("  •  ");
         }
 
         function renderChart(dailyData) {
