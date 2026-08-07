@@ -176,11 +176,11 @@
 
         <div class="card" style="margin-bottom: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                <span class="card-label" style="margin-bottom: 0;">Похожие одобренные жалобы</span>
+                <span class="card-label" style="margin-bottom: 0;">История обращений</span>
                 <span id="complaints-percent" style="font-weight: bold; color: var(--text-sub);">Нет данных</span>
             </div>
-            <div id="complaints-summary" class="card-value" style="margin-top: 10px; font-size: 16px;">Жалоб через бота пока нет</div>
-            <div id="complaints-caption" class="card-label" style="margin-top: 8px; margin-bottom: 0; line-height: 1.45;">Учитываются только жалобы, оформленные через бота.</div>
+            <div id="complaints-summary" class="card-value" style="margin-top: 10px; font-size: 16px;">Обращений через бота пока нет</div>
+            <div id="complaints-caption" class="card-label" style="margin-top: 8px; margin-bottom: 0; line-height: 1.45;">Здесь будет отображаться история учтённых обращений.</div>
         </div>
 
         <!-- Основная статистика -->
@@ -391,27 +391,15 @@
             if (!complaintRepeat?.has_data) {
                 percentElement.innerText = "Нет данных";
                 percentElement.style.color = "var(--text-sub)";
-                summaryElement.innerText = "Жалоб через бота пока нет";
-                captionElement.innerText = "Показатель появится после первой жалобы на администратора.";
+                summaryElement.innerText = "Обращений через бота пока нет";
+                captionElement.innerText = "Показатель появится после первого учтённого обращения.";
                 return;
             }
 
-            const zoneLabels = {
-                red: "Красная зона",
-                yellow: "Жёлтая зона",
-                green: "Зелёная зона",
-                insufficient: "Мало данных"
-            };
-            const zoneColors = {
-                red: "var(--danger)",
-                yellow: "var(--warning)",
-                green: "var(--success)",
-                insufficient: "var(--text-sub)"
-            };
-            percentElement.innerText = `${complaintRepeat.percent}%`;
-            percentElement.style.color = zoneColors[complaintRepeat.zone] || "var(--accent-color)";
-            summaryElement.innerText = `Похожих случаев: ${complaintRepeat.similar_complaints} из ${complaintRepeat.total_complaints}`;
-            captionElement.innerText = `${zoneLabels[complaintRepeat.zone] || "Нет данных"}. Решение о похожести подтверждает куратор.`;
+            percentElement.innerText = `${complaintRepeat.percent}% повторяемости`;
+            percentElement.style.color = "var(--accent-color)";
+            summaryElement.innerText = `${complaintRepeat.similar_complaints} из ${complaintRepeat.total_complaints} обращений связаны с повторяющимися ситуациями`;
+            captionElement.innerText = "Это доля учтённых обращений, в которых затрагивалась ситуация, уже встречавшаяся ранее.";
         }
 
         function renderChart(dailyData) {
