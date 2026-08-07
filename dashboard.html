@@ -174,6 +174,15 @@
             <div id="tests-levels" class="card-label" style="margin-top: 8px; margin-bottom: 0; line-height: 1.45;"></div>
         </div>
 
+        <div class="card" style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <span class="card-label" style="margin-bottom: 0;">Похожие одобренные жалобы</span>
+                <span id="complaints-percent" style="font-weight: bold; color: var(--text-sub);">Нет данных</span>
+            </div>
+            <div id="complaints-summary" class="card-value" style="margin-top: 10px; font-size: 16px;">Жалоб через бота пока нет</div>
+            <div id="complaints-caption" class="card-label" style="margin-top: 8px; margin-bottom: 0; line-height: 1.45;">Учитываются только жалобы, оформленные через бота.</div>
+        </div>
+
         <!-- Основная статистика -->
         <div class="grid-2">
             <div class="card">
@@ -301,6 +310,7 @@
                 document.getElementById('punishments').innerText = `${d.reprimands ?? 0} / ${d.warnings ?? 0}`;
                 document.getElementById('meeting-percent').innerText = d.meeting_percent ?? "0%";
                 renderTestResults(d.test_results);
+                renderComplaintRepeat(d.complaint_repeat);
 
                 // Рендерим прогресс повышения и предупреждения
                 if (d.promotion) {
@@ -372,6 +382,36 @@
             levelsElement.innerText = levels
                 .map(item => `${item.level}: ${formatTestPercent(item.percent)}`)
                 .join("  •  ");
+        }
+
+        function renderComplaintRepeat(complaintRepeat) {
+            const percentElement = document.getElementById('complaints-percent');
+            const summaryElement = document.getElementById('complaints-summary');
+            const captionElement = document.getElementById('complaints-caption');
+            if (!complaintRepeat?.has_data) {
+                percentElement.innerText = "Нет данных";
+                percentElement.style.color = "var(--text-sub)";
+                summaryElement.innerText = "Жалоб через бота пока нет";
+                captionElement.innerText = "Показатель появится после первой жалобы на администратора.";
+                return;
+            }
+
+            const zoneLabels = {
+                red: "Красная зона",
+                yellow: "Жёлтая зона",
+                green: "Зелёная зона",
+                insufficient: "Мало данных"
+            };
+            const zoneColors = {
+                red: "var(--danger)",
+                yellow: "var(--warning)",
+                green: "var(--success)",
+                insufficient: "var(--text-sub)"
+            };
+            percentElement.innerText = `${complaintRepeat.percent}%`;
+            percentElement.style.color = zoneColors[complaintRepeat.zone] || "var(--accent-color)";
+            summaryElement.innerText = `Похожих случаев: ${complaintRepeat.similar_complaints} из ${complaintRepeat.total_complaints}`;
+            captionElement.innerText = `${zoneLabels[complaintRepeat.zone] || "Нет данных"}. Решение о похожести подтверждает куратор.`;
         }
 
         function renderChart(dailyData) {
