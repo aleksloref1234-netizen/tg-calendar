@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Статистика по жалобам</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-border: rgba(255,255,255,.07);
+      --text: #f8fafc;
+      --sub: #94a3b8;
+      --blue: #38bdf8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    main { padding: 16px; max-width: 760px; margin: 0 auto; }
+    .hero, .card, .admin-card, .empty, .error {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+    }
+    .hero { padding: 18px; margin-bottom: 14px; }
+    .eyebrow { color: var(--blue); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 7px; }
+    h1 { margin: 0; font-size: 22px; line-height: 1.15; }
+    .subtitle { color: var(--sub); font-size: 13px; line-height: 1.45; margin: 8px 0 0; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .card { padding: 13px; min-width: 0; }
+    .label { color: var(--sub); font-size: 11px; line-height: 1.3; }
+    .value { margin-top: 6px; color: var(--text); font-size: 21px; font-weight: 750; }
+    .value.red { color: var(--red); }
+    .value.yellow { color: var(--yellow); }
+    .controls { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
+    #search {
+      width: 100%; padding: 12px 13px; border-radius: 12px; border: 1px solid var(--card-border);
+      color: var(--text); background: var(--card); outline: none; font-size: 14px;
+    }
+    #search:focus { border-color: rgba(56,189,248,.75); }
+    .filters { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 1px; }
+    .filter {
+      white-space: nowrap; padding: 8px 11px; border-radius: 9px; cursor: pointer;
+      border: 1px solid var(--card-border); background: var(--card); color: var(--sub); font-size: 12px;
+    }
+    .filter.active { border-color: rgba(56,189,248,.75); color: var(--blue); background: rgba(56,189,248,.08); }
+    .list-title { color: var(--sub); font-size: 12px; margin: 4px 2px 9px; }
+    #list { display: grid; gap: 10px; padding-bottom: 12px; }
+    .admin-card { padding: 14px; cursor: pointer; transition: transform .16s ease, border-color .16s ease; }
+    .admin-card:active { transform: scale(.99); }
+    .admin-card.red { border-color: rgba(239,68,68,.55); }
+    .admin-card.yellow { border-color: rgba(245,158,11,.48); }
+    .top-line, .metric-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .nickname { font-size: 16px; font-weight: 720; overflow-wrap: anywhere; }
+    .zone {
+      border-radius: 99px; padding: 5px 8px; font-size: 10px; font-weight: 700; white-space: nowrap;
+      border: 1px solid var(--card-border); color: var(--muted);
+    }
+    .zone.red { color: var(--red); background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); }
+    .zone.yellow { color: var(--yellow); background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); }
+    .zone.green { color: var(--green); background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); }
+    .metric-line { margin-top: 12px; }
+    .metric { color: var(--sub); font-size: 12px; }
+    .percent { font-size: 20px; color: var(--blue); font-weight: 760; }
+    .bar { height: 9px; background: rgba(255,255,255,.09); border-radius: 99px; overflow: hidden; margin-top: 9px; }
+    .fill { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg,#3b82f6,#38bdf8); transition: width .35s ease; }
+    .fill.red { background: linear-gradient(90deg,#dc2626,#fb7185); }
+    .fill.yellow { background: linear-gradient(90deg,#d97706,#fbbf24); }
+    .fill.green { background: linear-gradient(90deg,#059669,#34d399); }
+    .details { display: none; border-top: 1px solid var(--card-border); margin-top: 13px; padding-top: 12px; }
+    .admin-card.open .details { display: block; }
+    .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .small-card { border-radius: 10px; background: rgba(15,23,42,.4); padding: 10px; }
+    .small-value { margin-top: 4px; font-weight: 700; font-size: 16px; }
+    .reviewers { margin: 11px 0 0; color: var(--sub); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+    .empty, .error { padding: 22px 16px; text-align: center; color: var(--sub); line-height: 1.45; }
+    .error strong { display: block; color: var(--red); margin-bottom: 6px; }
+    #loading { padding: 48px 20px; text-align: center; color: var(--sub); font-size: 14px; }
+    .legend { margin: 0 2px 14px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    @media (max-width: 350px) { .summary-grid { gap: 7px; } .card { padding: 10px; } .value { font-size: 18px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="loading">Загружаю статистику по жалобам…</div>
+    <section id="content" hidden>
+      <header class="hero">
+        <div class="eyebrow">Admin Control BOT</div>
+        <h1>Статистика по жалобам</h1>
+        <p class="subtitle">Повторяемость подтверждённых похожих случаев по каждому администратору.</p>
+      </header>
+
+      <section class="summary-grid" aria-label="Сводная статистика">
+        <div class="card"><div class="label">Всего жалоб</div><div class="value" id="total">0</div></div>
+        <div class="card"><div class="label">Красная зона</div><div class="value red" id="red-total">0</div></div>
+        <div class="card"><div class="label">Жёлтая зона</div><div class="value yellow" id="yellow-total">0</div></div>
+      </section>
+
+      <section class="controls">
+        <input id="search" type="search" autocomplete="off" placeholder="Поиск по NickName">
+        <div class="filters" role="tablist">
+          <button class="filter active" data-filter="all" type="button">Все</button>
+          <button class="filter" data-filter="red" type="button">Красная зона</button>
+          <button class="filter" data-filter="yellow" type="button">Жёлтая зона</button>
+          <button class="filter" data-filter="green" type="button">Зелёная зона</button>
+          <button class="filter" data-filter="insufficient" type="button">Мало данных</button>
+        </div>
+      </section>
+      <p class="legend">Красная зона: от 40% при 5+ жалобах. Жёлтая: 20–39%. Для меньшей выборки статус не назначается.</p>
+      <div class="list-title" id="list-title">Администраторы</div>
+      <section id="list"></section>
+    </section>
+  </main>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    const BACKEND_URL = 'https://tg-admin-bot-1k1g.onrender.com';
+    let admins = [];
+    let filter = 'all';
+
+    const labels = {
+      red: 'Красная зона', yellow: 'Жёлтая зона', green: 'Зелёная зона', insufficient: 'Мало данных'
+    };
+
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[char]);
+
+    function render() {
+      const search = document.getElementById('search').value.trim().toLowerCase();
+      const visible = admins.filter(item =>
+        (filter === 'all' || item.zone === filter) && item.nickname.toLowerCase().includes(search)
+      );
+      document.getElementById('list-title').textContent = `Администраторы: ${visible.length}`;
+      const list = document.getElementById('list');
+      if (!visible.length) {
+        list.innerHTML = '<div class="empty">По выбранному фильтру данных пока нет.</div>';
+        return;
+      }
+      list.innerHTML = visible.map((item, index) => {
+        const reviewers = item.reviewers?.length ? item.reviewers.join(', ') : 'Не указаны';
+        return `<article class="admin-card ${item.zone}" data-index="${index}">
+          <div class="top-line"><div class="nickname">${escapeHtml(item.nickname)}</div><span class="zone ${item.zone}">${labels[item.zone]}</span></div>
+          <div class="metric-line"><span class="metric">Похожих случаев: ${item.similar_complaints} из ${item.total_complaints}</span><span class="percent">${item.percent}%</span></div>
+          <div class="bar"><div class="fill ${item.zone}" style="width:${Math.min(item.percent, 100)}%"></div></div>
+          <div class="details">
+            <div class="details-grid">
+              <div class="small-card"><div class="label">Всего жалоб</div><div class="small-value">${item.total_complaints}</div></div>
+              <div class="small-card"><div class="label">Подтверждено как похожие</div><div class="small-value">${item.similar_complaints}</div></div>
+            </div>
+            <p class="reviewers"><span class="label">Подтвердили кураторы:</span><br>${escapeHtml(reviewers)}</p>
+          </div>
+        </article>`;
+      }).join('');
+      list.querySelectorAll('.admin-card').forEach(card => card.addEventListener('click', () => card.classList.toggle('open')));
+    }
+
+    function showError(title, detail) {
+      document.getElementById('loading').innerHTML = `<div class="error"><strong>${escapeHtml(title)}</strong>${escapeHtml(detail)}</div>`;
+    }
+
+    async function loadStats() {
+      if (!tg?.initData) {
+        showError('Доступ запрещён', 'Откройте статистику кнопкой из Telegram-бота.');
+        return;
+      }
+      tg.ready();
+      tg.expand();
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/complaints/statistics`, {
+          method: 'POST', headers: { 'X-Telegram-Init-Data': tg.initData }
+        });
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') {
+          showError('Не удалось загрузить данные', result.message || `HTTP ${response.status}`);
+          return;
+        }
+        admins = result.data.admins || [];
+        document.getElementById('total').textContent = result.data.total_complaints ?? 0;
+        document.getElementById('red-total').textContent = result.data.red_zone_count ?? 0;
+        document.getElementById('yellow-total').textContent = result.data.yellow_zone_count ?? 0;
+        document.getElementById('loading').hidden = true;
+        document.getElementById('content').hidden = false;
+        render();
+      } catch (error) {
+        showError('Ошибка подключения', error.message || 'Проверьте доступность сервиса.');
+      }
+    }
+
+    document.getElementById('search').addEventListener('input', render);
+    document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => {
+      filter = button.dataset.filter;
+      document.querySelectorAll('.filter').forEach(item => item.classList.toggle('active', item === button));
+      render();
+    }));
+    loadStats();
+  </script>
+</body>
+</html>
