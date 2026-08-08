@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <title>Логи · Admin Control BOT</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --line:rgba(148,163,184,.18); --text:#f8fafc; --sub:#94a3b8; --blue:#38bdf8; --green:#10b981; --yellow:#f59e0b; --red:#fb7185; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+    main { max-width:780px; padding:16px; margin:0 auto; }
+    .hero,.summary,.entry,.empty,.error { background:var(--card); border:1px solid var(--line); border-radius:16px; }
+    .hero { padding:18px; margin-bottom:14px; }
+    .eyebrow { color:var(--blue); font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+    h1 { margin:7px 0 0; font-size:23px; line-height:1.1; }
+    .subtitle { margin:9px 0 0; color:var(--sub); font-size:13px; line-height:1.45; }
+    .summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px 14px; margin-bottom:14px; }
+    .summary-label { color:var(--sub); font-size:12px; }
+    .summary-value { margin-top:4px; font-size:21px; font-weight:800; color:var(--blue); }
+    .summary-note { max-width:210px; color:var(--sub); font-size:11px; line-height:1.4; text-align:right; }
+    .controls { display:grid; gap:10px; margin-bottom:14px; }
+    #search { width:100%; min-height:45px; padding:12px 13px; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:12px; outline:none; font-size:14px; }
+    #search:focus { border-color:rgba(56,189,248,.75); }
+    .filters { display:flex; gap:7px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+    .filter { flex:none; padding:8px 11px; border:1px solid var(--line); border-radius:10px; color:var(--sub); background:var(--card); font-size:12px; cursor:pointer; }
+    .filter.active { color:var(--blue); border-color:rgba(56,189,248,.75); background:rgba(56,189,248,.08); }
+    .result-title { margin:2px 2px 9px; color:var(--sub); font-size:12px; }
+    #list { display:grid; gap:9px; padding-bottom:12px; }
+    .entry { padding:13px; border-left:3px solid var(--blue); }
+    .entry[data-category="Заявки"] { border-left-color:var(--yellow); }
+    .entry[data-category="Обзвоны"] { border-left-color:var(--green); }
+    .entry[data-category="Жалобы"] { border-left-color:var(--red); }
+    .entry-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .category { color:var(--blue); font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+    .timestamp { flex:none; color:var(--sub); font-size:11px; white-space:nowrap; }
+    .action { margin-top:6px; font-size:15px; font-weight:720; line-height:1.32; }
+    .actor { margin-top:8px; color:var(--sub); font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+    .details { margin-top:5px; color:#cbd5e1; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+    .empty,.error { padding:25px 17px; color:var(--sub); line-height:1.45; text-align:center; }
+    .error strong { display:block; margin-bottom:7px; color:var(--red); }
+    #loading { padding:54px 20px; color:var(--sub); text-align:center; font-size:14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="loading">Загружаю журнал…</div>
+    <section id="content" hidden>
+      <header class="hero">
+        <div class="eyebrow">Admin Control BOT</div>
+        <h1>Логи</h1>
+        <p class="subtitle">Все зафиксированные действия, сгруппированные по категориям. Личные тексты сообщений в журнал не попадают.</p>
+      </header>
+      <section class="summary" aria-label="Сводка журнала">
+        <div><div class="summary-label">Событий в выборке</div><div class="summary-value" id="total">0</div></div>
+        <div class="summary-note">Новые события появляются после следующего обновления журнала.</div>
+      </section>
+      <section class="controls">
+        <input id="search" type="search" autocomplete="off" placeholder="Поиск по нику, ID или событию">
+        <div class="filters" role="tablist">
+          <button class="filter active" data-filter="all" type="button">Все</button>
+          <button class="filter" data-filter="Запуски" type="button">Запуски</button>
+          <button class="filter" data-filter="Заявки" type="button">Заявки</button>
+          <button class="filter" data-filter="Обзвоны" type="button">Обзвоны</button>
+          <button class="filter" data-filter="Жалобы" type="button">Жалобы</button>
+          <button class="filter" data-filter="Настройки" type="button">Настройки</button>
+        </div>
+      </section>
+      <div class="result-title" id="result-title"></div>
+      <section id="list"></section>
+    </section>
+  </main>
+  <script>
+    const tg = window.Telegram?.WebApp;
+    const BACKEND_URL = 'https://tg-admin-bot-1k1g.onrender.com';
+    let entries = [];
+    let filter = 'all';
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
+
+    function render() {
+      const query = document.getElementById('search').value.trim().toLowerCase();
+      const visible = entries.filter(item => {
+        const searchable = [item.action, item.actor_nick, item.actor_id, item.details, item.timestamp].join(' ').toLowerCase();
+        return (filter === 'all' || item.category === filter) && (!query || searchable.includes(query));
+      });
+      document.getElementById('result-title').textContent = `Показано событий: ${visible.length}`;
+      const list = document.getElementById('list');
+      if (!visible.length) {
+        list.innerHTML = '<div class="empty">По выбранному фильтру событий пока нет.</div>';
+        return;
+      }
+      list.innerHTML = visible.map(item => {
+        const actor = item.actor_nick || item.actor_id ? `${item.actor_nick || 'Пользователь'}${item.actor_id ? ` · ID ${item.actor_id}` : ''}` : 'Система';
+        return `<article class="entry" data-category="${escapeHtml(item.category)}">
+          <div class="entry-top"><span class="category">${escapeHtml(item.category)}</span><time class="timestamp">${escapeHtml(item.timestamp || '—')}</time></div>
+          <div class="action">${escapeHtml(item.action || 'Событие')}</div>
+          <div class="actor">${escapeHtml(actor)}</div>
+          ${item.details ? `<div class="details">${escapeHtml(item.details)}</div>` : ''}
+        </article>`;
+      }).join('');
+    }
+
+    function showError(title, detail) {
+      document.getElementById('loading').innerHTML = `<div class="error"><strong>${escapeHtml(title)}</strong>${escapeHtml(detail)}</div>`;
+    }
+
+    async function loadLogs() {
+      if (!tg?.initData) { showError('Доступ запрещён', 'Откройте журнал кнопкой из Telegram-бота.'); return; }
+      tg.ready(); tg.expand();
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/logs/interactions`, { method:'POST', headers:{'X-Telegram-Init-Data':tg.initData} });
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') { showError('Не удалось загрузить журнал', result.message || `HTTP ${response.status}`); return; }
+        entries = result.data.entries || [];
+        document.getElementById('total').textContent = entries.length;
+        document.getElementById('loading').hidden = true;
+        document.getElementById('content').hidden = false;
+        render();
+      } catch (error) { showError('Ошибка подключения', error.message || 'Проверьте доступность сервиса.'); }
+    }
+
+    document.getElementById('search').addEventListener('input', render);
+    document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => {
+      filter = button.dataset.filter;
+      document.querySelectorAll('.filter').forEach(item => item.classList.toggle('active', item === button));
+      render();
+    }));
+    loadLogs();
+  </script>
+</body>
+</html>
