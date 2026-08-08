@@ -23,21 +23,39 @@
     .controls { display:grid; gap:10px; margin-bottom:14px; }
     #search { width:100%; min-height:45px; padding:12px 13px; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:12px; outline:none; font-size:14px; }
     #search:focus { border-color:rgba(56,189,248,.75); }
-    .filters { display:flex; gap:7px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+    .filters { display:flex; gap:7px; overflow-x:auto; padding:2px 0; scrollbar-width:none; }
     .filter { flex:none; padding:8px 11px; border:1px solid var(--line); border-radius:10px; color:var(--sub); background:var(--card); font-size:12px; cursor:pointer; }
     .filter.active { color:var(--blue); border-color:rgba(56,189,248,.75); background:rgba(56,189,248,.08); }
+    .filter.problem.active { color:var(--red); border-color:rgba(251,113,133,.72); background:rgba(251,113,133,.08); }
+    .count { margin-left:4px; color:var(--text); font-weight:800; }
+    .control-label { margin:3px 2px -3px; color:var(--sub); font-size:11px; }
     .result-title { margin:2px 2px 9px; color:var(--sub); font-size:12px; }
     #list { display:grid; gap:9px; padding-bottom:12px; }
-    .entry { padding:13px; border-left:3px solid var(--blue); }
+    .entry { padding:13px; border-left:3px solid var(--blue); cursor:pointer; transition:border-color .16s ease, background .16s ease; }
+    .entry:active { background:rgba(255,255,255,.025); }
     .entry[data-category="Заявки"] { border-left-color:var(--yellow); }
     .entry[data-category="Обзвоны"] { border-left-color:var(--green); }
     .entry[data-category="Жалобы"] { border-left-color:var(--red); }
+    .entry[data-category="Скорость ответа"] { border-left-color:#a78bfa; }
     .entry-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
     .category { color:var(--blue); font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+    .status { margin-left:7px; padding:3px 7px; border:1px solid var(--line); border-radius:999px; color:var(--sub); font-size:10px; font-weight:750; white-space:nowrap; }
+    .status-confirmed { color:var(--green); border-color:rgba(52,211,153,.34); background:rgba(52,211,153,.07); }
+    .status-pending { color:var(--yellow); border-color:rgba(250,204,21,.34); background:rgba(250,204,21,.07); }
+    .status-rejected,.status-cancelled { color:var(--red); border-color:rgba(251,113,133,.34); background:rgba(251,113,133,.07); }
     .timestamp { flex:none; color:var(--sub); font-size:11px; white-space:nowrap; }
     .action { margin-top:6px; font-size:15px; font-weight:720; line-height:1.32; }
-    .actor { margin-top:8px; color:var(--sub); font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
-    .details { margin-top:5px; color:#cbd5e1; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+    .actor { display:inline; margin:8px 0 0; padding:0; color:var(--sub); background:none; border:0; font:inherit; font-size:12px; line-height:1.4; overflow-wrap:anywhere; cursor:pointer; text-align:left; }
+    .actor:hover { color:var(--blue); }
+    .entry-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:9px; }
+    .expand-hint { color:var(--sub); font-size:11px; }
+    .chevron { color:var(--blue); font-size:15px; transition:transform .16s ease; }
+    .entry.open .chevron { transform:rotate(180deg); }
+    .details { display:none; margin-top:12px; padding-top:11px; border-top:1px solid var(--line); }
+    .entry.open .details { display:block; }
+    .detail-row { display:grid; grid-template-columns:1fr; gap:3px; padding:7px 0; color:#cbd5e1; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+    .detail-row + .detail-row { border-top:1px solid rgba(148,163,184,.1); }
+    .details-empty { color:var(--sub); font-size:12px; }
     .empty,.error { padding:25px 17px; color:var(--sub); line-height:1.45; text-align:center; }
     .error strong { display:block; margin-bottom:7px; color:var(--red); }
     #loading { padding:54px 20px; color:var(--sub); text-align:center; font-size:14px; }
@@ -54,17 +72,34 @@
       </header>
       <section class="summary" aria-label="Сводка журнала">
         <div><div class="summary-label">Событий в выборке</div><div class="summary-value" id="total">0</div></div>
-        <div class="summary-note">Новые события появляются после следующего обновления журнала.</div>
+        <div class="summary-note">Время новых событий указывается по Москве (МСК).</div>
       </section>
       <section class="controls">
         <input id="search" type="search" autocomplete="off" placeholder="Поиск по нику, ID или событию">
-        <div class="filters" role="tablist">
-          <button class="filter active" data-filter="all" type="button">Все</button>
-          <button class="filter" data-filter="Запуски" type="button">Запуски</button>
-          <button class="filter" data-filter="Заявки" type="button">Заявки</button>
-          <button class="filter" data-filter="Обзвоны" type="button">Обзвоны</button>
-          <button class="filter" data-filter="Жалобы" type="button">Жалобы</button>
-          <button class="filter" data-filter="Настройки" type="button">Настройки</button>
+        <div class="control-label">Категория</div>
+        <div class="filters" role="tablist" aria-label="Категории">
+          <button class="filter active" data-category="all" type="button">Все <span class="count" id="count-all">0</span></button>
+          <button class="filter" data-category="Запуски" type="button">Запуски <span class="count" id="count-starts">0</span></button>
+          <button class="filter" data-category="Заявки" type="button">Заявки <span class="count" id="count-requests">0</span></button>
+          <button class="filter" data-category="Обзвоны" type="button">Обзвоны <span class="count" id="count-calls">0</span></button>
+          <button class="filter" data-category="Жалобы" type="button">Жалобы <span class="count" id="count-complaints">0</span></button>
+          <button class="filter" data-category="Настройки" type="button">Настройки <span class="count" id="count-settings">0</span></button>
+          <button class="filter" data-category="Скорость ответа" type="button">Скорость <span class="count" id="count-speed">0</span></button>
+        </div>
+        <div class="control-label">Статус</div>
+        <div class="filters" role="tablist" aria-label="Статусы">
+          <button class="filter active" data-status="all" type="button">Все статусы</button>
+          <button class="filter" data-status="confirmed" type="button">Подтверждённые</button>
+          <button class="filter" data-status="pending" type="button">Ожидают</button>
+          <button class="filter" data-status="rejected" type="button">Отклонённые</button>
+          <button class="filter" data-status="cancelled" type="button">Отменённые</button>
+          <button class="filter problem" data-status="problem" type="button">Проблемные</button>
+        </div>
+        <div class="control-label">Период</div>
+        <div class="filters" role="tablist" aria-label="Период">
+          <button class="filter active" data-period="all" type="button">Всё время</button>
+          <button class="filter" data-period="today" type="button">Сегодня</button>
+          <button class="filter" data-period="week" type="button">7 дней</button>
         </div>
       </section>
       <div class="result-title" id="result-title"></div>
@@ -74,15 +109,71 @@
   <script>
     const tg = window.Telegram?.WebApp;
     const BACKEND_URL = 'https://tg-admin-bot-1k1g.onrender.com';
+    const MOSCOW_TIMEZONE = 'Europe/Moscow';
     let entries = [];
-    let filter = 'all';
+    let categoryFilter = 'all';
+    let statusFilter = 'all';
+    let periodFilter = 'all';
     const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
+
+    function getStatus(entry) {
+      const action = String(entry.action || '').toLowerCase();
+      if (action.includes('отклон')) return 'rejected';
+      if (action.includes('отмен')) return 'cancelled';
+      if (action.includes('создан')) return 'pending';
+      if (action.includes('подтвержд') || action.includes('одобрен')) return 'confirmed';
+      return 'other';
+    }
+
+    function parseLogDate(value) {
+      const match = String(value || '').match(/(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+      if (!match) return null;
+      return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]), Number(match[4] || 0), Number(match[5] || 0), Number(match[6] || 0));
+    }
+
+    function isInPeriod(entry) {
+      if (periodFilter === 'all') return true;
+      const date = parseLogDate(entry.timestamp);
+      if (!date) return false;
+      const moscowNow = new Date(new Date().toLocaleString('en-US', { timeZone: MOSCOW_TIMEZONE }));
+      const today = new Date(moscowNow.getFullYear(), moscowNow.getMonth(), moscowNow.getDate());
+      if (periodFilter === 'today') return date >= today;
+      const weekAgo = new Date(today);
+      weekAgo.setDate(today.getDate() - 6);
+      return date >= weekAgo;
+    }
+
+    function isProblem(entry) {
+      return ['pending', 'rejected', 'cancelled'].includes(getStatus(entry));
+    }
+
+    function getStatusLabel(entry) {
+      return ({ confirmed:'Подтверждено', pending:'Ожидает', rejected:'Отклонено', cancelled:'Отменено', other:'Событие' })[getStatus(entry)];
+    }
+
+    function updateCategoryCounts() {
+      const countByCategory = category => category === 'all'
+        ? entries.length
+        : entries.filter(item => item.category === category).length;
+      document.getElementById('count-all').textContent = countByCategory('all');
+      document.getElementById('count-starts').textContent = countByCategory('Запуски');
+      document.getElementById('count-requests').textContent = countByCategory('Заявки');
+      document.getElementById('count-calls').textContent = countByCategory('Обзвоны');
+      document.getElementById('count-complaints').textContent = countByCategory('Жалобы');
+      document.getElementById('count-settings').textContent = countByCategory('Настройки');
+      document.getElementById('count-speed').textContent = countByCategory('Скорость ответа');
+    }
 
     function render() {
       const query = document.getElementById('search').value.trim().toLowerCase();
       const visible = entries.filter(item => {
         const searchable = [item.action, item.actor_nick, item.actor_id, item.details, item.timestamp].join(' ').toLowerCase();
-        return (filter === 'all' || item.category === filter) && (!query || searchable.includes(query));
+        const statusMatches = statusFilter === 'all'
+          || (statusFilter === 'problem' ? isProblem(item) : getStatus(item) === statusFilter);
+        return (categoryFilter === 'all' || item.category === categoryFilter)
+          && statusMatches
+          && isInPeriod(item)
+          && (!query || searchable.includes(query));
       });
       document.getElementById('result-title').textContent = `Показано событий: ${visible.length}`;
       const list = document.getElementById('list');
@@ -92,13 +183,29 @@
       }
       list.innerHTML = visible.map(item => {
         const actor = item.actor_nick || item.actor_id ? `${item.actor_nick || 'Пользователь'}${item.actor_id ? ` · ID ${item.actor_id}` : ''}` : 'Система';
+        const details = String(item.details || '').split(' · ').filter(Boolean);
+        const detailsHtml = details.length
+          ? details.map(detail => `<div class="detail-row">${escapeHtml(detail)}</div>`).join('')
+          : '<div class="details-empty">Дополнительные данные не зафиксированы.</div>';
+        const timestamp = item.timestamp ? `${item.timestamp} МСК` : '—';
+        const status = getStatus(item);
         return `<article class="entry" data-category="${escapeHtml(item.category)}">
-          <div class="entry-top"><span class="category">${escapeHtml(item.category)}</span><time class="timestamp">${escapeHtml(item.timestamp || '—')}</time></div>
+          <div class="entry-top"><div><span class="category">${escapeHtml(item.category)}</span><span class="status status-${status}">${getStatusLabel(item)}</span></div><time class="timestamp">${escapeHtml(timestamp)}</time></div>
           <div class="action">${escapeHtml(item.action || 'Событие')}</div>
-          <div class="actor">${escapeHtml(actor)}</div>
-          ${item.details ? `<div class="details">${escapeHtml(item.details)}</div>` : ''}
+          <div class="entry-footer"><button class="actor" data-actor="${escapeHtml(item.actor_nick || item.actor_id || '')}" type="button">${escapeHtml(actor)}</button><span class="expand-hint">Подробнее</span><span class="chevron">⌄</span></div>
+          <div class="details">${detailsHtml}</div>
         </article>`;
       }).join('');
+      list.querySelectorAll('.entry').forEach(card => card.addEventListener('click', () => card.classList.toggle('open')));
+      list.querySelectorAll('.actor[data-actor]').forEach(button => button.addEventListener('click', event => {
+        event.stopPropagation();
+        const actor = button.dataset.actor;
+        if (!actor) return;
+        document.getElementById('search').value = actor;
+        categoryFilter = 'all';
+        document.querySelectorAll('[data-category]').forEach(item => item.classList.toggle('active', item.dataset.category === 'all'));
+        render();
+      }));
     }
 
     function showError(title, detail) {
@@ -114,6 +221,7 @@
         if (!response.ok || result.status !== 'success') { showError('Не удалось загрузить журнал', result.message || `HTTP ${response.status}`); return; }
         entries = result.data.entries || [];
         document.getElementById('total').textContent = entries.length;
+        updateCategoryCounts();
         document.getElementById('loading').hidden = true;
         document.getElementById('content').hidden = false;
         render();
@@ -121,9 +229,19 @@
     }
 
     document.getElementById('search').addEventListener('input', render);
-    document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => {
-      filter = button.dataset.filter;
-      document.querySelectorAll('.filter').forEach(item => item.classList.toggle('active', item === button));
+    document.querySelectorAll('[data-category]').forEach(button => button.addEventListener('click', () => {
+      categoryFilter = button.dataset.category;
+      document.querySelectorAll('[data-category]').forEach(item => item.classList.toggle('active', item === button));
+      render();
+    }));
+    document.querySelectorAll('[data-status]').forEach(button => button.addEventListener('click', () => {
+      statusFilter = button.dataset.status;
+      document.querySelectorAll('[data-status]').forEach(item => item.classList.toggle('active', item === button));
+      render();
+    }));
+    document.querySelectorAll('[data-period]').forEach(button => button.addEventListener('click', () => {
+      periodFilter = button.dataset.period;
+      document.querySelectorAll('[data-period]').forEach(item => item.classList.toggle('active', item === button));
       render();
     }));
     loadLogs();
