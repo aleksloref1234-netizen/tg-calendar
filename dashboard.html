@@ -378,7 +378,9 @@
 
             averageElement.innerText = `Средний: ${formatTestPercent(testResults.average_percent)}`;
             averageElement.style.color = "var(--success)";
-            latestElement.innerText = `Последний тест: ${formatTestPercent(testResults.latest_percent)} · ${testResults.latest_level || "Уровень не указан"}`;
+            const firstPercent = testResults.first_percent ?? testResults.latest_percent;
+            const firstLevel = testResults.first_level || testResults.latest_level || "Уровень не указан";
+            latestElement.innerText = `Первая попытка: ${formatTestPercent(firstPercent)} · ${firstLevel}`;
             levelsElement.innerText = levels
                 .map(item => `${item.level}: ${formatTestPercent(item.percent)}`)
                 .join("  •  ");
