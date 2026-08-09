@@ -37,6 +37,7 @@
     .entry[data-category="Обзвоны"] { border-left-color:var(--green); }
     .entry[data-category="Жалобы"] { border-left-color:var(--red); }
     .entry[data-category="Скорость ответа"] { border-left-color:#a78bfa; }
+    .entry[data-category="Команды"] { border-left-color:#f97316; }
     .entry-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
     .category { color:var(--blue); font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
     .status { margin-left:7px; padding:3px 7px; border:1px solid var(--line); border-radius:999px; color:var(--sub); font-size:10px; font-weight:750; white-space:nowrap; }
@@ -84,6 +85,7 @@
           <button class="filter" data-category="Обзвоны" type="button">Обзвоны <span class="count" id="count-calls">0</span></button>
           <button class="filter" data-category="Жалобы" type="button">Жалобы <span class="count" id="count-complaints">0</span></button>
           <button class="filter" data-category="Настройки" type="button">Настройки <span class="count" id="count-settings">0</span></button>
+          <button class="filter" data-category="Команды" type="button">Команды <span class="count" id="count-commands">0</span></button>
           <button class="filter" data-category="Скорость ответа" type="button">Скорость <span class="count" id="count-speed">0</span></button>
         </div>
         <div class="control-label">Статус</div>
@@ -161,6 +163,7 @@
       document.getElementById('count-calls').textContent = countByCategory('Обзвоны');
       document.getElementById('count-complaints').textContent = countByCategory('Жалобы');
       document.getElementById('count-settings').textContent = countByCategory('Настройки');
+      document.getElementById('count-commands').textContent = countByCategory('Команды');
       document.getElementById('count-speed').textContent = countByCategory('Скорость ответа');
     }
 
