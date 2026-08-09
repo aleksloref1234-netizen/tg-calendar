@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <title>Статистика администрации · Admin Control BOT</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --line:rgba(148,163,184,.18); --text:#f8fafc; --sub:#94a3b8; --blue:#38bdf8; --green:#10b981; --yellow:#f59e0b; --red:#fb7185; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+    main { max-width:780px; padding:16px; margin:0 auto; }
+    .hero,.summary,.card,.empty,.error { background:var(--card); border:1px solid var(--line); border-radius:16px; }
+    .hero { padding:18px; margin-bottom:14px; }
+    .eyebrow { color:var(--blue); font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+    h1 { margin:7px 0 0; font-size:23px; line-height:1.1; }
+    .subtitle { margin:9px 0 0; color:var(--sub); font-size:13px; line-height:1.45; }
+    .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin-bottom:14px; }
+    .summary { padding:12px 11px; min-width:0; }
+    .summary-label { color:var(--sub); font-size:11px; }
+    .summary-value { margin-top:5px; font-size:21px; font-weight:800; color:var(--blue); }
+    .summary.red .summary-value { color:var(--red); } .summary.yellow .summary-value { color:var(--yellow); } .summary.green .summary-value { color:var(--green); }
+    .note { margin:0 2px 13px; color:var(--sub); font-size:11px; line-height:1.4; }
+    .controls { display:grid; gap:10px; margin-bottom:14px; }
+    #search { width:100%; min-height:45px; padding:12px 13px; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:12px; outline:none; font-size:14px; }
+    #search:focus { border-color:rgba(56,189,248,.75); }
+    .filters { display:flex; gap:7px; overflow-x:auto; padding:2px 0; scrollbar-width:none; }
+    .filter { flex:none; padding:8px 11px; border:1px solid var(--line); border-radius:10px; color:var(--sub); background:var(--card); font-size:12px; cursor:pointer; }
+    .filter.active { color:var(--blue); border-color:rgba(56,189,248,.75); background:rgba(56,189,248,.08); }
+    .filter.red.active { color:var(--red); border-color:rgba(251,113,133,.72); background:rgba(251,113,133,.08); }
+    .filter.yellow.active { color:var(--yellow); border-color:rgba(245,158,11,.72); background:rgba(245,158,11,.08); }
+    .filter.green.active { color:var(--green); border-color:rgba(16,185,129,.72); background:rgba(16,185,129,.08); }
+    .result-title { margin:2px 2px 9px; color:var(--sub); font-size:12px; }
+    #list { display:grid; gap:10px; padding-bottom:16px; }
+    .card { padding:15px; border-left:4px solid var(--blue); cursor:pointer; transition:transform .16s ease,background .16s ease; }
+    .card:active { transform:scale(.99); background:rgba(255,255,255,.025); }
+    .card.red { border-left-color:var(--red); } .card.yellow { border-left-color:var(--yellow); } .card.green { border-left-color:var(--green); }
+    .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .name { font-size:17px; font-weight:800; overflow-wrap:anywhere; }
+    .role { margin-top:4px; color:var(--sub); font-size:12px; line-height:1.35; }
+    .score { flex:none; text-align:right; }
+    .score-label { color:var(--sub); font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
+    .score-value { margin-top:2px; font-size:23px; font-weight:850; color:var(--blue); }
+    .red .score-value { color:var(--red); } .yellow .score-value { color:var(--yellow); } .green .score-value { color:var(--green); }
+    .bar { height:8px; margin-top:13px; overflow:hidden; border-radius:99px; background:rgba(148,163,184,.16); }
+    .bar > i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#3b82f6,#38bdf8); }
+    .red .bar > i { background:linear-gradient(90deg,#e11d48,#fb7185); } .yellow .bar > i { background:linear-gradient(90deg,#d97706,#fbbf24); } .green .bar > i { background:linear-gradient(90deg,#059669,#34d399); }
+    .metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:13px; }
+    .metric { padding:9px 10px; border:1px solid rgba(148,163,184,.11); border-radius:10px; background:rgba(15,23,42,.22); min-width:0; }
+    .metric-label { color:var(--sub); font-size:10px; line-height:1.25; }
+    .metric-value { margin-top:4px; color:#e2e8f0; font-size:14px; font-weight:750; overflow-wrap:anywhere; }
+    .bottom { display:flex; justify-content:space-between; gap:12px; margin-top:12px; color:var(--sub); font-size:11px; }
+    .open { color:var(--blue); font-weight:750; }
+    #loading { padding:54px 20px; color:var(--sub); text-align:center; font-size:14px; }
+    .empty,.error { padding:25px 17px; color:var(--sub); line-height:1.45; text-align:center; }
+    .error strong { display:block; margin-bottom:7px; color:var(--red); }
+    @media (max-width:390px) { main { padding:14px; } .summary-grid { gap:7px; } .summary { padding:10px 8px; } .summary-value { font-size:18px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="loading">Загружаю общую статистику…</div>
+    <section id="content" hidden>
+      <header class="hero">
+        <div class="eyebrow">Admin Control BOT</div>
+        <h1>Статистика администрации</h1>
+        <p class="subtitle">Единый обзор активности. Нажмите на карточку, чтобы открыть полную статистику администратора.</p>
+      </header>
+      <section class="summary-grid" aria-label="Сводка">
+        <div class="summary"><div class="summary-label">Администраторов</div><div class="summary-value" id="total">0</div></div>
+        <div class="summary red"><div class="summary-label">Красная зона</div><div class="summary-value" id="red-count">0</div></div>
+        <div class="summary yellow"><div class="summary-label">Жёлтая зона</div><div class="summary-value" id="yellow-count">0</div></div>
+        <div class="summary green"><div class="summary-label">Стабильные</div><div class="summary-value" id="green-count">0</div></div>
+      </section>
+      <p class="note">Индекс стабильности учитывает выполнение норматива, посещаемость собраний, выговоры/предупреждения и повторяемость похожих жалоб при наличии данных.</p>
+      <section class="controls">
+        <input id="search" type="search" autocomplete="off" placeholder="Поиск по нику или должности">
+        <div class="filters" aria-label="Фильтр по зоне">
+          <button class="filter active" data-zone="all" type="button">Все</button>
+          <button class="filter red" data-zone="red" type="button">Красная зона</button>
+          <button class="filter yellow" data-zone="yellow" type="button">Жёлтая зона</button>
+          <button class="filter green" data-zone="green" type="button">Стабильные</button>
+        </div>
+      </section>
+      <div class="result-title" id="result-title"></div>
+      <section id="list"></section>
+    </section>
+  </main>
+  <script>
+    const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/admin/overview';
+    const tg = window.Telegram?.WebApp;
+    let cards = [];
+    let zone = 'all';
+    const $ = id => document.getElementById(id);
+    const fmt = value => value === null || value === undefined ? 'Нет данных' : `${Number(value).toFixed(1).replace('.0','')}%`;
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    const zoneTitle = value => ({ red:'Красная зона', yellow:'Жёлтая зона', green:'Стабильная зона' }[value] || 'Без зоны');
+
+    function render() {
+      const query = $('search').value.trim().toLowerCase();
+      const selected = cards.filter(item => (zone === 'all' || item.zone === zone) && `${item.nickname} ${item.role} ${item.group_header}`.toLowerCase().includes(query));
+      $('result-title').textContent = `Показано администраторов: ${selected.length}`;
+      $('list').innerHTML = selected.length ? selected.map(item => {
+        const score = Math.max(0, Math.min(100, Number(item.stability_index) || 0));
+        const discipline = `${item.reprimands || 0} / ${item.warnings || 0}`;
+        const repeat = item.complaint_percent === null || item.complaint_percent === undefined ? 'Нет данных' : `${item.complaint_similar} из ${item.complaint_total} · ${fmt(item.complaint_percent)}`;
+        return `<article class="card ${escapeHtml(item.zone)}" data-id="${escapeHtml(item.telegram_id)}" tabindex="0" role="button" aria-label="Открыть статистику ${escapeHtml(item.nickname)}">
+          <div class="card-top"><div><div class="name">${escapeHtml(item.nickname)}</div><div class="role">${escapeHtml(item.group_header || 'Администрация')} · ${escapeHtml(item.role || 'Должность не указана')}</div></div><div class="score"><div class="score-label">Индекс стабильности</div><div class="score-value">${fmt(score)}</div></div></div>
+          <div class="bar"><i style="width:${score}%"></i></div>
+          <div class="metrics"><div class="metric"><div class="metric-label">Выполнение норматива</div><div class="metric-value">${fmt(item.norm_percent)}</div></div><div class="metric"><div class="metric-label">Посещаемость собраний</div><div class="metric-value">${fmt(item.attendance_percent)}</div></div><div class="metric"><div class="metric-label">Выговоры / предупреждения</div><div class="metric-value">${discipline}</div></div><div class="metric"><div class="metric-label">Похожие жалобы</div><div class="metric-value">${repeat}</div></div></div>
+          <div class="bottom"><span>${zoneTitle(item.zone)}</span><span class="open">Открыть карточку →</span></div>
+        </article>`;
+      }).join('') : '<div class="empty">По этому фильтру администраторы не найдены.</div>';
+      document.querySelectorAll('.card').forEach(card => {
+        const open = () => { window.location.href = `dashboard.html?admin_id=${encodeURIComponent(card.dataset.id)}`; };
+        card.addEventListener('click', open);
+        card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
+      });
+    }
+
+    function showError(title, detail) { $('loading').innerHTML = `<div class="error"><strong>✕ ${escapeHtml(title)}</strong>${escapeHtml(detail)}</div>`; }
+    async function load() {
+      try {
+        if (!tg?.initData) throw new Error('Откройте страницу из Telegram-бота.');
+        tg.ready(); tg.expand();
+        const response = await fetch(API_URL, { method:'POST', headers:{ 'X-Telegram-Init-Data':tg.initData } });
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') throw new Error(result.message || `HTTP ${response.status}`);
+        const data = result.data;
+        cards = Array.isArray(data.admins) ? data.admins : [];
+        $('total').textContent = data.total ?? cards.length;
+        $('red-count').textContent = data.red_count ?? 0;
+        $('yellow-count').textContent = data.yellow_count ?? 0;
+        $('green-count').textContent = data.green_count ?? 0;
+        $('loading').hidden = true; $('content').hidden = false; render();
+      } catch (error) { console.error(error); showError('Не удалось загрузить статистику', error.message || 'Повторите попытку позже.'); }
+    }
+    $('search').addEventListener('input', render);
+    document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => { zone = button.dataset.zone; document.querySelectorAll('.filter').forEach(item => item.classList.toggle('active', item === button)); render(); }));
+    load();
+  </script>
+</body>
+</html>
