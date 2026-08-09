@@ -260,7 +260,10 @@
         let myChartInstance = null;
 
         function returnToAdminOverview() {
-            window.location.href = 'admin-overview.html';
+            const params = new URLSearchParams(window.location.search);
+            window.location.href = params.get('return_to') === 'os'
+                ? 'admin-control-os-preview.html'
+                : 'admin-overview.html';
         }
 
         document.getElementById('back-to-admin-overview').addEventListener('click', returnToAdminOverview);
