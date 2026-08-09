@@ -306,7 +306,9 @@
                 document.getElementById('reports-left').innerText = d.reports_left ?? 0;
                 document.getElementById('days-left').innerText = d.days_left ?? 0;
                 document.getElementById('days-without-norm').innerText = d.days_without_norm ?? 0;
-                document.getElementById('activity-coef').innerText = (d.activity_coef ?? 0) + "%";
+                document.getElementById('activity-coef').innerText = d.activity_coef === null || d.activity_coef === undefined
+                    ? "Норма не определена"
+                    : d.activity_coef + "%";
                 document.getElementById('punishments').innerText = `${d.reprimands ?? 0} / ${d.warnings ?? 0}`;
                 document.getElementById('meeting-percent').innerText = d.meeting_percent ?? "0%";
                 renderTestResults(d.test_results);
