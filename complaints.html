@@ -36,6 +36,28 @@
     .eyebrow { color: var(--blue); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 7px; }
     h1 { margin: 0; font-size: 22px; line-height: 1.15; }
     .subtitle { color: var(--sub); font-size: 13px; line-height: 1.45; margin: 8px 0 0; }
+    .week-problem {
+      position: relative; overflow: hidden; padding: 16px 17px; margin-bottom: 14px;
+      border: 1px solid rgba(56,189,248,.28); border-radius: 16px;
+      background: linear-gradient(135deg,rgba(56,189,248,.1),rgba(59,130,246,.025) 62%),var(--card);
+    }
+    .week-problem::before {
+      content: ""; position: absolute; inset: 0 0 auto; height: 2px;
+      background: linear-gradient(90deg,var(--blue),#6366f1,transparent);
+    }
+    .week-problem-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .week-problem h2 { margin: 0; font-size: 14px; line-height: 1.3; }
+    .week-problem-period {
+      flex: none; padding: 5px 8px; border: 1px solid rgba(56,189,248,.22);
+      border-radius: 99px; background: rgba(56,189,248,.07); color: var(--blue); font-size: 10px;
+    }
+    .week-problem-title {
+      margin-top: 14px; font-size: 18px; font-weight: 760; line-height: 1.3; overflow-wrap: anywhere;
+    }
+    .week-problem-meta { margin-top: 7px; color: var(--blue); font-size: 12px; font-weight: 650; }
+    .week-problem-summary { margin: 8px 0 0; color: var(--sub); font-size: 12px; line-height: 1.5; }
+    .week-problem.is-empty .week-problem-title,
+    .week-problem.is-empty .week-problem-meta { color: var(--sub); }
     .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
     .card { padding: 13px; min-width: 0; }
     .label { color: var(--sub); font-size: 11px; line-height: 1.3; }
@@ -101,6 +123,19 @@
         <p class="subtitle">Повторяемость подтверждённых похожих случаев по каждому администратору.</p>
       </header>
 
+      <section class="week-problem is-empty" id="week-problem" aria-labelledby="week-problem-heading" aria-live="polite">
+        <div class="week-problem-head">
+          <div>
+            <div class="eyebrow">Аналитика недели</div>
+            <h2 id="week-problem-heading">Главная проблема недели</h2>
+          </div>
+          <span class="week-problem-period" id="week-problem-period">Пн–Вс</span>
+        </div>
+        <div class="week-problem-title" id="week-problem-title">Недостаточно данных</div>
+        <div class="week-problem-meta" id="week-problem-meta"></div>
+        <p class="week-problem-summary" id="week-problem-summary">За текущую неделю данных пока недостаточно.</p>
+      </section>
+
       <section class="summary-grid" aria-label="Сводная статистика">
         <div class="card"><div class="label">Всего жалоб</div><div class="value" id="total">0</div></div>
         <div class="card"><div class="label">Красная зона</div><div class="value red" id="red-total">0</div></div>
@@ -136,6 +171,34 @@
     const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
     })[char]);
+
+    function renderWeekProblem(problem = {}) {
+      const card = document.getElementById('week-problem');
+      const title = document.getElementById('week-problem-title');
+      const meta = document.getElementById('week-problem-meta');
+      const summary = document.getElementById('week-problem-summary');
+      const period = document.getElementById('week-problem-period');
+      const total = Number(problem.total) || 0;
+      const count = Number(problem.count) || 0;
+      const percent = Number(problem.percent);
+      const hasData = Boolean(problem.has_data && problem.title && total > 0);
+
+      period.textContent = problem.period || 'Пн–Вс';
+      card.classList.toggle('is-empty', !hasData);
+      if (!hasData) {
+        title.textContent = 'Недостаточно данных';
+        meta.textContent = '';
+        summary.textContent = problem.summary || 'За текущую неделю данных пока недостаточно.';
+        return;
+      }
+      title.textContent = problem.title;
+      meta.textContent = `${count} из ${total} жалоб недели · ${
+        Number.isFinite(percent)
+          ? percent.toLocaleString('ru-RU', { maximumFractionDigits: 1 })
+          : 0
+      }%`;
+      summary.textContent = problem.summary || 'Эта проблема встречалась чаще остальных за текущую неделю.';
+    }
 
     function render() {
       const search = document.getElementById('search').value.trim().toLowerCase();
@@ -190,6 +253,7 @@
         document.getElementById('total').textContent = result.data.total_complaints ?? 0;
         document.getElementById('red-total').textContent = result.data.red_zone_count ?? 0;
         document.getElementById('yellow-total').textContent = result.data.yellow_zone_count ?? 0;
+        renderWeekProblem(result.data.main_problem_week);
         document.getElementById('loading').hidden = true;
         document.getElementById('content').hidden = false;
         render();
