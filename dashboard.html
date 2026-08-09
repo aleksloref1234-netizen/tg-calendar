@@ -37,6 +37,27 @@
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
+        .back-to-overview {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin: 0 0 13px;
+            padding: 8px 11px;
+            border: 1px solid rgba(56, 189, 248, 0.42);
+            border-radius: 10px;
+            color: var(--accent-color);
+            background: rgba(56, 189, 248, 0.08);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 650;
+            cursor: pointer;
+        }
+
+        .back-to-overview:active {
+            transform: scale(.98);
+            background: rgba(56, 189, 248, 0.15);
+        }
+
         .user-title {
             font-size: 20px;
             font-weight: 700;
@@ -140,6 +161,9 @@
     <div id="content" style="display: none;">
         <!-- Хедер админа -->
         <div class="header">
+            <button id="back-to-admin-overview" class="back-to-overview" type="button" hidden>
+                ← К списку администрации
+            </button>
             <h1 class="user-title" id="nickname">-</h1>
             <p class="user-role" id="role">-</p>
         </div>
@@ -234,12 +258,19 @@
 
         let myChartInstance = null;
 
+        function returnToAdminOverview() {
+            window.location.href = 'admin-overview.html';
+        }
+
+        document.getElementById('back-to-admin-overview').addEventListener('click', returnToAdminOverview);
+
         async function loadDashboard() {
             const loadingEl = document.getElementById('loading');
             try {
                 const params = new URLSearchParams(window.location.search);
                 const selectedAdminId = params.get('admin_id');
                 const isAdminView = /^\d+$/.test(selectedAdminId || '');
+                document.getElementById('back-to-admin-overview').hidden = !isAdminView;
                 let targetUrl;
                 let fetchOptions = {};
 
