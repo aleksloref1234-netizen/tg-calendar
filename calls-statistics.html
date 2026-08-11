@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <title>Статистика обзвонов · Admin Control BOT</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --surface: #141f32;
+      --surface-2: #19263b;
+      --line: rgba(148, 163, 184, .18);
+      --line-soft: rgba(148, 163, 184, .11);
+      --text: #f8fafc;
+      --sub: #91a0b8;
+      --blue: #38bdf8;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #fb7185;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(rgba(119, 140, 163, .055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(119, 140, 163, .055) 1px, transparent 1px),
+        radial-gradient(900px 420px at 100% -120px, rgba(56, 189, 248, .12), transparent 65%);
+      background-size: 28px 28px, 28px 28px, auto;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    main { width: min(920px, 100%); margin: 0 auto; padding: 16px; }
+
+    .hero, .panel, .kpi, .call-card, .conductor-card, .empty, .error {
+      border: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(30, 41, 59, .96), rgba(20, 31, 50, .98));
+      border-radius: 18px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 14px;
+      padding: 20px;
+    }
+
+    .hero::after {
+      position: absolute;
+      top: -55px;
+      right: -38px;
+      width: 170px;
+      height: 170px;
+      border: 1px solid rgba(56, 189, 248, .18);
+      border-radius: 50%;
+      box-shadow: 0 0 0 27px rgba(56, 189, 248, .045), 0 0 0 54px rgba(56, 189, 248, .03);
+      content: "";
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    h1 { margin: 8px 0 0; font-size: 25px; line-height: 1.08; }
+    .subtitle { max-width: 650px; margin: 9px 0 0; color: var(--sub); font-size: 13px; line-height: 1.48; }
+    .updated { margin-top: 14px; color: var(--sub); font-size: 10px; }
+
+    .periods, .filters {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding: 1px 0 13px;
+      scrollbar-width: none;
+    }
+
+    .periods::-webkit-scrollbar, .filters::-webkit-scrollbar { display: none; }
+
+    .period, .filter {
+      flex: none;
+      min-height: 36px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--sub);
+      background: var(--surface);
+      cursor: pointer;
+    }
+
+    .period { font-size: 12px; }
+    .filter { min-height: 34px; padding: 7px 10px; font-size: 11px; }
+    .period.active, .filter.active { color: var(--blue); border-color: rgba(56, 189, 248, .72); background: rgba(56, 189, 248, .08); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+      margin-bottom: 14px;
+    }
+
+    .kpi { min-width: 0; padding: 13px; }
+    .kpi-label { color: var(--sub); font-size: 10px; line-height: 1.3; }
+    .kpi-value { margin-top: 5px; font-size: 24px; font-weight: 850; letter-spacing: -.04em; }
+    .kpi-note { margin-top: 4px; color: var(--sub); font-size: 10px; line-height: 1.35; }
+    .kpi.blue .kpi-value { color: var(--blue); }
+    .kpi.green .kpi-value { color: var(--green); }
+    .kpi.yellow .kpi-value { color: var(--yellow); }
+    .kpi.red .kpi-value { color: var(--red); }
+
+    .layout { display: grid; grid-template-columns: 1.08fr .92fr; gap: 14px; margin-bottom: 14px; }
+    .panel { min-width: 0; padding: 16px; }
+    .panel + .panel, .panel.standalone { margin-bottom: 14px; }
+
+    .panel-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 13px;
+    }
+
+    .panel-title h2 { margin: 0; font-size: 15px; }
+    .panel-title span { color: var(--sub); font-size: 10px; text-align: right; }
+
+    .bar-list { display: grid; gap: 13px; }
+    .metric-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; }
+    .metric-row span { min-width: 0; color: var(--sub); font-size: 11px; line-height: 1.35; }
+    .metric-row b { font-size: 12px; text-align: right; }
+
+    .track {
+      grid-column: 1 / -1;
+      height: 7px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(148, 163, 184, .16);
+    }
+
+    .track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #3b82f6, #38bdf8); }
+
+    .platform-strip {
+      display: flex;
+      height: 13px;
+      overflow: hidden;
+      margin: 4px 0 15px;
+      border-radius: 99px;
+      background: rgba(148, 163, 184, .13);
+    }
+
+    .platform-strip i { min-width: 0; height: 100%; }
+    .platform-strip .vk { background: linear-gradient(90deg, #2563eb, #38bdf8); }
+    .platform-strip .discord { background: linear-gradient(90deg, #6366f1, #8b5cf6); }
+    .platform-strip .unknown { background: #64748b; }
+    .platforms { display: grid; gap: 9px; }
+
+    .platform-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 10px;
+      border: 1px solid var(--line-soft);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, .27);
+    }
+
+    .dot { width: 9px; height: 9px; border-radius: 3px; background: var(--blue); }
+    .dot.discord { background: #818cf8; }
+    .dot.unknown { background: #64748b; }
+    .platform-name { font-size: 12px; font-weight: 720; }
+    .platform-meta { color: var(--sub); font-size: 10px; }
+
+    .conductors, .calls { display: grid; gap: 9px; }
+    .conductor-card, .call-card { overflow: hidden; }
+
+    .expand-button {
+      width: 100%;
+      padding: 13px;
+      border: 0;
+      color: inherit;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .conductor-top, .call-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .conductor-name, .call-title { min-width: 0; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
+    .conductor-sub, .call-sub { margin-top: 4px; color: var(--sub); font-size: 10px; line-height: 1.4; }
+    .conductor-rate { flex: none; color: var(--green); font-size: 18px; font-weight: 850; text-align: right; }
+    .conductor-rate span { display: block; margin-top: 2px; color: var(--sub); font-size: 8px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+
+    .mini-grid, .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 11px;
+    }
+
+    .mini-metric, .detail-item {
+      min-width: 0;
+      padding: 9px;
+      border: 1px solid var(--line-soft);
+      border-radius: 9px;
+      background: rgba(15, 23, 42, .27);
+    }
+
+    .mini-metric span, .detail-item span { display: block; color: var(--sub); font-size: 9px; line-height: 1.35; }
+    .mini-metric b, .detail-item b { display: block; margin-top: 4px; font-size: 12px; overflow-wrap: anywhere; }
+    .detail-item.wide { grid-column: 1 / -1; }
+
+    .expand-hint { margin-top: 10px; color: var(--blue); font-size: 10px; font-weight: 720; }
+    .details { display: none; padding: 0 13px 13px; border-top: 1px solid var(--line-soft); }
+    .expanded .details { display: block; }
+    .expanded .expand-hint { color: var(--sub); }
+
+    .link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      margin-top: 10px;
+      padding: 7px 10px;
+      border: 1px solid rgba(56, 189, 248, .35);
+      border-radius: 9px;
+      color: var(--blue);
+      background: rgba(56, 189, 248, .07);
+      font-size: 11px;
+      font-weight: 720;
+      text-decoration: none;
+    }
+
+    .badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+    .badge {
+      flex: none;
+      padding: 5px 7px;
+      border: 1px solid rgba(56, 189, 248, .28);
+      border-radius: 999px;
+      color: var(--blue);
+      background: rgba(56, 189, 248, .08);
+      font-size: 9px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    .badge.green { color: var(--green); border-color: rgba(52, 211, 153, .3); background: rgba(52, 211, 153, .08); }
+    .badge.yellow { color: var(--yellow); border-color: rgba(251, 191, 36, .3); background: rgba(251, 191, 36, .08); }
+    .badge.red { color: var(--red); border-color: rgba(251, 113, 133, .3); background: rgba(251, 113, 133, .08); }
+    .badge.muted { color: var(--sub); border-color: var(--line); background: rgba(148, 163, 184, .06); }
+
+    .controls { margin-bottom: 13px; }
+    .search {
+      width: 100%;
+      margin-bottom: 11px;
+      padding: 12px 13px;
+      border: 1px solid var(--line);
+      outline: none;
+      border-radius: 11px;
+      color: var(--text);
+      background: var(--surface);
+      font-size: 13px;
+    }
+
+    .search:focus { border-color: rgba(56, 189, 248, .7); }
+    .control-label { margin: 0 2px 6px; color: var(--sub); font-size: 10px; }
+    .result { margin: 0 2px 9px; color: var(--sub); font-size: 11px; }
+
+    .empty, .error { padding: 25px 17px; color: var(--sub); line-height: 1.45; text-align: center; }
+    .error strong { display: block; margin-bottom: 7px; color: var(--red); }
+    .retry { margin-top: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; color: var(--text); background: var(--surface-2); cursor: pointer; }
+    #loading { padding: 54px 20px; color: var(--sub); font-size: 14px; text-align: center; }
+    .ui-block-disabled { display: none !important; }
+
+    @media (max-width: 650px) {
+      main { padding: 12px; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .layout { grid-template-columns: 1fr; }
+      .layout .panel { margin-bottom: 0; }
+      .mini-grid, .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .hero { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="loading">Загружаю статистику обзвонов…</div>
+
+    <section id="content" hidden>
+      <header class="hero">
+        <div class="eyebrow">Admin Control BOT</div>
+        <h1>Статистика обзвонов</h1>
+        <p class="subtitle">Результаты проведённых обзвонов, площадки, проводящие и отметки присутствия главного администратора.</p>
+        <div class="updated" id="updated"></div>
+      </header>
+
+      <nav class="periods" aria-label="Период статистики">
+        <button class="period" data-period="7" type="button">7 дней</button>
+        <button class="period" data-period="30" type="button">30 дней</button>
+        <button class="period active" data-period="month" type="button">Этот месяц</button>
+        <button class="period" data-period="90" type="button">90 дней</button>
+      </nav>
+
+      <section class="cards" data-ui-block="overview" aria-label="Сводная статистика">
+        <article class="kpi blue"><div class="kpi-label">Всего обзвонов</div><div class="kpi-value" id="total">0</div><div class="kpi-note" id="total-note">за выбранный период</div></article>
+        <article class="kpi yellow"><div class="kpi-label">Подтверждено</div><div class="kpi-value" id="confirmed">0</div><div class="kpi-note" id="confirmed-note">0 ожидают</div></article>
+        <article class="kpi green"><div class="kpi-label">Успешно прошли</div><div class="kpi-value" id="pass-rate">0%</div><div class="kpi-note" id="pass-note">0 из 0</div></article>
+        <article class="kpi blue"><div class="kpi-label">Присутствовал главный администратор</div><div class="kpi-value" id="master-attended">0</div><div class="kpi-note" id="attendance-note">обзвонов с отметкой</div></article>
+      </section>
+
+      <div class="layout">
+        <section class="panel" data-ui-block="roles">
+          <div class="panel-title"><h2>По должностям</h2><span>подтверждено и успешно пройдено</span></div>
+          <div class="bar-list" id="roles"></div>
+        </section>
+
+        <section class="panel" data-ui-block="platforms">
+          <div class="panel-title"><h2>Площадки проведения</h2><span>доля от обзвонов с указанной площадкой</span></div>
+          <div class="platform-strip" id="platform-strip" aria-hidden="true"></div>
+          <div class="platforms" id="platforms"></div>
+        </section>
+      </div>
+
+      <section class="panel standalone" data-ui-block="conductors">
+        <div class="panel-title"><h2>Кто проводит</h2><span>нажмите на карточку для подробностей</span></div>
+        <div class="conductors" id="conductors"></div>
+      </section>
+
+      <section class="panel standalone" data-ui-block="recent">
+        <div class="panel-title"><h2>Последние обзвоны</h2><span>по выбранному периоду</span></div>
+        <div class="controls">
+          <input class="search" id="search" type="search" autocomplete="off" placeholder="Поиск по кандидату или проводящему">
+
+          <div class="control-label">Должность</div>
+          <div class="filters" aria-label="Фильтр по должности">
+            <button class="filter active" data-filter-group="role" data-filter-value="all" type="button">Все</button>
+            <button class="filter" data-filter-group="role" data-filter-value="leader" type="button">Лидер</button>
+            <button class="filter" data-filter-group="role" data-filter-value="support" type="button">Агент поддержки</button>
+            <button class="filter" data-filter-group="role" data-filter-value="admin" type="button">Администратор</button>
+          </div>
+
+          <div class="control-label">Площадка</div>
+          <div class="filters" aria-label="Фильтр по площадке">
+            <button class="filter active" data-filter-group="platform" data-filter-value="all" type="button">Все</button>
+            <button class="filter" data-filter-group="platform" data-filter-value="vk" type="button">ВКонтакте</button>
+            <button class="filter" data-filter-group="platform" data-filter-value="discord" type="button">Discord</button>
+          </div>
+
+          <div class="control-label">Результат</div>
+          <div class="filters" aria-label="Фильтр по результату">
+            <button class="filter active" data-filter-group="status" data-filter-value="all" type="button">Все</button>
+            <button class="filter" data-filter-group="status" data-filter-value="passed" type="button">Прошёл</button>
+            <button class="filter" data-filter-group="status" data-filter-value="failed" type="button">Не прошёл</button>
+            <button class="filter" data-filter-group="status" data-filter-value="pending" type="button">Ожидает</button>
+            <button class="filter" data-filter-group="status" data-filter-value="cancelled" type="button">Отменён</button>
+          </div>
+
+          <div class="control-label">Присутствие</div>
+          <div class="filters" aria-label="Фильтр по присутствию">
+            <button class="filter active" data-filter-group="attendance" data-filter-value="all" type="button">Все</button>
+            <button class="filter" data-filter-group="attendance" data-filter-value="attended" type="button">Я присутствовал</button>
+          </div>
+        </div>
+        <div class="result" id="result"></div>
+        <div class="calls" id="calls"></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    'use strict';
+
+    const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/calls/statistics';
+    const REQUEST_TIMEOUT_MS = 30000;
+    const tg = window.Telegram?.WebApp;
+    const $ = id => document.getElementById(id);
+
+    let data = { periods: {} };
+    let activePeriod = 'month';
+    const filters = { role: 'all', platform: 'all', status: 'all', attendance: 'all' };
+
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[character]);
+
+    const number = value => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const clampPercent = value => Math.max(0, Math.min(100, number(value)));
+    const formatPercent = value => `${number(value).toFixed(1).replace('.0', '')}%`;
+
+    function truthy(value) {
+      if (value === true || value === 1) return true;
+      const normalized = String(value ?? '').trim().toLowerCase();
+      return Boolean(normalized && !['0', 'false', 'нет', 'no', 'none', 'не отмечено'].includes(normalized));
+    }
+
+    function getPeriodData() {
+      const periods = data.periods || {};
+      if (Array.isArray(periods)) {
+        return periods.find(item => String(item.period_days ?? item.days ?? item.period) === activePeriod) || {};
+      }
+      return periods[activePeriod] || periods[`${activePeriod}_days`] || {};
+    }
+
+    function roleCode(value) {
+      const normalized = String(value ?? '').trim().toLowerCase();
+      if (normalized.includes('лидер')) return 'leader';
+      if (normalized.includes('агент') || normalized.includes('поддерж')) return 'support';
+      if (normalized.includes('админ')) return 'admin';
+      return 'unknown';
+    }
+
+    function roleLabel(value) {
+      const code = roleCode(value);
+      if (code === 'leader') return 'Лидер';
+      if (code === 'support') return 'Агент поддержки';
+      if (code === 'admin') return 'Администратор';
+      return String(value || 'Тип не указан');
+    }
+
+    function platformCode(value) {
+      const normalized = String(value ?? '').trim().toLowerCase();
+      if (normalized === 'vk' || normalized.includes('вконтакте') || normalized === 'вк') return 'vk';
+      if (normalized === 'discord' || normalized.includes('дискорд')) return 'discord';
+      return 'unknown';
+    }
+
+    function platformLabel(value) {
+      const code = platformCode(value);
+      if (code === 'vk') return 'ВКонтакте';
+      if (code === 'discord') return 'Discord';
+      return 'Не указано';
+    }
+
+    function statusCode(item) {
+      const status = String(item.status ?? '').trim().toLowerCase();
+      if (status === 'cancelled' || status.includes('отмен')) return 'cancelled';
+      if (status === 'created' || status.includes('ожида')) return 'pending';
+      const passed = String(item.passed ?? '').trim().toLowerCase();
+      if (passed === 'да' || passed === 'yes' || passed === 'true' || passed === '1') return 'passed';
+      if (passed === 'нет' || passed === 'no' || passed === 'false' || passed === '0') return 'failed';
+      return status === 'confirmed' ? 'confirmed' : 'pending';
+    }
+
+    function statusBadge(item) {
+      const code = statusCode(item);
+      if (code === 'passed') return '<span class="badge green">Прошёл</span>';
+      if (code === 'failed') return '<span class="badge red">Не прошёл</span>';
+      if (code === 'cancelled') return '<span class="badge muted">Отменён</span>';
+      if (code === 'confirmed') return '<span class="badge green">Подтверждён</span>';
+      return '<span class="badge yellow">Ожидает</span>';
+    }
+
+    function attendanceBadge(item) {
+      return truthy(item.master_attended ?? item.master_attended_at)
+        ? '<span class="badge green">Присутствовал</span>'
+        : '';
+    }
+
+    function safeUrl(value) {
+      try {
+        const url = new URL(String(value ?? '').trim());
+        return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
+      } catch (_) {
+        return '';
+      }
+    }
+
+    function applyUiConfig(config = {}) {
+      document.querySelectorAll('[data-ui-block]').forEach(element => {
+        element.classList.toggle('ui-block-disabled', config[element.dataset.uiBlock] === false);
+      });
+    }
+
+    function renderOverview(summary) {
+      const total = number(summary.total ?? summary.total_calls);
+      const confirmed = number(summary.confirmed ?? summary.confirmed_calls);
+      const pending = number(summary.pending ?? summary.pending_calls);
+      const cancelled = number(summary.cancelled ?? summary.cancelled_calls);
+      const passed = number(summary.passed ?? summary.passed_calls);
+      const failed = number(summary.failed ?? summary.failed_calls);
+      const eligible = passed + failed;
+      const passRate = Number.isFinite(Number(summary.pass_rate))
+        ? number(summary.pass_rate)
+        : (eligible ? passed / eligible * 100 : 0);
+
+      $('total').textContent = total;
+      $('total-note').textContent = cancelled ? `${cancelled} отменено` : 'за выбранный период';
+      $('confirmed').textContent = confirmed;
+      $('confirmed-note').textContent = `${pending} ожидают подтверждения`;
+      $('pass-rate').textContent = formatPercent(passRate);
+      $('pass-note').textContent = `${passed} из ${eligible}`;
+      const attended = number(summary.master_attended ?? summary.master_attended_count);
+      const attendanceTracked = number(summary.attendance_tracked);
+      $('master-attended').textContent = attended;
+      $('attendance-note').textContent = attendanceTracked
+        ? `${attended} из ${attendanceTracked} обзвонов с данными`
+        : 'для старых обзвонов данных нет';
+    }
+
+    function renderRoles(summary) {
+      const roles = Array.isArray(summary.roles) ? summary.roles : [];
+      $('roles').innerHTML = roles.length ? roles.map(item => {
+        const label = roleLabel(item.role ?? item.call_type ?? item.name ?? item.label);
+        const total = number(item.total);
+        const confirmed = number(item.confirmed ?? item.total);
+        const passed = number(item.passed);
+        const failed = number(item.failed);
+        const eligible = passed + failed;
+        const rate = Number.isFinite(Number(item.pass_rate)) ? number(item.pass_rate) : (eligible ? passed / eligible * 100 : 0);
+        return `<div class="metric-row"><span><b>${escapeHtml(label)}</b><br>${confirmed} подтверждено · ${total} всего</span><b>${formatPercent(rate)}</b><div class="track"><i style="width:${clampPercent(rate)}%"></i></div></div>`;
+      }).join('') : '<div class="empty">За выбранный период обзвонов по должностям нет.</div>';
+    }
+
+    function renderPlatforms(summary) {
+      const items = Array.isArray(summary.platforms) ? summary.platforms : [];
+      const knownTotal = items.reduce((sum, item) => sum + number(item.total ?? item.count), 0);
+      $('platform-strip').innerHTML = items.map(item => {
+        const code = platformCode(item.platform ?? item.code ?? item.name ?? item.label);
+        const itemTotal = number(item.total ?? item.count);
+        const percentValue = item.percent ?? item.share;
+        const percent = Number.isFinite(Number(percentValue)) ? number(percentValue) : (knownTotal ? itemTotal / knownTotal * 100 : 0);
+        return `<i class="${code}" style="width:${clampPercent(percent)}%"></i>`;
+      }).join('');
+      $('platforms').innerHTML = items.length ? items.map(item => {
+        const rawPlatform = item.platform ?? item.code ?? item.name ?? item.label;
+        const code = platformCode(rawPlatform);
+        const total = number(item.total ?? item.count);
+        const percentValue = item.percent ?? item.share;
+        const percent = Number.isFinite(Number(percentValue)) ? number(percentValue) : (knownTotal ? total / knownTotal * 100 : 0);
+        return `<div class="platform-row"><i class="dot ${code}"></i><div><div class="platform-name">${escapeHtml(platformLabel(rawPlatform))}</div><div class="platform-meta">${total} обзвонов</div></div><b>${formatPercent(percent)}</b></div>`;
+      }).join('') : '<div class="empty">Площадки проведения пока не указаны.</div>';
+    }
+
+    function renderConductors(summary) {
+      const conductors = Array.isArray(summary.conductors) ? summary.conductors : [];
+      $('conductors').innerHTML = conductors.length ? conductors.map((item, index) => {
+        const name = item.nickname ?? item.creator_nick ?? item.name ?? 'Не указан';
+        const total = number(item.total);
+        const confirmed = number(item.confirmed ?? item.total);
+        const passed = number(item.passed);
+        const failed = number(item.failed);
+        const eligible = passed + failed;
+        const rate = Number.isFinite(Number(item.pass_rate)) ? number(item.pass_rate) : (eligible ? passed / eligible * 100 : 0);
+        const attended = number(item.master_attended ?? item.master_attended_count);
+        return `<article class="conductor-card" data-expandable><button class="expand-button" type="button" aria-expanded="false"><div class="conductor-top"><div><div class="conductor-name">${index + 1}. ${escapeHtml(name)}</div><div class="conductor-sub">${total} проведено · ${confirmed} подтверждено</div></div><div class="conductor-rate">${formatPercent(rate)}<span>успешно прошли</span></div></div><div class="expand-hint">Показать показатели</div></button><div class="details"><div class="mini-grid"><div class="mini-metric"><span>Прошли</span><b>${passed}</b></div><div class="mini-metric"><span>Не прошли</span><b>${failed}</b></div><div class="mini-metric"><span>Ожидают подтверждения</span><b>${Math.max(0, total - confirmed)}</b></div><div class="mini-metric"><span>Присутствовал главный администратор</span><b>${attended}</b></div></div></div></article>`;
+      }).join('') : '<div class="empty">За выбранный период проведённых обзвонов нет.</div>';
+      bindExpandables($('conductors'));
+    }
+
+    function recentCalls(summary) {
+      return Array.isArray(summary.recent_calls) ? summary.recent_calls : [];
+    }
+
+    function matchesFilters(item, query) {
+      const role = roleCode(item.call_type ?? item.role ?? item.type);
+      const platform = platformCode(item.platform);
+      const status = statusCode(item);
+      const attended = truthy(item.master_attended ?? item.master_attended_at);
+      const searchable = [item.candidate_nick, item.creator_nick, item.conductor, item.call_type, item.faction].join(' ').toLowerCase();
+      return (!query || searchable.includes(query))
+        && (filters.role === 'all' || role === filters.role)
+        && (filters.platform === 'all' || platform === filters.platform)
+        && (filters.status === 'all' || status === filters.status)
+        && (filters.attendance === 'all' || attended);
+    }
+
+    function renderCalls(summary) {
+      const query = $('search').value.trim().toLowerCase();
+      const visible = recentCalls(summary).filter(item => matchesFilters(item, query));
+      $('result').textContent = `Показано обзвонов: ${visible.length}`;
+      $('calls').innerHTML = visible.length ? visible.map(item => {
+        const type = roleLabel(item.call_type ?? item.role ?? item.type);
+        const platform = platformLabel(item.platform);
+        const conductor = item.creator_nick ?? item.conductor ?? 'Не указан';
+        const candidate = item.candidate_nick || 'Кандидат не указан';
+        const plannedAt = item.planned_at ?? item.date ?? 'Дата не указана';
+        const videoUrl = safeUrl(item.video_url);
+        const attendedAt = item.master_attended_at || (truthy(item.master_attended) ? 'Отмечено' : 'Не отмечено');
+        return `<article class="call-card" data-expandable><button class="expand-button" type="button" aria-expanded="false"><div class="call-top"><div><div class="call-title">${escapeHtml(type)} · ${escapeHtml(candidate)}</div><div class="call-sub">${escapeHtml(plannedAt)} · ${escapeHtml(platform)}<br>Проводит: ${escapeHtml(conductor)}</div></div><div class="badges">${statusBadge(item)}${attendanceBadge(item)}</div></div><div class="expand-hint">Подробнее</div></button><div class="details"><div class="detail-grid"><div class="detail-item"><span>Проводящий</span><b>${escapeHtml(conductor)}</b></div><div class="detail-item"><span>Кандидат</span><b>${escapeHtml(candidate)}</b></div><div class="detail-item"><span>Фракция</span><b>${escapeHtml(item.faction || 'Не применяется')}</b></div><div class="detail-item"><span>Присутствие главного администратора</span><b>${escapeHtml(attendedAt)}</b></div><div class="detail-item wide"><span>Ошибки кандидата</span><b>${escapeHtml(item.errors || 'Не указаны')}</b></div>${item.source ? `<div class="detail-item wide"><span>Как кандидат узнал о должности</span><b>${escapeHtml(item.source)}</b></div>` : ''}</div>${videoUrl ? `<a class="link" href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer">Открыть видеофиксацию</a>` : ''}</div></article>`;
+      }).join('') : '<div class="empty">По выбранным фильтрам обзвоны не найдены.</div>';
+      bindExpandables($('calls'));
+    }
+
+    function bindExpandables(container) {
+      container.querySelectorAll('[data-expandable] > .expand-button').forEach(button => {
+        button.addEventListener('click', () => {
+          const card = button.closest('[data-expandable]');
+          const expanded = card.classList.toggle('expanded');
+          button.setAttribute('aria-expanded', String(expanded));
+          const hint = button.querySelector('.expand-hint');
+          if (hint) hint.textContent = expanded ? 'Скрыть подробности' : (card.classList.contains('call-card') ? 'Подробнее' : 'Показать показатели');
+        });
+      });
+    }
+
+    function renderAll() {
+      const summary = getPeriodData();
+      renderOverview(summary);
+      renderRoles(summary);
+      renderPlatforms(summary);
+      renderConductors(summary);
+      renderCalls(summary);
+    }
+
+    function showError(title, detail) {
+      $('loading').innerHTML = `<div class="error"><strong>${escapeHtml(title)}</strong>${escapeHtml(detail)}<br><button class="retry" id="retry" type="button">Повторить</button></div>`;
+      $('retry')?.addEventListener('click', load);
+    }
+
+    async function load() {
+      $('content').hidden = true;
+      $('loading').hidden = false;
+      $('loading').textContent = 'Загружаю статистику обзвонов…';
+
+      if (!tg?.initData) {
+        showError('Доступ запрещён', 'Откройте статистику кнопкой из Telegram-бота.');
+        return;
+      }
+
+      tg.ready();
+      tg.expand();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'X-Telegram-Init-Data': tg.initData },
+          signal: controller.signal
+        });
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') {
+          throw new Error(result.message || `HTTP ${response.status}`);
+        }
+        data = result.data || { periods: {} };
+        $('updated').textContent = data.updated_at ? `Данные обновлены: ${data.updated_at} МСК` : '';
+        applyUiConfig(data.ui_config || {});
+        $('loading').hidden = true;
+        $('content').hidden = false;
+        renderAll();
+      } catch (error) {
+        console.error(error);
+        showError(
+          error.name === 'AbortError' ? 'Сервер отвечает слишком долго' : 'Не удалось загрузить статистику',
+          error.name === 'AbortError' ? 'Повторите попытку через несколько секунд.' : (error.message || 'Повторите попытку позже.')
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    document.querySelectorAll('.period').forEach(button => {
+      button.addEventListener('click', () => {
+        activePeriod = button.dataset.period;
+        document.querySelectorAll('.period').forEach(item => item.classList.toggle('active', item === button));
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll('.filter').forEach(button => {
+      button.addEventListener('click', () => {
+        const group = button.dataset.filterGroup;
+        filters[group] = button.dataset.filterValue;
+        document.querySelectorAll(`.filter[data-filter-group="${group}"]`).forEach(item => item.classList.toggle('active', item === button));
+        renderCalls(getPeriodData());
+      });
+    });
+
+    $('search').addEventListener('input', () => renderCalls(getPeriodData()));
+    load();
+  </script>
+</body>
+</html>
