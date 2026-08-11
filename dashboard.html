@@ -211,40 +211,40 @@
         </div>
 
         <!-- Основная статистика -->
-        <div class="grid-2" data-ui-block="work_metrics">
-            <div class="card">
+        <div class="grid-2">
+            <div class="card" data-ui-block="total_reports">
                 <div class="card-label">Всего репортов</div>
                 <div class="card-value" id="reports-week">0</div>
             </div>
-            <div class="card">
+            <div class="card" data-ui-block="days_in_role">
                 <div class="card-label">Дней на должности</div>
                 <div class="card-value" id="days-on-role">0</div>
             </div>
-            <div class="card">
+            <div class="card" data-ui-block="remaining_reports">
                 <div class="card-label">Осталось репортов</div>
                 <div class="card-value" id="reports-left">0</div>
             </div>
-            <div class="card">
+            <div class="card" data-ui-block="days_since_promotion">
                 <div class="card-label">Дни с момента повышения</div>
                 <div class="card-value" id="days-left">0</div>
             </div>
-            <div class="card">
+            <div class="card" data-ui-block="days_without_norm">
                 <div class="card-label">Дни без нормы</div>
                 <div class="card-value" style="color: var(--warning);" id="days-without-norm">0</div>
             </div>
-            <div class="card">
+            <div class="card" data-ui-block="norm_completion">
                 <div class="card-label">Выполнение нормы</div>
                 <div class="card-value" style="color: var(--success);" id="activity-coef">0%</div>
             </div>
         </div>
 
         <!-- Взыскания и Собрания -->
-        <div class="grid-2" data-ui-block="discipline">
-            <div class="card">
+        <div class="grid-2">
+            <div class="card" data-ui-block="punishments">
                 <div class="card-label">Выговоры / Предупреждения</div>
                 <div class="card-value" style="color: var(--danger);" id="punishments">0 / 0</div>
             </div>
-            <div class="card">
+            <div class="card" data-ui-block="attendance">
                 <div class="card-label">Посещаемость собраний</div>
                 <div class="card-value" id="meeting-percent">0%</div>
             </div>
