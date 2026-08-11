@@ -110,7 +110,7 @@
     #loading { padding: 48px 20px; text-align: center; color: var(--sub); font-size: 14px; }
     .legend { margin: 0 2px 14px; color: var(--muted); font-size: 11px; line-height: 1.45; }
     @media (max-width: 350px) { .summary-grid { gap: 7px; } .card { padding: 10px; } .value { font-size: 18px; } }
-    body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(56,189,248,.12),transparent 65%);background-size:28px 28px,28px 28px,auto}
+    body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(56,189,248,.12),transparent 65%);background-size:28px 28px,28px 28px,auto}.ui-block-disabled{display:none!important}
   </style>
 </head>
 <body>
@@ -123,7 +123,7 @@
         <p class="subtitle">Повторяемость подтверждённых похожих случаев по каждому администратору.</p>
       </header>
 
-      <section class="week-problem is-empty" id="week-problem" aria-labelledby="week-problem-heading" aria-live="polite">
+      <section class="week-problem is-empty" id="week-problem" data-ui-block="weekly_problem" aria-labelledby="week-problem-heading" aria-live="polite">
         <div class="week-problem-head">
           <div>
             <div class="eyebrow">Аналитика недели</div>
@@ -136,13 +136,13 @@
         <p class="week-problem-summary" id="week-problem-summary">За текущую неделю данных пока недостаточно.</p>
       </section>
 
-      <section class="summary-grid" aria-label="Сводная статистика">
+      <section class="summary-grid" data-ui-block="summary" aria-label="Сводная статистика">
         <div class="card"><div class="label">Всего жалоб</div><div class="value" id="total">0</div></div>
         <div class="card"><div class="label">Красная зона</div><div class="value red" id="red-total">0</div></div>
         <div class="card"><div class="label">Жёлтая зона</div><div class="value yellow" id="yellow-total">0</div></div>
       </section>
 
-      <section class="controls">
+      <section class="controls" data-ui-block="admin_list">
         <input id="search" type="search" autocomplete="off" placeholder="Поиск по NickName">
         <div class="filters" role="tablist">
           <button class="filter active" data-filter="all" type="button">Все</button>
@@ -152,9 +152,9 @@
           <button class="filter" data-filter="insufficient" type="button">Мало данных</button>
         </div>
       </section>
-      <p class="legend">Красная зона: от 40% при 5+ жалобах. Жёлтая: 20–39%. Для меньшей выборки статус не назначается.</p>
-      <div class="list-title" id="list-title">Администраторы</div>
-      <section id="list"></section>
+      <p class="legend" data-ui-block="admin_list">Красная зона: от 40% при 5+ жалобах. Жёлтая: 20–39%. Для меньшей выборки статус не назначается.</p>
+      <div class="list-title" id="list-title" data-ui-block="admin_list">Администраторы</div>
+      <section id="list" data-ui-block="admin_list"></section>
     </section>
   </main>
 
@@ -171,6 +171,12 @@
     const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
     })[char]);
+
+    function applyUiConfig(config = {}) {
+      document.querySelectorAll('[data-ui-block]').forEach(element => {
+        element.classList.toggle('ui-block-disabled', config[element.dataset.uiBlock] === false);
+      });
+    }
 
     function renderWeekProblem(problem = {}) {
       const card = document.getElementById('week-problem');
@@ -249,6 +255,7 @@
           showError('Не удалось загрузить данные', result.message || `HTTP ${response.status}`);
           return;
         }
+        applyUiConfig(result.data.ui_config || {});
         admins = result.data.admins || [];
         document.getElementById('total').textContent = result.data.total_complaints ?? 0;
         document.getElementById('red-total').textContent = result.data.red_zone_count ?? 0;

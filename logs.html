@@ -60,7 +60,7 @@
     .empty,.error { padding:25px 17px; color:var(--sub); line-height:1.45; text-align:center; }
     .error strong { display:block; margin-bottom:7px; color:var(--red); }
     #loading { padding:54px 20px; color:var(--sub); text-align:center; font-size:14px; }
-    body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(56,189,248,.12),transparent 65%);background-size:28px 28px,28px 28px,auto}
+    body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(56,189,248,.12),transparent 65%);background-size:28px 28px,28px 28px,auto}.ui-block-disabled{display:none!important}
   </style>
 </head>
 <body>
@@ -72,11 +72,11 @@
         <h1>Логи</h1>
         <p class="subtitle">Все зафиксированные действия, сгруппированные по категориям. Личные тексты сообщений в журнал не попадают.</p>
       </header>
-      <section class="summary" aria-label="Сводка журнала">
+      <section class="summary" data-ui-block="summary" aria-label="Сводка журнала">
         <div><div class="summary-label">Событий в выборке</div><div class="summary-value" id="total">0</div></div>
         <div class="summary-note">Время новых событий указывается по Москве (МСК).</div>
       </section>
-      <section class="controls">
+      <section class="controls" data-ui-block="filters">
         <input id="search" type="search" autocomplete="off" placeholder="Поиск по нику, ID или событию">
         <div class="control-label">Категория</div>
         <div class="filters" role="tablist" aria-label="Категории">
@@ -105,8 +105,8 @@
           <button class="filter" data-period="week" type="button">7 дней</button>
         </div>
       </section>
-      <div class="result-title" id="result-title"></div>
-      <section id="list"></section>
+      <div class="result-title" id="result-title" data-ui-block="entries"></div>
+      <section id="list" data-ui-block="entries"></section>
     </section>
   </main>
   <script>
@@ -118,6 +118,12 @@
     let statusFilter = 'all';
     let periodFilter = 'all';
     const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
+
+    function applyUiConfig(config = {}) {
+      document.querySelectorAll('[data-ui-block]').forEach(element => {
+        element.classList.toggle('ui-block-disabled', config[element.dataset.uiBlock] === false);
+      });
+    }
 
     function getStatus(entry) {
       const action = String(entry.action || '').toLowerCase();
@@ -223,6 +229,7 @@
         const response = await fetch(`${BACKEND_URL}/api/logs/interactions`, { method:'POST', headers:{'X-Telegram-Init-Data':tg.initData} });
         const result = await response.json();
         if (!response.ok || result.status !== 'success') { showError('Не удалось загрузить журнал', result.message || `HTTP ${response.status}`); return; }
+        applyUiConfig(result.data.ui_config || {});
         entries = result.data.entries || [];
         document.getElementById('total').textContent = entries.length;
         updateCategoryCounts();

@@ -58,6 +58,8 @@
             background: rgba(56, 189, 248, 0.15);
         }
 
+        .ui-block-disabled { display: none !important; }
+
         .user-title {
             font-size: 20px;
             font-weight: 700;
@@ -170,7 +172,7 @@
         </div>
 
         <!-- Прогресс повышения -->
-        <div class="card" style="margin-bottom: 16px;">
+        <div class="card" style="margin-bottom: 16px;" data-ui-block="promotion">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="card-label">Прогресс повышения</span>
                 <span id="promo-percent" style="font-weight: bold; color: var(--accent-color);">0%</span>
@@ -182,7 +184,7 @@
         </div>
 
         <!-- График активности репортов ПН-ВС -->
-        <div class="chart-container">
+        <div class="chart-container" data-ui-block="weekly_reports">
             <div class="card-label">Репорты за неделю (ПН - ВС)</div>
             <div class="chart-wrapper">
                 <canvas id="reportsChart"></canvas>
@@ -190,7 +192,7 @@
         </div>
 
         <!-- Результаты аттестаций -->
-        <div class="card" style="margin-bottom: 16px;">
+        <div class="card" style="margin-bottom: 16px;" data-ui-block="test_results">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                 <span class="card-label" style="margin-bottom: 0;">Результат тестирований</span>
                 <span id="tests-average" style="font-weight: bold; color: var(--success);">—</span>
@@ -199,7 +201,7 @@
             <div id="tests-levels" class="card-label" style="margin-top: 8px; margin-bottom: 0; line-height: 1.45;"></div>
         </div>
 
-        <div class="card" style="margin-bottom: 16px;">
+        <div class="card" style="margin-bottom: 16px;" data-ui-block="complaints">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                 <span class="card-label" style="margin-bottom: 0;">История обращений</span>
                 <span id="complaints-percent" style="font-weight: bold; color: var(--text-sub);">Нет данных</span>
@@ -209,7 +211,7 @@
         </div>
 
         <!-- Основная статистика -->
-        <div class="grid-2">
+        <div class="grid-2" data-ui-block="work_metrics">
             <div class="card">
                 <div class="card-label">Всего репортов</div>
                 <div class="card-value" id="reports-week">0</div>
@@ -237,7 +239,7 @@
         </div>
 
         <!-- Взыскания и Собрания -->
-        <div class="grid-2">
+        <div class="grid-2" data-ui-block="discipline">
             <div class="card">
                 <div class="card-label">Выговоры / Предупреждения</div>
                 <div class="card-value" style="color: var(--danger);" id="punishments">0 / 0</div>
@@ -261,6 +263,15 @@
 
         function returnToAdminOverview() {
             window.location.href = 'admin-overview.html';
+        }
+
+        function applyUiConfig(config = {}) {
+            document.querySelectorAll('[data-ui-block]').forEach((element) => {
+                element.classList.toggle(
+                    'ui-block-disabled',
+                    config[element.dataset.uiBlock] === false
+                );
+            });
         }
 
         document.getElementById('back-to-admin-overview').addEventListener('click', returnToAdminOverview);
@@ -321,6 +332,7 @@
                 }
 
                 const d = result.data;
+                applyUiConfig(d.ui_config || {});
 
                 // Заполняем ник
                 document.getElementById('nickname').innerText = d.nickname || "Без ника";
