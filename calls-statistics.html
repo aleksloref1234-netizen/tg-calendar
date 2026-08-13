@@ -181,6 +181,25 @@
     .platform-name { font-size: 12px; font-weight: 720; }
     .platform-meta { color: var(--sub); font-size: 10px; }
 
+    .source-tabs { display: flex; gap: 7px; overflow-x: auto; margin: -2px 0 14px; scrollbar-width: none; }
+    .source-tabs::-webkit-scrollbar { display: none; }
+    .source-tab { flex: none; min-height: 32px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--sub); background: rgba(15, 23, 42, .28); cursor: pointer; font-size: 10px; }
+    .source-tab.active { color: var(--blue); border-color: rgba(56, 189, 248, .68); background: rgba(56, 189, 248, .08); }
+    .source-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); align-items: center; gap: 18px; }
+    .source-donut { position: relative; width: 164px; aspect-ratio: 1; margin: 0 auto; border-radius: 50%; background: rgba(148, 163, 184, .14); }
+    .source-donut::after { position: absolute; inset: 27px; border: 1px solid var(--line-soft); border-radius: 50%; background: var(--surface); content: ""; }
+    .source-donut-center { position: absolute; z-index: 1; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
+    .source-donut-center b { font-size: 28px; line-height: 1; }
+    .source-donut-center span { max-width: 80px; margin-top: 5px; color: var(--sub); font-size: 9px; line-height: 1.25; }
+    .source-list { display: grid; gap: 9px; }
+    .source-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 10px; background: rgba(15, 23, 42, .27); }
+    .source-color { width: 9px; height: 30px; border-radius: 4px; }
+    .source-name { font-size: 11px; font-weight: 720; line-height: 1.3; }
+    .source-meta { margin-top: 3px; color: var(--sub); font-size: 9px; line-height: 1.35; }
+    .source-share { font-size: 14px; font-weight: 820; text-align: right; }
+    .source-insight { margin-top: 13px; padding: 10px 11px; border: 1px solid rgba(56, 189, 248, .2); border-radius: 10px; color: var(--sub); background: rgba(56, 189, 248, .05); font-size: 10px; line-height: 1.48; }
+    .source-insight b { color: var(--text); }
+
     .conductors, .calls { display: grid; gap: 9px; }
     .conductor-card, .call-card { overflow: hidden; }
 
@@ -291,6 +310,8 @@
       .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .layout { grid-template-columns: 1fr; }
       .layout .panel { margin-bottom: 0; }
+      .source-layout { grid-template-columns: 1fr; }
+      .source-donut { width: 154px; }
       .mini-grid, .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .hero { padding: 18px; }
     }
@@ -334,6 +355,12 @@
           <div class="platforms" id="platforms"></div>
         </section>
       </div>
+
+      <section class="panel standalone" data-ui-block="sources">
+        <div class="panel-title"><h2>Откуда приходят кандидаты</h2><span>доля источников и результат обзвонов</span></div>
+        <div class="source-tabs" id="source-tabs" aria-label="Должность для диаграммы источников"></div>
+        <div id="source-content"></div>
+      </section>
 
       <section class="panel standalone" data-ui-block="conductors">
         <div class="panel-title"><h2>Кто проводит</h2><span>нажмите на карточку для подробностей</span></div>
@@ -391,7 +418,17 @@
 
     let data = { periods: {} };
     let activePeriod = 'month';
+    let activeSourceRole = 'all';
     const filters = { role: 'all', platform: 'all', status: 'all', attendance: 'all' };
+    const sourceColors = ['#38bdf8', '#818cf8', '#34d399', '#fbbf24', '#fb7185', '#a78bfa'];
+    const sourceLabels = [
+      'Увидел рекламное сообщение в игре',
+      'Увидел рекламное сообщение в беседе ВК',
+      'Увидел рекламное сообщение в ДС',
+      'По рекомендации друзей',
+      'Прочие информационные ресурсы (TikTok, YouTube)',
+      'Кандидат восстанавливается на должность Администратора'
+    ];
 
     const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -421,6 +458,7 @@
 
     function roleCode(value) {
       const normalized = String(value ?? '').trim().toLowerCase();
+      if (['leader', 'support', 'admin'].includes(normalized)) return normalized;
       if (normalized.includes('лидер')) return 'leader';
       if (normalized.includes('агент') || normalized.includes('поддерж')) return 'support';
       if (normalized.includes('админ')) return 'admin';
@@ -549,6 +587,59 @@
       }).join('') : '<div class="empty">Площадки проведения пока не указаны.</div>';
     }
 
+    function sourceRoleCode(value) {
+      return roleCode(value);
+    }
+
+    function sourceColor(label) {
+      const index = sourceLabels.indexOf(String(label ?? '').trim());
+      return sourceColors[(index < 0 ? 0 : index) % sourceColors.length];
+    }
+
+    function sourceDataset(summary) {
+      const statistics = summary.source_statistics || {};
+      if (activeSourceRole === 'all') return { name: 'Все должности', ...statistics };
+      return (statistics.by_role || []).find(item => sourceRoleCode(item.name) === activeSourceRole) || { name: roleLabel(activeSourceRole), items: [], known_total: 0, unknown_total: 0 };
+    }
+
+    function renderSources(summary) {
+      const statistics = summary.source_statistics || {};
+      const roles = [
+        { code: 'all', label: 'Все' },
+        ...(statistics.by_role || []).map(item => ({ code: sourceRoleCode(item.name), label: roleLabel(item.name) }))
+      ].filter((item, index, values) => item.code !== 'unknown' && values.findIndex(value => value.code === item.code) === index);
+      $('source-tabs').innerHTML = roles.map(item => `<button class="source-tab ${item.code === activeSourceRole ? 'active' : ''}" data-source-role="${item.code}" type="button">${escapeHtml(item.label)}</button>`).join('');
+      $('source-tabs').querySelectorAll('[data-source-role]').forEach(button => button.addEventListener('click', () => {
+        activeSourceRole = button.dataset.sourceRole;
+        renderSources(summary);
+      }));
+
+      const selected = sourceDataset(summary);
+      const items = Array.isArray(selected.items) ? selected.items : [];
+      const knownTotal = number(selected.known_total);
+      const unknownTotal = number(selected.unknown_total);
+      if (!items.length) {
+        $('source-content').innerHTML = '<div class="empty">За выбранный период источники кандидатов не указаны.</div>';
+        return;
+      }
+
+      let cursor = 0;
+      const segments = items.map((item, index) => {
+        const share = clampPercent(item.share);
+        const start = cursor;
+        cursor = index === items.length - 1 ? 100 : Math.min(100, cursor + share);
+        return `${sourceColor(item.label)} ${start}% ${cursor}%`;
+      });
+      const top = items[0];
+      const best = items
+        .filter(item => Number.isFinite(Number(item.pass_rate)))
+        .sort((a, b) => number(b.pass_rate) - number(a.pass_rate) || number(b.count) - number(a.count))[0];
+      const unknownNote = unknownTotal
+        ? ` У ${unknownTotal} старых обзвонов источник не указан и в проценты не включён.`
+        : '';
+      $('source-content').innerHTML = `<div class="source-layout"><div class="source-donut" style="background:conic-gradient(${segments.join(',')})"><div class="source-donut-center"><b>${knownTotal}</b><span>обзвонов с указанным источником</span></div></div><div class="source-list">${items.map(item => `<div class="source-row"><i class="source-color" style="background:${sourceColor(item.label)}"></i><div><div class="source-name">${escapeHtml(item.label)}</div><div class="source-meta">${number(item.count)} кандидатов · прошли ${number(item.passed)} из ${number(item.passed) + number(item.failed)}</div></div><div class="source-share">${formatPercent(item.share)}<div class="platform-meta">прошли: ${item.pass_rate == null ? '—' : formatPercent(item.pass_rate)}</div></div></div>`).join('')}</div></div><div class="source-insight"><b>Самый большой поток:</b> ${escapeHtml(top.label)} — ${formatPercent(top.share)}.${best ? ` <b>Лучший процент прохождения:</b> ${escapeHtml(best.label)} — ${formatPercent(best.pass_rate)}.` : ''}${escapeHtml(unknownNote)}</div>`;
+    }
+
     function renderConductors(summary) {
       const conductors = Array.isArray(summary.conductors) ? summary.conductors : [];
       $('conductors').innerHTML = conductors.length ? conductors.map((item, index) => {
@@ -616,6 +707,7 @@
       renderOverview(summary);
       renderRoles(summary);
       renderPlatforms(summary);
+      renderSources(summary);
       renderConductors(summary);
       renderCalls(summary);
     }
