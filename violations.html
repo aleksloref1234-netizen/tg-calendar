@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Статистика нарушений</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root{color-scheme:dark;--bg:#081224;--card:#18263b;--line:#2d405a;--text:#f8fafc;--sub:#91a9c8;--blue:#38bdf8;--green:#34d399;--yellow:#fbbf24;--red:#fb7185}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;background-color:var(--bg);background-image:linear-gradient(rgba(56,189,248,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.035) 1px,transparent 1px),radial-gradient(circle at 85% 0,rgba(56,189,248,.12),transparent 36%);background-size:24px 24px,24px 24px,auto}
+    .app{max-width:760px;margin:auto;padding:14px 12px 40px}.hero,.panel,.metric,.admin{border:1px solid var(--line);background:rgba(24,38,59,.94);border-radius:18px}.hero{padding:22px;position:relative;overflow:hidden}.hero:after{content:"";position:absolute;right:-46px;top:-72px;width:180px;height:180px;border:24px solid rgba(56,189,248,.08);border-radius:50%}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--blue)}h1{font-size:26px;margin:6px 0 4px}.muted,.label{color:var(--sub)}.updated{font-size:11px;margin-top:12px}.summary{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:12px 0}.metric{padding:14px}.metric b{display:block;font-size:25px;margin-top:4px}.metric.blue b{color:var(--blue)}.metric.red b{color:var(--red)}.metric.yellow b{color:var(--yellow)}.metric.green b{color:var(--green)}.panel{padding:14px;margin-top:12px}h2{font-size:18px;margin:0 0 12px}.severity{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.severity div{padding:11px;border:1px solid var(--line);border-radius:13px}.severity b{display:block;font-size:20px;margin-top:2px}.controls{display:flex;gap:8px;flex-wrap:wrap}.search{width:100%;border:1px solid var(--line);background:#101e32;color:var(--text);border-radius:13px;padding:12px;font:inherit;outline:none}.chip{border:1px solid var(--line);background:#132137;color:var(--sub);padding:8px 11px;border-radius:11px}.chip.active{border-color:var(--blue);color:var(--blue)}.count{font-size:12px;color:var(--sub);margin:10px 2px}.admins{display:grid;gap:10px}.admin{overflow:hidden}.admin summary{list-style:none;cursor:pointer;padding:15px}.admin summary::-webkit-details-marker{display:none}.admin-top{display:flex;justify-content:space-between;gap:10px}.name{font-weight:800;font-size:17px}.impact{text-align:right;color:var(--red);font-weight:800}.impact span{display:block;color:var(--sub);font-size:10px;text-transform:uppercase}.bar{height:7px;margin-top:10px;background:#2a3a51;border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--yellow),var(--red));border-radius:inherit}.admin-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 15px 15px}.small{padding:10px;border:1px solid var(--line);border-radius:12px;color:var(--sub)}.small b{display:block;color:var(--text);font-size:16px;margin-top:3px}.history{grid-column:1/-1;display:grid;gap:7px}.event{padding:10px;background:#111f33;border-radius:12px}.event-title{display:flex;justify-content:space-between;gap:8px;font-weight:700}.event p{margin:5px 0;color:var(--sub)}.tag{font-size:11px;color:var(--yellow)}a{color:var(--blue)}.empty{padding:24px;text-align:center;color:var(--sub)}.ui-block-disabled{display:none!important}.error{color:var(--red);padding:30px;text-align:center}@media(max-width:430px){.severity{grid-template-columns:1fr}.hero{padding:18px}.summary{gap:8px}}
+    .period-quick,.period-dates{display:flex;gap:8px;flex-wrap:wrap}.period-dates{margin-top:10px;align-items:end}.date-field{flex:1;min-width:130px}.date-field span{display:block;color:var(--sub);font-size:11px;margin:0 0 4px 2px}.date-field input{width:100%;border:1px solid var(--line);background:#101e32;color:var(--text);border-radius:11px;padding:10px;font:inherit;color-scheme:dark}.apply{border:1px solid var(--blue);background:rgba(56,189,248,.12);color:var(--blue);border-radius:11px;padding:10px 14px;font-weight:700}.compare{margin-top:10px;color:var(--sub);font-size:12px}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <div class="eyebrow">ADMIN CONTROL BOT</div>
+      <h1>Статистика нарушений</h1>
+      <div class="muted">Подтверждённые нарушения администрации, повторяемость и текущее влияние на индекс успеваемости.</div>
+      <div class="updated" id="updated">Загрузка данных…</div>
+    </section>
+    <div id="content" hidden>
+      <section class="panel" data-ui-block="period">
+        <h2>Период проверки</h2>
+        <div class="period-quick">
+          <button class="chip" data-days="7">7 дней</button>
+          <button class="chip" data-days="14">14 дней</button>
+          <button class="chip active" data-days="30">30 дней</button>
+          <button class="chip" data-days="90">90 дней</button>
+        </div>
+        <div class="period-dates">
+          <label class="date-field"><span>С даты</span><input id="date-from" type="date"></label>
+          <label class="date-field"><span>По дату</span><input id="date-to" type="date"></label>
+          <button class="apply" id="apply-period">Показать</button>
+        </div>
+        <div class="compare" id="compare"></div>
+      </section>
+      <section class="summary" data-ui-block="summary">
+        <div class="metric blue"><span class="label">Всего записей</span><b id="total">0</b></div>
+        <div class="metric red"><span class="label">Влияют сейчас</span><b id="active">0</b></div>
+        <div class="metric yellow"><span class="label">Повторные</span><b id="repeated">0</b></div>
+        <div class="metric green"><span class="label">Администраторов</span><b id="affected">0</b></div>
+      </section>
+      <section class="panel" data-ui-block="severity">
+        <h2>По тяжести</h2>
+        <div class="severity">
+          <div><span class="label">Незначительные</span><b id="minor">0</b></div>
+          <div><span class="label">Средние</span><b id="medium">0</b></div>
+          <div><span class="label">Серьёзные</span><b id="serious">0</b></div>
+        </div>
+      </section>
+      <section class="panel" data-ui-block="filters">
+        <h2>Администраторы</h2>
+        <div class="controls">
+          <input class="search" id="search" placeholder="Поиск по NickName">
+          <button class="chip admin-filter active" data-filter="all">Все</button>
+          <button class="chip admin-filter" data-filter="active">Влияют сейчас</button>
+          <button class="chip admin-filter" data-filter="repeated">С повторениями</button>
+          <button class="chip admin-filter" data-filter="serious">С серьёзными</button>
+        </div>
+      </section>
+      <section data-ui-block="admin_list">
+        <div class="count" id="count"></div>
+        <div class="admins" id="admins"></div>
+      </section>
+      <section class="panel" data-ui-block="recent">
+        <h2>Последние нарушения</h2>
+        <div class="history" id="recent"></div>
+      </section>
+    </div>
+    <div id="error" class="error" hidden></div>
+  </main>
+  <script>
+    const tg=window.Telegram.WebApp;tg.expand();
+    const API='https://tg-admin-bot-1k1g.onrender.com/api/violations/statistics';
+    const $=id=>document.getElementById(id);const esc=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    let data={admins:[],recent:[]},filter='all';
+    function enabled(config,key){return config?.[key]!==false}
+    function applyConfig(config){document.querySelectorAll('[data-ui-block]').forEach(el=>el.classList.toggle('ui-block-disabled',!enabled(config,el.dataset.uiBlock)))}
+    function eventHtml(item){const link=item.evidence_url&&item.evidence_url!=='Без ссылки'?`<a href="${esc(item.evidence_url)}" target="_blank">Подтверждение</a>`:'Без ссылки';return `<div class="event"><div class="event-title"><span>${esc(item.date)} · ${esc(item.severity_label)}</span><span class="tag">${item.repeated?'Повторное':'Первичное'}</span></div><p><b>Нарушение:</b> ${esc(item.description||'Не указано')}</p><p><b>Проведённая работа:</b> ${esc(item.resolution||'Не указана')}</p><div>${link}</div></div>`}
+    function renderAdmins(){const query=$('search').value.trim().toLowerCase();const selected=(data.admins||[]).filter(item=>String(item.nickname).toLowerCase().includes(query)&&(filter==='all'||(filter==='active'&&item.active_count>0)||(filter==='repeated'&&item.repeated>0)||(filter==='serious'&&item.serious>0)));$('count').textContent=`Показано администраторов: ${selected.length}`;$('admins').innerHTML=selected.length?selected.map(item=>`<details class="admin"><summary><div class="admin-top"><div><div class="name">${esc(item.nickname)}</div><div class="muted">${item.total} всего · ${item.repeated} повторных · ${item.active_count} влияют сейчас</div></div><div class="impact">−${item.index_impact}%<span>к индексу</span></div></div><div class="bar"><i style="width:${Math.min(100,item.risk_points||0)}%"></i></div></summary><div class="admin-stats"><div class="small">Незначительные<b>${item.minor}</b></div><div class="small">Средние<b>${item.medium}</b></div><div class="small">Серьёзные<b>${item.serious}</b></div><div class="small">Последнее<b>${esc(item.last_violation_date||'—')}</b></div><div class="history">${(item.recent||[]).map(eventHtml).join('')||'<div class="empty">Нет записей</div>'}</div></div></details>`).join(''):'<div class="empty">По выбранному фильтру ничего не найдено.</div>'}
+    function render(){const period=data.period;const delta=Number(period?.total_delta||0);$('updated').textContent=`Данные обновлены: ${data.updated_at||'—'} МСК`;$('total').textContent=data.total||0;$('active').textContent=data.active_total||0;$('repeated').textContent=data.repeated||0;$('affected').textContent=data.admins_affected||0;$('minor').textContent=data.severity?.minor||0;$('medium').textContent=data.severity?.medium||0;$('serious').textContent=data.severity?.serious||0;$('compare').textContent=period?`Предыдущий такой же период: ${period.previous_total} нарушений · изменение ${delta>0?'+':''}${delta}`:'';$('recent').innerHTML=(data.recent||[]).map(item=>eventHtml({...item,severity_label:item.severity_label||item.severity})).join('')||'<div class="empty">Нарушений за выбранный период нет.</div>';applyConfig(data.ui_config||{});renderAdmins();$('content').hidden=false}
+    document.querySelectorAll('.admin-filter').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.admin-filter').forEach(item=>item.classList.remove('active'));button.classList.add('active');filter=button.dataset.filter;renderAdmins()}));$('search').addEventListener('input',renderAdmins);
+    const iso=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    function quickPeriod(days){const end=new Date();end.setHours(12,0,0,0);const start=new Date(end);start.setDate(start.getDate()-days+1);$('date-from').value=iso(start);$('date-to').value=iso(end);load($('date-from').value,$('date-to').value)}
+    document.querySelectorAll('[data-days]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('[data-days]').forEach(item=>item.classList.remove('active'));button.classList.add('active');quickPeriod(Number(button.dataset.days))}));
+    $('apply-period').addEventListener('click',()=>{document.querySelectorAll('[data-days]').forEach(item=>item.classList.remove('active'));load($('date-from').value,$('date-to').value)});
+    async function load(dateFrom,dateTo){try{if(!tg.initData)throw new Error('Откройте страницу из Telegram.');$('updated').textContent='Обновляю период…';const response=await fetch(API,{method:'POST',headers:{'X-Telegram-Init-Data':tg.initData,'Content-Type':'application/json'},body:JSON.stringify({date_from:dateFrom,date_to:dateTo})});const result=await response.json();if(!response.ok||result.status!=='success')throw new Error(result.message||`HTTP ${response.status}`);data=result.data;$('error').hidden=true;render()}catch(error){$('error').hidden=false;$('error').textContent=`Не удалось загрузить статистику: ${error.message}`;$('updated').textContent='Ошибка загрузки'}}quickPeriod(30);
+  </script>
+</body>
+</html>

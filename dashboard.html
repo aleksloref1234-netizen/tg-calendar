@@ -210,6 +210,15 @@
             <div id="complaints-caption" class="card-label" style="margin-top: 8px; margin-bottom: 0; line-height: 1.45;">Здесь будет отображаться история учтённых обращений.</div>
         </div>
 
+        <div class="card" style="margin-bottom: 16px;" data-ui-block="violations">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <span class="card-label" style="margin-bottom: 0;">Нарушения администрации</span>
+                <span id="violations-impact" style="font-weight: bold; color: var(--text-sub);">Нет данных</span>
+            </div>
+            <div id="violations-summary" class="card-value" style="margin-top: 10px; font-size: 16px;">Подтверждённых нарушений пока нет</div>
+            <div id="violations-caption" class="card-label" style="margin-top: 8px; margin-bottom: 0; line-height: 1.45;">Показываются только подтверждённые записи.</div>
+        </div>
+
         <!-- Основная статистика -->
         <div class="grid-2">
             <div class="card" data-ui-block="total_reports">
@@ -357,6 +366,7 @@
                 document.getElementById('meeting-percent').innerText = d.meeting_percent ?? "0%";
                 renderTestResults(d.test_results);
                 renderComplaintRepeat(d.complaint_repeat);
+                renderViolations(d.violation_stats);
 
                 // Рендерим прогресс повышения и предупреждения
                 if (d.promotion) {
@@ -448,6 +458,27 @@
             percentElement.style.color = "var(--accent-color)";
             summaryElement.innerText = `${complaintRepeat.similar_complaints} из ${complaintRepeat.total_complaints} обращений связаны с повторяющимися ситуациями`;
             captionElement.innerText = "Это доля учтённых обращений, в которых затрагивалась ситуация, уже встречавшаяся ранее.";
+        }
+
+        function renderViolations(violationStats) {
+            const impactElement = document.getElementById('violations-impact');
+            const summaryElement = document.getElementById('violations-summary');
+            const captionElement = document.getElementById('violations-caption');
+            if (!violationStats?.has_data) {
+                impactElement.innerText = "Нет данных";
+                impactElement.style.color = "var(--text-sub)";
+                summaryElement.innerText = "Подтверждённых нарушений пока нет";
+                captionElement.innerText = "Показатель появится после первой подтверждённой записи.";
+                return;
+            }
+            const active = Number(violationStats.active_count || 0);
+            const impact = Number(violationStats.index_impact || 0);
+            impactElement.innerText = active ? `−${impact}% к индексу` : "Сейчас не влияет";
+            impactElement.style.color = active ? "#fb7185" : "var(--success)";
+            summaryElement.innerText = `${violationStats.total || 0} всего · ${violationStats.repeated || 0} повторных · ${active} влияют сейчас`;
+            captionElement.innerText = active
+                ? "Влияние уменьшается со временем: 100% до 7 дней, 50% до 14 дней и 25% до 20 дней."
+                : "Записи старше 20 дней остаются в истории, но не снижают индекс успеваемости.";
         }
 
         function renderChart(dailyData) {
