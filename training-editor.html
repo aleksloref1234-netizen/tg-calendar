@@ -100,9 +100,31 @@
         });
       }catch(error){
         console.error('Сетевая ошибка прямой загрузки в B2:',error);
+
+        let endpoint='не удалось определить';
+        let protocol='не удалось определить';
+        let pageOrigin='не удалось определить';
+
+        try{
+          const uploadUrl=new URL(prepared.upload_url);
+          endpoint=uploadUrl.host;
+          protocol=uploadUrl.protocol;
+        }catch(urlError){
+          console.error('Не удалось разобрать upload_url:',urlError);
+        }
+
+        try{
+          pageOrigin=window.location.origin||'null';
+        }catch(originError){
+          console.error('Не удалось определить origin Mini App:',originError);
+        }
+
         throw new Error(
-          `Не удалось отправить файл напрямую в Backblaze B2. `+
-          `Ошибка браузера: ${error?.message||String(error)}`
+          `Не удалось отправить файл напрямую в Backblaze B2.\n`+
+          `Ошибка браузера: ${error?.message||String(error)}\n`+
+          `Endpoint: ${endpoint}\n`+
+          `Protocol: ${protocol}\n`+
+          `Origin Mini App: ${pageOrigin}`
         );
       }
 
