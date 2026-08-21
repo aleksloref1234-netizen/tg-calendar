@@ -49,7 +49,44 @@
     const previewBankDetail={bank:previewState.banks[0],media_storage_configured:true,media:previewState.media,cases:[{case_id:'case-demo',bank_id:'bank_entry',title:'Спорная блокировка игрока',description:'Полномасштабная ситуация для анализа действий администратора.',difficulty:'hard',media_id:'media-demo',active:'true'}],questions:[{question_id:'bank-q1',bank_id:'bank_entry',case_id:'case-demo',difficulty:'hard',question_type:'open',text:'Какие нарушения допущены в этой ситуации?',explanation:'Названы ошибки и верный порядок действий.',points:'2',active:'true'},{question_id:'bank-q2',bank_id:'bank_entry',case_id:'',difficulty:'medium',question_type:'single_choice',text:'Какое действие должно быть первым?',option_a:'Зафиксировать доказательства',option_b:'Игнорировать',option_c:'Выдать наказание без проверки',option_d:'Завершить смену',correct_option:'A',points:'1',active:'true'}]};
     async function previewApi(path,body){if(path.endsWith('/bootstrap'))return structuredClone(previewState);if(path.includes('/lesson/')&&!path.endsWith('/save'))return structuredClone(previewDetail);if(path.endsWith('/block/save')){const saved={...body,block_id:body.block_id||`preview-${Date.now()}`,order:body.order||String(previewDetail.blocks.length+1),active:'true'};const index=previewDetail.blocks.findIndex(item=>item.block_id===saved.block_id);if(index>=0)previewDetail.blocks[index]=saved;else previewDetail.blocks.push(saved);return structuredClone(saved)}if(path.endsWith('/block/reorder')){previewDetail.blocks.sort((a,b)=>body.block_ids.indexOf(a.block_id)-body.block_ids.indexOf(b.block_id));previewDetail.blocks.forEach((item,index)=>item.order=String(index+1));return structuredClone(previewDetail.blocks)}if(path.includes('/block/')&&path.endsWith('/toggle')){const id=decodeURIComponent(path.split('/').slice(-2)[0]),item=previewDetail.blocks.find(block=>block.block_id===id);if(item)item.active=String(body.active);return item||{}}if(path.endsWith('/reviews'))return [{attempt:{attempt_id:'a1',telegram_id:'2001',lesson_id:'lecture_1',completed_at:'2026-08-14T10:00:00Z'},user:{full_name:'Агент поддержки',telegram_id:'2001'},lesson:{title:'Основы работы агента поддержки'},items:[{question_id:'q2',text:'Опишите порядок эскалации спорной ситуации.',answer:'Зафиксирую доказательства и передам ситуацию старшему администратору.',criteria:'Указаны фиксация, обращение к старшему и передача доказательств.',points:2}]}];return body instanceof FormData?{}:(body||{})}
     const basePreviewApi=previewApi;previewApi=async function(path,body){if(path.includes('/question/')&&path.endsWith('/delete')){const id=decodeURIComponent(path.split('/').slice(-2)[0]),index=previewBankDetail.questions.findIndex(item=>item.question_id===id);if(index<0)throw new Error('Вопрос не найден.');return structuredClone(previewBankDetail.questions.splice(index,1)[0])}if(path.includes('/bank/')&&!path.endsWith('/save')){const value=structuredClone(previewBankDetail),bankId=decodeURIComponent(path.split('/').pop()),bank=previewState.banks.find(item=>item.bank_id===bankId)||previewState.banks[0];value.bank=structuredClone(bank);value.questions=value.questions.map(item=>({...item,bank_id:bank.bank_id}));value.cases=value.cases.map(item=>({...item,bank_id:bank.bank_id}));return value}return basePreviewApi(path,body)};
-    async function api(path,body={}){if(PREVIEW)return previewApi(path,body);const isForm=body instanceof FormData,response=await fetch(`${BACKEND}${path}`,{method:'POST',headers:{...(isForm?{}:{'Content-Type':'application/json'}),'X-Telegram-Init-Data':tg?.initData||''},body:isForm?body:JSON.stringify(body)}),result=await response.json().catch(()=>({status:'error',message:`HTTP ${response.status}`}));if(!response.ok||result.status!=='success')throw new Error(result.message||`Ошибка ${response.status}`);return result.data}
+    async function api(path,body={}){
+      if(PREVIEW)return previewApi(path,body);
+      const isForm=body instanceof FormData;
+      let response;
+      try{
+        response=await fetch(`${BACKEND}${path}`,{
+          method:'POST',
+          headers:{...(isForm?{}:{'Content-Type':'application/json'}),'X-Telegram-Init-Data':tg?.initData||''},
+          body:isForm?body:JSON.stringify(body)
+        });
+      }catch(error){
+        const requestError=new Error(error?.message||'Сервер временно недоступен.');
+        requestError.retryable=true;
+        throw requestError;
+      }
+      const result=await response.json().catch(()=>({status:'error',message:`HTTP ${response.status}`}));
+      if(!response.ok||result.status!=='success'){
+        const requestError=new Error(result.message||`Ошибка ${response.status}`);
+        requestError.status=response.status;
+        requestError.retryable=response.status===429||response.status>=500;
+        throw requestError;
+      }
+      return result.data;
+    }
+    const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
+    async function retryApi(path,body={},attempts=3){
+      let lastError;
+      for(let attempt=1;attempt<=attempts;attempt+=1){
+        try{
+          return await api(path,body);
+        }catch(error){
+          lastError=error;
+          if(!error?.retryable||attempt===attempts)throw error;
+          await wait(attempt*1200);
+        }
+      }
+      throw lastError;
+    }
     function setBusy(button,busy,text='Сохранение…'){if(!button)return;button.disabled=busy;if(busy){button.dataset.original=button.textContent;button.textContent=text}else button.textContent=button.dataset.original||button.textContent}
     function showError(message){$('content').innerHTML=`<div class="error">${esc(message)}</div>`}
     function lessonTags(item){return `<div class="meta"><span class="tag ${item.publication_status==='published'?'ok':'warn'}">${esc(labels[item.publication_status]||item.publication_status)}</span><span class="tag">Блоков: ${esc(item.blocks_count||0)}</span><span class="tag">Вопросов: ${esc(item.questions_count||0)}</span>${item.open_questions_count?`<span class="tag">Открытых: ${esc(item.open_questions_count)}</span>`:''}</div>`}
@@ -78,7 +115,7 @@
 
       let prepared;
       try{
-        prepared=await api('/api/training/editor/media/upload-url',{
+        prepared=await retryApi('/api/training/editor/media/upload-url',{
           filename:file.name,
           mime_type:file.type||'application/octet-stream',
           size:file.size
@@ -158,7 +195,7 @@
       }
 
       try{
-        return await api(
+        return await retryApi(
           `/api/training/editor/media/${encodeURIComponent(prepared.media_id)}/complete`
         );
       }catch(error){
