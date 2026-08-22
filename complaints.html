@@ -36,6 +36,26 @@
     .eyebrow { color: var(--blue); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 7px; }
     h1 { margin: 0; font-size: 22px; line-height: 1.15; }
     .subtitle { color: var(--sub); font-size: 13px; line-height: 1.45; margin: 8px 0 0; }
+    .updated { color: var(--sub); font-size: 10px; margin-top: 10px; }
+    .period-panel { padding: 15px; margin-bottom: 14px; }
+    .period-quick { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 1px; }
+    .period-chip, .period-apply {
+      flex: none; min-height: 36px; padding: 8px 11px; border-radius: 10px; cursor: pointer;
+      border: 1px solid var(--card-border); background: rgba(15,23,42,.42); color: var(--sub); font-size: 12px;
+    }
+    .period-chip.active, .period-apply {
+      border-color: rgba(56,189,248,.75); color: var(--blue); background: rgba(56,189,248,.08);
+    }
+    .period-dates { display: none; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 11px; }
+    .period-dates.visible { display: grid; }
+    .date-field { min-width: 0; }
+    .date-field span { display: block; color: var(--sub); font-size: 10px; margin: 0 0 4px 2px; }
+    .date-field input {
+      width: 100%; min-width: 0; padding: 9px; border: 1px solid var(--card-border); border-radius: 10px;
+      background: #101e32; color: var(--text); font: inherit; color-scheme: dark;
+    }
+    .compare { margin: 11px 1px 0; color: var(--sub); font-size: 11px; line-height: 1.5; }
+    .period-error { margin-top: 9px; color: var(--red); font-size: 11px; line-height: 1.45; }
     .week-problem {
       position: relative; overflow: hidden; padding: 16px 17px; margin-bottom: 14px;
       border: 1px solid rgba(56,189,248,.28); border-radius: 16px;
@@ -131,6 +151,7 @@
     .error strong { display: block; color: var(--red); margin-bottom: 6px; }
     #loading { padding: 48px 20px; text-align: center; color: var(--sub); font-size: 14px; }
     .legend { margin: 0 2px 14px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    @media (max-width: 420px) { .period-dates { grid-template-columns: 1fr 1fr; } .period-apply { grid-column: 1 / -1; } }
     @media (max-width: 350px) { .summary-grid { gap: 7px; } .card { padding: 10px; } .value { font-size: 18px; } }
     body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(56,189,248,.12),transparent 65%);background-size:28px 28px,28px 28px,auto}.ui-block-disabled{display:none!important}
   </style>
@@ -143,13 +164,34 @@
         <div class="eyebrow">Admin Control BOT</div>
         <h1>Статистика по жалобам</h1>
         <p class="subtitle">Повторяемость подтверждённых похожих случаев по каждому администратору.</p>
+        <div class="updated" id="updated"></div>
       </header>
+
+      <section class="card period-panel" data-ui-block="period" aria-labelledby="period-heading">
+        <div class="section-head">
+          <h2 id="period-heading">Период проверки</h2>
+          <span class="section-note">до 3 месяцев</span>
+        </div>
+        <div class="period-quick" style="margin-top:12px">
+          <button class="period-chip" data-days="7" type="button">Неделя</button>
+          <button class="period-chip active" data-days="30" type="button">Месяц</button>
+          <button class="period-chip" data-days="90" type="button">3 месяца</button>
+          <button class="period-chip" data-period="custom" type="button">Выбрать даты</button>
+        </div>
+        <div class="period-dates" id="period-dates">
+          <label class="date-field"><span>С даты</span><input id="date-from" type="date"></label>
+          <label class="date-field"><span>По дату</span><input id="date-to" type="date"></label>
+          <button class="period-apply" id="apply-period" type="button">Показать</button>
+        </div>
+        <div class="compare" id="compare"></div>
+        <div class="period-error" id="period-error" hidden></div>
+      </section>
 
       <section class="week-problem is-empty" id="week-problem" data-ui-block="weekly_problem" aria-labelledby="week-problem-heading" aria-live="polite">
         <div class="week-problem-head">
           <div>
-            <div class="eyebrow">Аналитика недели</div>
-            <h2 id="week-problem-heading">Главная проблема недели</h2>
+            <div class="eyebrow">Аналитика периода</div>
+            <h2 id="week-problem-heading">Главная проблема периода</h2>
           </div>
           <span class="week-problem-period" id="week-problem-period">Пн–Вс</span>
         </div>
@@ -193,6 +235,9 @@
     const BACKEND_URL = 'https://tg-admin-bot-1k1g.onrender.com';
     let admins = [];
     let filter = 'all';
+    let requestSerial = 0;
+    let activeController = null;
+    let hasLoaded = false;
 
     const labels = {
       red: 'Красная зона', yellow: 'Жёлтая зона', green: 'Зелёная зона', insufficient: 'Мало данных'
@@ -219,21 +264,52 @@
       const percent = Number(problem.percent);
       const hasData = Boolean(problem.has_data && problem.title && total > 0);
 
-      period.textContent = problem.period || 'Пн–Вс';
+      period.textContent = problem.period || 'Выбранный период';
       card.classList.toggle('is-empty', !hasData);
       if (!hasData) {
         title.textContent = 'Недостаточно данных';
         meta.textContent = '';
-        summary.textContent = problem.summary || 'За текущую неделю данных пока недостаточно.';
+        summary.textContent = problem.summary || 'За выбранный период данных пока недостаточно.';
         return;
       }
       title.textContent = problem.title;
-      meta.textContent = `${count} из ${total} жалоб недели · ${
+      meta.textContent = `${count} из ${total} жалоб периода · ${
         Number.isFinite(percent)
           ? percent.toLocaleString('ru-RU', { maximumFractionDigits: 1 })
           : 0
       }%`;
-      summary.textContent = problem.summary || 'Эта проблема встречалась чаще остальных за текущую неделю.';
+      summary.textContent = problem.summary || 'Эта проблема встречалась чаще остальных за выбранный период.';
+    }
+
+    function isoDate(value) {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatDate(value) {
+      if (!value) return '—';
+      const [year, month, day] = String(value).slice(0, 10).split('-');
+      return year && month && day ? `${day}.${month}.${year}` : value;
+    }
+
+    function datesForDays(days) {
+      const end = new Date();
+      const start = new Date(end);
+      start.setDate(start.getDate() - Number(days) + 1);
+      return [isoDate(start), isoDate(end)];
+    }
+
+    function renderPeriod(period = {}) {
+      const delta = Number(period.total_delta) || 0;
+      const similarDelta = Number(period.similar_delta) || 0;
+      const direction = value => `${value > 0 ? '+' : ''}${value}`;
+      document.getElementById('compare').textContent = period.previous_date_from
+        ? `Предыдущий такой же период ${formatDate(period.previous_date_from)}–${formatDate(period.previous_date_to)}: ` +
+          `${period.previous_total || 0} жалоб (${direction(delta)}), ` +
+          `${period.previous_similar || 0} похожих (${direction(similarDelta)}).`
+        : '';
     }
 
     function formatPercent(value) {
@@ -309,35 +385,81 @@
       document.getElementById('loading').innerHTML = `<div class="error"><strong>${escapeHtml(title)}</strong>${escapeHtml(detail)}</div>`;
     }
 
-    async function loadStats() {
+    async function loadStats(dateFrom, dateTo) {
+      const serial = ++requestSerial;
+      activeController?.abort();
+      const controller = new AbortController();
+      activeController = controller;
+      const periodError = document.getElementById('period-error');
+      periodError.hidden = true;
       if (!tg?.initData) {
         showError('Доступ запрещён', 'Откройте статистику кнопкой из Telegram-бота.');
         return;
       }
       tg.ready();
       tg.expand();
+      if (!hasLoaded) {
+        document.getElementById('loading').textContent = 'Загружаю статистику по жалобам…';
+      } else {
+        document.getElementById('updated').textContent = 'Обновляю выбранный период…';
+      }
+      const timeout = setTimeout(() => controller.abort(), 30000);
       try {
         const response = await fetch(`${BACKEND_URL}/api/complaints/statistics`, {
-          method: 'POST', headers: { 'X-Telegram-Init-Data': tg.initData }
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Telegram-Init-Data': tg.initData,
+          },
+          body: JSON.stringify({ date_from: dateFrom, date_to: dateTo }),
+          signal: controller.signal,
+          cache: 'no-store',
         });
         const result = await response.json();
-        if (!response.ok || result.status !== 'success') {
-          showError('Не удалось загрузить данные', result.message || `HTTP ${response.status}`);
-          return;
-        }
+        if (serial !== requestSerial) return;
+        if (!response.ok || result.status !== 'success') throw new Error(result.message || `HTTP ${response.status}`);
         applyUiConfig(result.data.ui_config || {});
         admins = result.data.admins || [];
+        document.getElementById('updated').textContent = result.data.updated_at
+          ? `Данные обновлены: ${result.data.updated_at} МСК`
+          : `Период: ${formatDate(dateFrom)}–${formatDate(dateTo)}`;
         document.getElementById('total').textContent = result.data.total_complaints ?? 0;
         document.getElementById('red-total').textContent = result.data.red_zone_count ?? 0;
         document.getElementById('yellow-total').textContent = result.data.yellow_zone_count ?? 0;
         renderWeekProblem(result.data.main_problem_week);
         renderLevels(result.data.levels || [], result.data.top_level || null);
+        renderPeriod(result.data.period || {});
         document.getElementById('loading').hidden = true;
         document.getElementById('content').hidden = false;
+        hasLoaded = true;
         render();
       } catch (error) {
-        showError('Ошибка подключения', error.message || 'Проверьте доступность сервиса.');
+        if (serial !== requestSerial) return;
+        const message = error.name === 'AbortError'
+          ? 'Сервер отвечает слишком долго. Повторите через несколько секунд.'
+          : (error.message || 'Проверьте доступность сервиса.');
+        if (hasLoaded) {
+          periodError.textContent = message;
+          periodError.hidden = false;
+          document.getElementById('updated').textContent = 'Не удалось обновить период';
+        } else {
+          showError('Ошибка подключения', message);
+        }
+      } finally {
+        clearTimeout(timeout);
+        if (activeController === controller) activeController = null;
       }
+    }
+
+    function selectQuickPeriod(button) {
+      document.querySelectorAll('.period-chip').forEach(item => item.classList.toggle('active', item === button));
+      const isCustom = button.dataset.period === 'custom';
+      document.getElementById('period-dates').classList.toggle('visible', isCustom);
+      if (isCustom) return;
+      const [from, to] = datesForDays(button.dataset.days);
+      document.getElementById('date-from').value = from;
+      document.getElementById('date-to').value = to;
+      loadStats(from, to);
     }
 
     document.getElementById('search').addEventListener('input', render);
@@ -346,7 +468,24 @@
       document.querySelectorAll('.filter').forEach(item => item.classList.toggle('active', item === button));
       render();
     }));
-    loadStats();
+    document.querySelectorAll('.period-chip').forEach(button => {
+      button.addEventListener('click', () => selectQuickPeriod(button));
+    });
+    document.getElementById('apply-period').addEventListener('click', () => {
+      loadStats(
+        document.getElementById('date-from').value,
+        document.getElementById('date-to').value,
+      );
+    });
+    const today = new Date();
+    const maxDate = isoDate(today);
+    ['date-from', 'date-to'].forEach(id => {
+      document.getElementById(id).max = maxDate;
+    });
+    const initialPeriod = datesForDays(30);
+    document.getElementById('date-from').value = initialPeriod[0];
+    document.getElementById('date-to').value = initialPeriod[1];
+    loadStats(initialPeriod[0], initialPeriod[1]);
   </script>
 </body>
 </html>
