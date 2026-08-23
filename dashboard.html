@@ -99,6 +99,72 @@
             font-weight: 600;
         }
 
+        .performance-card {
+            margin-bottom: 16px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .performance-card::after {
+            content: "";
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            top: -70px;
+            right: -45px;
+            border-radius: 50%;
+            border: 18px solid rgba(56, 189, 248, 0.06);
+            pointer-events: none;
+        }
+
+        .performance-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .performance-value {
+            font-size: 28px;
+            line-height: 1;
+            font-weight: 800;
+            color: var(--text-sub);
+        }
+
+        .performance-zone {
+            display: inline-flex;
+            margin-top: 8px;
+            padding: 4px 8px;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 999px;
+            color: var(--text-sub);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .performance-track {
+            width: 100%;
+            height: 8px;
+            margin-top: 14px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.14);
+        }
+
+        .performance-fill {
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--text-sub);
+            transition: width .45s ease;
+        }
+
+        .performance-caption {
+            margin-top: 10px;
+            margin-bottom: 0;
+            line-height: 1.45;
+        }
+
         .chart-container {
             background: var(--card-bg);
             border-radius: 16px;
@@ -170,6 +236,22 @@
             </button>
             <h1 class="user-title" id="nickname">-</h1>
             <p class="user-role" id="role">-</p>
+        </div>
+
+        <div class="card performance-card" data-ui-block="performance_index">
+            <div class="performance-head">
+                <div>
+                    <div class="card-label">Индекс успеваемости</div>
+                    <div class="performance-zone" id="performance-zone">Нет данных</div>
+                </div>
+                <div class="performance-value" id="performance-value">—</div>
+            </div>
+            <div class="performance-track">
+                <div class="performance-fill" id="performance-fill"></div>
+            </div>
+            <p class="card-label performance-caption" id="performance-caption">
+                Индекс объединяет норматив, посещаемость, дисциплину, повторные жалобы и активные нарушения.
+            </p>
         </div>
 
         <!-- Прогресс повышения -->
@@ -356,6 +438,7 @@
                     : d.activity_coef + "%";
                 document.getElementById('punishments').innerText = `${d.reprimands ?? 0} / ${d.warnings ?? 0}`;
                 document.getElementById('meeting-percent').innerText = d.meeting_percent ?? "0%";
+                renderPerformanceIndex(d.performance_index);
                 renderTestResults(d.test_results);
                 renderComplaintRepeat(d.complaint_repeat);
 
@@ -407,6 +490,50 @@
             if (value === null || value === undefined) return "—";
             const numberValue = Number(value);
             return `${Number.isInteger(numberValue) ? numberValue : numberValue.toFixed(1)}%`;
+        }
+
+        function renderPerformanceIndex(performance) {
+            const valueElement = document.getElementById('performance-value');
+            const zoneElement = document.getElementById('performance-zone');
+            const fillElement = document.getElementById('performance-fill');
+            const captionElement = document.getElementById('performance-caption');
+            const numericValue = Number(performance?.value);
+
+            if (!performance?.has_data || !Number.isFinite(numericValue)) {
+                valueElement.innerText = "—";
+                valueElement.style.color = "var(--text-sub)";
+                zoneElement.innerText = "Нет данных";
+                zoneElement.style.color = "var(--text-sub)";
+                zoneElement.style.borderColor = "rgba(148, 163, 184, 0.24)";
+                fillElement.style.width = "0%";
+                captionElement.innerText = "Индекс появится, когда будут доступны данные норматива и остальные показатели.";
+                return;
+            }
+
+            const zones = {
+                red: { label: "Красная зона", color: "var(--danger)" },
+                yellow: { label: "Жёлтая зона", color: "var(--warning)" },
+                green: { label: "Зелёная зона", color: "var(--success)" },
+            };
+            const zone = zones[performance.zone] || { label: "Зона не определена", color: "var(--text-sub)" };
+            const clampedValue = Math.max(0, Math.min(100, numericValue));
+            const formattedValue = Number.isInteger(numericValue)
+                ? numericValue.toFixed(0)
+                : numericValue.toFixed(1);
+            const factors = Array.isArray(performance.risk_factors)
+                ? performance.risk_factors.filter(Boolean)
+                : [];
+
+            valueElement.innerText = `${formattedValue}%`;
+            valueElement.style.color = zone.color;
+            zoneElement.innerText = zone.label;
+            zoneElement.style.color = zone.color;
+            zoneElement.style.borderColor = zone.color;
+            fillElement.style.width = `${clampedValue}%`;
+            fillElement.style.background = zone.color;
+            captionElement.innerText = factors.length
+                ? `На индекс сейчас влияют: ${factors.join(" · ")}.`
+                : "Показатели находятся в стабильной зоне. Критичных факторов не выявлено.";
         }
 
         function renderTestResults(testResults) {
