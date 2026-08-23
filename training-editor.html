@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>Конструктор курса</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="webapp-watermark.js" defer></script>
   <style>
     :root{--bg:#07101f;--panel:#0d1a2c;--panel2:#11243b;--line:rgba(148,163,184,.18);--text:#f8fafc;--muted:#93a4bb;--blue:#38bdf8;--blue2:#2563eb;--green:#34d399;--yellow:#fbbf24;--red:#fb7185;--shadow:0 18px 42px rgba(0,0,0,.25)}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}body{background:radial-gradient(circle at 88% -12%,rgba(37,99,235,.22),transparent 34%),var(--bg);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}button,input,textarea,select{font:inherit}.hidden{display:none!important}
@@ -267,7 +268,7 @@
     async function submitReview(event){event.preventDefault();const form=event.currentTarget,button=event.submitter,data=new FormData(form),decisions={};for(const [key,value] of data.entries())if(key!=='comment')decisions[key]=value==='1';setBusy(button,true);try{await api(`/api/training/editor/review/${encodeURIComponent(form.dataset.reviewForm)}`,{decisions,comment:data.get('comment')||''});await refreshBootstrap();await renderReviews()}catch(error){tg?.showAlert?.(error.message)}finally{setBusy(button,false)}}
     function showModal(html){$('modal').innerHTML=`<div class="modal-card">${html}</div>`;$('modal').classList.remove('hidden');document.querySelectorAll('[data-close]').forEach(button=>button.onclick=closeModal)}
     function closeModal(){$('modal').classList.add('hidden');$('modal').innerHTML=''}
-    async function refreshBootstrap(){state=await api('/api/training/editor/bootstrap');$('role').textContent=state.role_label;$('reviewBadge').textContent=state.pending_reviews_count||0}
+    async function refreshBootstrap(){state=await api('/api/training/editor/bootstrap');window.AdminControlWatermark?.render(state.user||{});$('role').textContent=state.role_label;$('reviewBadge').textContent=state.pending_reviews_count||0}
     async function load(){if(!PREVIEW&&!tg?.initData)throw new Error('Откройте конструктор кнопкой из Telegram-бота.');await refreshBootstrap();$('loading').classList.add('hidden');$('app').classList.remove('hidden');switchTab(activeTab)}
     function switchTab(tab){activeTab=tab;document.querySelectorAll('[data-tab]').forEach(button=>button.classList.toggle('active',button.dataset.tab===tab));if(tab==='lessons')renderLessons();if(tab==='tests')renderTests();if(tab==='reviews')renderReviews();window.scrollTo({top:0,behavior:'smooth'})}
     document.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>switchTab(button.dataset.tab));

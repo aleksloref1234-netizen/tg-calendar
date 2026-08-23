@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>Учебный центр</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="webapp-watermark.js" defer></script>
   <style>
     :root {
       --bg:#07101f;--panel:#0d1a2c;--panel2:#11243b;--line:rgba(148,163,184,.16);
@@ -63,7 +64,7 @@
     let dashboard=null,currentLesson=null,currentBank=null,currentAttempt=null,currentQuestions=[],testReturn='course',mediaObjectUrls=[];
     const profile=tg?.initDataUnsafe?.user||{};
     const initials=value=>String(value||'AP').trim().split(/\s+/).map(x=>x[0]||'').join('').slice(0,2).toUpperCase();
-    function renderScreenWatermark(user={}){const telegramId=String(user.telegram_id||profile.id||'').trim();if(!telegramId)return;const nickname=String(user.roster_nickname||user.full_name||user.username||profile.username||[profile.first_name,profile.last_name].filter(Boolean).join(' ')||'Агент поддержки').trim().slice(0,40),label=`${nickname} · ID ${telegramId}`,$layer=$('screenWatermark');$layer.innerHTML=Array.from({length:28},(_,index)=>`<span style="transform:translateY(${index%2?18:-18}px)">${esc(label)}</span>`).join('');$layer.classList.remove('hidden')}
+    function renderScreenWatermark(user={}){if(window.AdminControlWatermark?.render(user))return;const telegramId=String(user.telegram_id||profile.id||'').trim();if(!telegramId)return;const nickname=String(user.roster_nickname||user.full_name||user.username||'NickName не найден').trim().slice(0,40),label=`${nickname} · Telegram ID ${telegramId}`,$layer=$('screenWatermark');$layer.innerHTML=Array.from({length:28},(_,index)=>`<span style="transform:translateY(${index%2?18:-18}px)">${esc(label)}</span>`).join('');$layer.classList.remove('hidden')}
     const statusLabel=status=>({passed:'Пройдено',failed:'Нужна пересдача',retry_required:'Нужна пересдача',pending_review:'На проверке',in_progress:'В процессе',opened:'Изучается',available:'Доступна'}[status]||'Не начато');
 
     const previewDashboard={user:{telegram_id:'1001',role:'helper',full_name:'Агент поддержки',roster_nickname:'Helper_Nick'},role_label:'Агент поддержки',permissions:['course.study','stats.view_self'],summary:{total:4,passed:1,available:2,progress_percent:25},lessons:[
