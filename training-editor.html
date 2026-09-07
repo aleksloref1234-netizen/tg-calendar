@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>Конструктор курса</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="training-api.js?v=20260907"></script>
   <script src="webapp-watermark.js" defer></script>
   <style>
     :root{--bg:#07101f;--panel:#0d1a2c;--panel2:#11243b;--line:rgba(148,163,184,.18);--text:#f8fafc;--muted:#93a4bb;--blue:#38bdf8;--blue2:#2563eb;--green:#34d399;--yellow:#fbbf24;--red:#fb7185;--shadow:0 18px 42px rgba(0,0,0,.25)}
@@ -54,27 +55,7 @@
     const basePreviewApi=previewApi;previewApi=async function(path,body){if(path.includes('/question/')&&path.endsWith('/delete')){const id=decodeURIComponent(path.split('/').slice(-2)[0]),index=previewBankDetail.questions.findIndex(item=>item.question_id===id);if(index<0)throw new Error('Вопрос не найден.');return structuredClone(previewBankDetail.questions.splice(index,1)[0])}if(path.includes('/bank/')&&!path.endsWith('/save')){const value=structuredClone(previewBankDetail),bankId=decodeURIComponent(path.split('/').pop()),bank=previewState.banks.find(item=>item.bank_id===bankId)||previewState.banks[0];value.bank=structuredClone(bank);value.questions=value.questions.map(item=>({...item,bank_id:bank.bank_id}));value.cases=value.cases.map(item=>({...item,bank_id:bank.bank_id}));return value}return basePreviewApi(path,body)};
     async function api(path,body={}){
       if(PREVIEW)return previewApi(path,body);
-      const isForm=body instanceof FormData;
-      let response;
-      try{
-        response=await fetch(`${BACKEND}${path}`,{
-          method:'POST',
-          headers:{...(isForm?{}:{'Content-Type':'application/json'}),'X-Telegram-Init-Data':tg?.initData||''},
-          body:isForm?body:JSON.stringify(body)
-        });
-      }catch(error){
-        const requestError=new Error(error?.message||'Сервер временно недоступен.');
-        requestError.retryable=true;
-        throw requestError;
-      }
-      const result=await response.json().catch(()=>({status:'error',message:`HTTP ${response.status}`}));
-      if(!response.ok||result.status!=='success'){
-        const requestError=new Error(result.message||`Ошибка ${response.status}`);
-        requestError.status=response.status;
-        requestError.retryable=response.status===429||response.status>=500;
-        throw requestError;
-      }
-      return result.data;
+      return TrainingApi.request(BACKEND,path,body,{initData:()=>tg?.initData||''});
     }
     const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
     async function retryApi(path,body={},attempts=3){
