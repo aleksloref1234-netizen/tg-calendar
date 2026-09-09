@@ -22,6 +22,8 @@ function classes(initial = []) {
 function player() {
   const calls = {native: 0, request: 0, exit: 0, lock: 0, unlock: 0};
   const listeners = {};
+  let timerId = 0;
+  const timers = new Map();
   const node = () => ({
     innerHTML: '', textContent: '',
     setAttribute() {},
@@ -77,12 +79,21 @@ function player() {
   };
   const context = vm.createContext({
     esc: value => String(value ?? ''), tg, screen, document,
+    setTimeout(callback) { const id = ++timerId; timers.set(id, callback); return id; },
+    clearTimeout(id) { timers.delete(id); },
   });
   vm.runInContext(playerSource, context);
-  return {context, calls, controls, video, box, body};
+  return {
+    context, calls, controls, video, box, body, listeners,
+    runTimers() {
+      const callbacks = [...timers.values()];
+      timers.clear();
+      callbacks.forEach(callback => callback());
+    },
+  };
 }
 
-test('protected player provides persistent landscape controls and an explicit return', () => {
+test('protected player provides compact auto-hiding controls and an explicit return', () => {
   const {context} = player();
   const markup = context.protectedVideoHtml('https://example.test/video.mp4');
   assert.match(markup, /playsinline/);
@@ -92,6 +103,9 @@ test('protected player provides persistent landscape controls and an explicit re
   assert.match(markup, /data-video-track/);
   assert.match(markup, /data-video-mute/);
   assert.match(html, /native-video-fallback \.video-fullscreen-controls\{[^}]*display:grid/);
+  assert.match(html, /video-controls-hidden \.video-fullscreen-controls[^}]*\{opacity:0/);
+  assert.match(html, /grid-template-columns:36px minmax\(100px,1fr\) 36px/);
+  assert.match(html, /first-watch-detail\{display:none\}/);
 });
 
 test('fullscreen stays inside the Mini App instead of opening auto-hiding native UI', async () => {
@@ -136,4 +150,17 @@ test('persistent controls update playback, sound, time and progress', async () =
   assert.equal(video.muted, true);
   controls.track.onclick({clientX: 110, preventDefault() {}, stopPropagation() {}});
   assert.equal(video.currentTime, 60);
+});
+
+test('controls hide while playing and a tap restores them', async () => {
+  const {context, controls, video, box, listeners, runTimers} = player();
+  context.enableVideoFullscreen(box);
+  context.enterVideoFallback(box, video);
+
+  await controls.toggle.onclick({preventDefault() {}, stopPropagation() {}});
+  runTimers();
+  assert.equal(box.classList.contains('video-controls-hidden'), true);
+
+  listeners.click[0]({preventDefault() {}});
+  assert.equal(box.classList.contains('video-controls-hidden'), false);
 });
