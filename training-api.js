@@ -8,6 +8,7 @@
     return /^\/api\/training\/(?:bootstrap|curator)$/.test(path) ||
       /^\/api\/training\/lesson\/[^/]+$/.test(path) ||
       /^\/api\/training\/(?:media\/[^/]+\/view-link|material\/[^/]+\/download-link)$/.test(path) ||
+      /^\/api\/training\/editor\/media\/[^/]+\/transcript\/status$/.test(path) ||
       /^\/api\/training\/(?:curator|editor)\/(?:bootstrap|reviews|audit)$/.test(path) ||
       /^\/api\/training\/editor\/(?:lesson|bank)\/[^/]+$/.test(path) && !path.endsWith('/save');
   }
