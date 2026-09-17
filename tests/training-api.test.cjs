@@ -37,12 +37,25 @@ test('deduplicates simultaneous starts without silently replacing a variant', as
   assert.equal(calls, 1);
 });
 test('start and editor mutations never auto-replay after network errors', async () => {
-  for (const route of ['/api/training/test/bank/start','/api/training/editor/bank/save']) {
+  for (const route of ['/api/training/test/bank/start','/api/training/editor/bank/save','/api/training/support/message']) {
     let calls = 0;
     const request = client(async () => { calls++; throw new TypeError('Failed to fetch'); });
     await assert.rejects(request(route), error => error.code === 'network_error' && !error.message.includes('fetch'));
     assert.equal(calls, 1);
   }
+});
+
+test('support daily quota errors preserve remaining allowance without retries', async () => {
+  let calls = 0;
+  const request = client(async () => {
+    calls++;
+    return new Response(JSON.stringify({status:'error',code:'support_daily_limit',
+      message:'Лимит вопросов на сегодня исчерпан.',
+      data:{quota:{daily_limit:5,remaining_today:0,reset_at:'2026-09-18T00:00:00+03:00'}}}), {status:429});
+  });
+  await assert.rejects(request('/api/training/support/message', {message:'Вопрос'}), error =>
+    error.status === 429 && error.code === 'support_daily_limit' && error.data.quota.remaining_today === 0);
+  assert.equal(calls, 1);
 });
 test('submission recovery sends the exact same answers', async () => {
   const bodies = [];

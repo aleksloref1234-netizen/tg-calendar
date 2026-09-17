@@ -47,6 +47,7 @@
           failure = makeError(result?.message || fallback, response.status,
             temporary && retryAfter <= 3, result?.code || 'http_error');
           failure.retryAfterMs = retryAfter * 1000;
+          failure.data = result?.data;
           failure.requestId = result?.request_id || response.headers.get('X-Request-ID') || '';
           throw failure;
         }
