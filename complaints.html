@@ -79,7 +79,7 @@
     .week-problem-summary { margin: 8px 0 0; color: var(--sub); font-size: 12px; line-height: 1.5; }
     .week-problem.is-empty .week-problem-title,
     .week-problem.is-empty .week-problem-meta { color: var(--sub); }
-    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
     .card { padding: 13px; min-width: 0; }
     .label { color: var(--sub); font-size: 11px; line-height: 1.3; }
     .value { margin-top: 6px; color: var(--text); font-size: 21px; font-weight: 750; }
@@ -127,6 +127,7 @@
     .admin-card.yellow { border-color: rgba(245,158,11,.48); }
     .top-line, .metric-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .nickname { font-size: 16px; font-weight: 720; overflow-wrap: anywhere; }
+    .admin-meta { margin-top: 5px; color: var(--sub); font-size: 10px; line-height: 1.4; }
     .zone {
       border-radius: 99px; padding: 5px 8px; font-size: 10px; font-weight: 700; white-space: nowrap;
       border: 1px solid var(--card-border); color: var(--muted);
@@ -148,10 +149,22 @@
     .small-card { border-radius: 10px; background: rgba(15,23,42,.4); padding: 10px; }
     .small-value { margin-top: 4px; font-weight: 700; font-size: 16px; }
     .reviewers { margin: 11px 0 0; color: var(--sub); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+    .cases-title { margin: 15px 0 8px; font-size: 13px; font-weight: 720; }
+    .cases { display: grid; gap: 8px; }
+    .case-card { padding: 11px; border-radius: 12px; border: 1px solid var(--card-border); background: rgba(15,23,42,.42); }
+    .case-head { display: flex; align-items: center; justify-content: space-between; gap: 9px; }
+    .case-date { color: var(--sub); font-size: 10px; }
+    .case-badge { padding: 4px 7px; border-radius: 99px; font-size: 9px; font-weight: 700; color: var(--green); background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.24); }
+    .case-badge.repeat { color: var(--yellow); background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.28); }
+    .case-label { margin-top: 10px; color: var(--sub); font-size: 9px; text-transform: uppercase; letter-spacing: .04em; }
+    .case-text { margin-top: 4px; color: var(--text); font-size: 12px; line-height: 1.48; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .case-link { display: inline-flex; margin-top: 10px; color: var(--blue); font-size: 11px; text-decoration: none; }
+    .case-link:active { opacity: .7; }
     .empty, .error { padding: 22px 16px; text-align: center; color: var(--sub); line-height: 1.45; }
     .error strong { display: block; color: var(--red); margin-bottom: 6px; }
     #loading { padding: 48px 20px; text-align: center; color: var(--sub); font-size: 14px; }
     .legend { margin: 0 2px 14px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    @media (min-width: 560px) { .summary-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 420px) { .period-dates { grid-template-columns: 1fr 1fr; } .period-apply { grid-column: 1 / -1; } }
     @media (max-width: 350px) { .summary-grid { gap: 7px; } .card { padding: 10px; } .value { font-size: 18px; } }
     body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(56,189,248,.12),transparent 65%);background-size:28px 28px,28px 28px,auto}.ui-block-disabled{display:none!important}
@@ -164,7 +177,7 @@
       <header class="hero">
         <div class="eyebrow">Admin Control BOT</div>
         <h1>Статистика по жалобам</h1>
-        <p class="subtitle">Повторяемость подтверждённых похожих случаев по каждому администратору.</p>
+        <p class="subtitle">Одобренные жалобы, повторяемость ошибок и подробная история по каждому администратору.</p>
         <div class="updated" id="updated"></div>
       </header>
 
@@ -203,6 +216,9 @@
 
       <section class="summary-grid" data-ui-block="summary" aria-label="Сводная статистика">
         <div class="card"><div class="label">Всего жалоб</div><div class="value" id="total">0</div></div>
+        <div class="card"><div class="label">Администраторов</div><div class="value" id="admins-total">0</div></div>
+        <div class="card"><div class="label">Повторных жалоб</div><div class="value yellow" id="similar-total">0</div></div>
+        <div class="card"><div class="label">Доля повторных</div><div class="value" id="similar-percent">0%</div></div>
         <div class="card"><div class="label">Красная зона</div><div class="value red" id="red-total">0</div></div>
         <div class="card"><div class="label">Жёлтая зона</div><div class="value yellow" id="yellow-total">0</div></div>
       </section>
@@ -305,17 +321,57 @@
     function renderPeriod(period = {}) {
       const delta = Number(period.total_delta) || 0;
       const similarDelta = Number(period.similar_delta) || 0;
+      const adminsDelta = Number(period.admins_delta) || 0;
+      const percentDelta = Number(period.similar_percent_delta) || 0;
       const direction = value => `${value > 0 ? '+' : ''}${value}`;
       document.getElementById('compare').textContent = period.previous_date_from
         ? `Предыдущий такой же период ${formatDate(period.previous_date_from)}–${formatDate(period.previous_date_to)}: ` +
           `${period.previous_total || 0} жалоб (${direction(delta)}), ` +
-          `${period.previous_similar || 0} похожих (${direction(similarDelta)}).`
+          `${period.previous_admins || 0} администраторов (${direction(adminsDelta)}), ` +
+          `${period.previous_similar || 0} повторных (${direction(similarDelta)}), ` +
+          `доля ${formatPercent(period.previous_similar_percent)} (${direction(percentDelta)} п.п.).`
         : '';
     }
 
     function formatPercent(value) {
       const numeric = Number(value);
       return `${(Number.isFinite(numeric) ? numeric : 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%`;
+    }
+
+    function formatComplaintTimestamp(value) {
+      const text = String(value || '').trim();
+      return text ? text.replace(/(\d{1,2}:\d{2}):\d{2}/, '$1') : 'Дата не указана';
+    }
+
+    function safeComplaintUrl(value) {
+      try {
+        const url = new URL(String(value || '').trim());
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+      } catch (_) {
+        return '';
+      }
+    }
+
+    function renderComplaintCases(cases = []) {
+      if (!cases.length) {
+        return '<div class="empty">Подробности жалоб за выбранный период отсутствуют.</div>';
+      }
+      return cases.map((item, index) => {
+        const url = safeComplaintUrl(item.complaint_url);
+        const reason = String(item.reason || '').trim() || 'Причина не указана';
+        const resolution = String(item.resolution || '').trim() || 'Проведённая работа не указана';
+        return `<article class="case-card">
+          <div class="case-head">
+            <span class="case-date">${escapeHtml(formatComplaintTimestamp(item.timestamp))}</span>
+            <span class="case-badge ${item.is_similar ? 'repeat' : ''}">${item.is_similar ? 'Повторная' : 'Первичный случай'}</span>
+          </div>
+          <div class="case-label">Почему жалоба одобрена</div>
+          <div class="case-text">${escapeHtml(reason)}</div>
+          <div class="case-label">Проведённая работа</div>
+          <div class="case-text">${escapeHtml(resolution)}</div>
+          ${url ? `<a class="case-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Открыть жалобу</a>` : ''}
+        </article>`;
+      }).join('');
     }
 
     function renderLevels(levels = [], topLevel = null) {
@@ -366,20 +422,40 @@
       }
       list.innerHTML = visible.map((item, index) => {
         const reviewers = item.reviewers?.length ? item.reviewers.join(', ') : 'Не указаны';
-        return `<article class="admin-card ${item.zone}" data-index="${index}">
+        const latest = formatComplaintTimestamp(item.latest_complaint_at);
+        return `<article class="admin-card ${item.zone}" data-index="${index}" role="button" tabindex="0" aria-expanded="false">
           <div class="top-line"><div class="nickname">${escapeHtml(item.nickname)}</div><span class="zone ${item.zone}">${labels[item.zone]}</span></div>
+          <div class="admin-meta">${escapeHtml(item.admin_level || 'Уровень не указан')} · последняя жалоба: ${escapeHtml(latest)}</div>
           <div class="metric-line"><span class="metric">Похожих случаев: ${item.similar_complaints} из ${item.total_complaints}</span><span class="percent">${item.percent}%</span></div>
           <div class="bar"><div class="fill ${item.zone}" style="width:${Math.min(item.percent, 100)}%"></div></div>
           <div class="details">
             <div class="details-grid">
               <div class="small-card"><div class="label">Всего жалоб</div><div class="small-value">${item.total_complaints}</div></div>
-              <div class="small-card"><div class="label">Подтверждено как похожие</div><div class="small-value">${item.similar_complaints}</div></div>
+              <div class="small-card"><div class="label">Повторных</div><div class="small-value">${item.similar_complaints}</div></div>
+              <div class="small-card"><div class="label">Уровень</div><div class="small-value">${escapeHtml(item.admin_level || '—')}</div></div>
+              <div class="small-card"><div class="label">Последняя жалоба</div><div class="small-value">${escapeHtml(latest)}</div></div>
             </div>
+            <div class="cases-title">Одобренные жалобы за период</div>
+            <div class="cases">${renderComplaintCases(item.complaints || [])}</div>
             <p class="reviewers"><span class="label">Подтвердили кураторы:</span><br>${escapeHtml(reviewers)}</p>
           </div>
         </article>`;
       }).join('');
-      list.querySelectorAll('.admin-card').forEach(card => card.addEventListener('click', () => card.classList.toggle('open')));
+      list.querySelectorAll('.admin-card').forEach(card => {
+        const toggle = () => {
+          const open = card.classList.toggle('open');
+          card.setAttribute('aria-expanded', String(open));
+        };
+        card.addEventListener('click', event => {
+          if (!event.target.closest('a')) toggle();
+        });
+        card.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggle();
+          }
+        });
+      });
     }
 
     function showError(title, detail) {
@@ -425,6 +501,9 @@
           ? `Данные обновлены: ${result.data.updated_at} МСК`
           : `Период: ${formatDate(dateFrom)}–${formatDate(dateTo)}`;
         document.getElementById('total').textContent = result.data.total_complaints ?? 0;
+        document.getElementById('admins-total').textContent = result.data.unique_admins_count ?? admins.length;
+        document.getElementById('similar-total').textContent = result.data.similar_complaints ?? 0;
+        document.getElementById('similar-percent').textContent = formatPercent(result.data.similar_percent);
         document.getElementById('red-total').textContent = result.data.red_zone_count ?? 0;
         document.getElementById('yellow-total').textContent = result.data.yellow_zone_count ?? 0;
         renderWeekProblem(result.data.main_problem_week);
