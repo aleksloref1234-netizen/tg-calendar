@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Мой задачник</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="webapp-watermark.js" defer></script>
+  <link rel="stylesheet" href="leadership-tasks-preview.css">
+</head>
+<body data-mode="team">
+  <main>
+    <header class="card hero">
+      <div class="hero-row">
+        <div><div class="eyebrow">Admin Control BOT</div><h1>Мой задачник</h1><p class="hero-sub">Только личные задачи руководителя, отметки выполнения и собственный недельный график.</p></div>
+        <span class="preview-pill">Для руководителя</span>
+      </div>
+      <div class="identity">
+        <div class="avatar" id="avatar">AE</div>
+        <div><div class="identity-name" id="identity-name">Alexandr_Ermakov</div><div class="identity-role" id="identity-role">Основной заместитель ГА</div></div>
+      </div>
+    </header>
+
+    <section class="view active" id="view-personal">
+      <div class="card toolbar"><div class="date-strip" id="date-strip"></div></div>
+      <div class="summary-grid personal-summary">
+        <article class="card metric"><div class="metric-label">Задач</div><div class="metric-value blue" id="metric-total">0</div><div class="metric-note" id="metric-scope">на сегодня</div></article>
+        <article class="card metric"><div class="metric-label">Выполнено</div><div class="metric-value green" id="metric-done">0</div><div class="metric-note">отмечено в системе</div></article>
+      </div>
+      <article class="card progress-card">
+        <div class="progress-top"><span class="progress-title">Мой прогресс</span><span class="progress-value" id="progress-value">0%</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-note" id="progress-note">Выполненные задачи сразу учитываются в недельном КПД.</div>
+      </article>
+      <section class="section">
+        <div class="section-head"><h2 id="tasks-heading">Задачи на сегодня</h2><span class="section-note" id="tasks-note">сначала срочные</span></div>
+        <div class="tasks" id="tasks-list"></div>
+      </section>
+    </section>
+
+    <section class="view" id="view-plan">
+      <article class="card owner-intro">
+        <div class="eyebrow">Моя неделя</div><h2>График задач</h2>
+        <p>Все задачи остаются за вашей должностью. На новой неделе система может изменить только день выполнения.</p>
+        <div class="plan-switch"><button class="btn active" id="plan-current" type="button">Эта неделя</button><button class="btn" id="plan-next" type="button">Следующая неделя</button></div>
+      </article>
+      <section class="section">
+        <div class="section-head"><h2>Распределение по дням</h2><span class="section-note" id="plan-scope">выбранная должность</span></div>
+        <div class="week-board" id="week-board"></div>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>Изменения следующей недели</h2><span class="section-note">ответственный не меняется</span></div>
+        <div class="rotation-list" id="rotation-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <nav class="bottom-nav two" aria-label="Разделы задачника">
+    <button class="nav-btn active" data-view="personal" type="button"><strong>01</strong>Мои задачи</button>
+    <button class="nav-btn" data-view="plan" type="button"><strong>02</strong>Моя неделя</button>
+  </nav>
+
+  <div class="modal-backdrop" id="failure-modal" role="dialog" aria-modal="true" aria-labelledby="failure-title">
+    <div class="modal">
+      <div class="modal-head"><div><div class="eyebrow">Отметка выполнения</div><h3 id="failure-title">Почему задача не выполнена?</h3></div><button class="modal-close" data-close="failure-modal" type="button">×</button></div>
+      <label class="field"><span>Причина</span><select id="failure-reason"><option value="">Выберите причину</option><option>Задача потеряла актуальность</option><option>Не хватило времени</option><option>Техническая проблема</option><option>Ожидание внешней проверки</option><option>Другая причина</option></select></label>
+      <label class="field"><span>Комментарий</span><textarea id="failure-comment" placeholder="Коротко опишите ситуацию"></textarea></label>
+      <div class="modal-note">Комментарий сохранится в истории задачи.</div>
+      <div class="modal-actions"><button class="btn" data-close="failure-modal" type="button">Отмена</button><button class="btn danger" id="confirm-failure" type="button">Сохранить отметку</button></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="task-detail-modal" role="dialog" aria-modal="true" aria-labelledby="task-detail-title">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="eyebrow">Карточка задачи</div><h3 id="task-detail-title">Задача</h3></div>
+        <button class="modal-close" data-close="task-detail-modal" type="button">×</button>
+      </div>
+      <div class="detail-tags" id="task-detail-tags"></div>
+      <div class="detail-grid" id="task-detail-grid"></div>
+      <div class="detail-description" id="task-detail-description"></div>
+      <div class="history-block">
+        <div class="history-title">История изменений</div>
+        <div class="history-list" id="task-detail-history"></div>
+      </div>
+      <div class="modal-actions task-detail-actions">
+        <button class="btn" id="detail-reopen" type="button">Вернуть в работу</button>
+        <button class="btn danger" id="detail-fail" type="button">Не выполнено</button>
+        <button class="btn success" id="detail-done" type="button">Выполнено</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="day-detail-modal" role="dialog" aria-modal="true" aria-labelledby="day-detail-title">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="eyebrow">Расписание</div><h3 id="day-detail-title">Задачи дня</h3></div>
+        <button class="modal-close" data-close="day-detail-modal" type="button">×</button>
+      </div>
+      <div class="day-detail-list" id="day-detail-list"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" aria-live="polite"></div>
+  <script src="leadership-tasks-preview.js"></script>
+</body>
+</html>

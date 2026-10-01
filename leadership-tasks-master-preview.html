@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Центр контроля задач</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="webapp-watermark.js" defer></script>
+  <link rel="stylesheet" href="leadership-tasks-preview.css">
+</head>
+<body data-mode="master">
+  <main>
+    <header class="card hero">
+      <div class="hero-row">
+        <div><div class="eyebrow">Admin Control BOT</div><h1>Центр контроля задач</h1><p class="hero-sub">Закрытое окно ГА: общая статистика, контроль сроков и постановка задач руководителям.</p></div>
+        <span class="preview-pill">Только для ГА</span>
+      </div>
+      <div class="identity">
+        <div class="avatar" id="avatar">ГА</div>
+        <div><div class="identity-name" id="identity-name">ГА</div><div class="identity-role" id="identity-role">Полный доступ</div></div>
+        <select class="role-select" id="role-select" aria-label="Фильтр должности"></select>
+      </div>
+    </header>
+
+    <section class="view active" id="view-progress">
+      <article class="card owner-intro">
+        <div class="eyebrow">Общая картина</div><h2>Контроль руководства</h2>
+        <p>Показатели всех должностей, задачи без результата и персональная динамика выбранного руководителя.</p>
+      </article>
+      <div class="summary-grid">
+        <article class="card metric"><div class="metric-label">Руководителей</div><div class="metric-value blue" id="team-total">5</div><div class="metric-note">с активными задачами</div></article>
+        <article class="card metric"><div class="metric-label">Закрыто</div><div class="metric-value green" id="team-done">0</div><div class="metric-note">за текущую неделю</div></article>
+        <article class="card metric"><div class="metric-label">Риск срока</div><div class="metric-value yellow" id="team-risk">0</div><div class="metric-note">требуют внимания</div></article>
+      </div>
+      <section class="section">
+        <div class="section-head"><h2>Руководители</h2><span class="section-note">нажмите для подробного графика</span></div>
+        <div class="leader-list" id="leader-list"></div>
+      </section>
+      <article class="card chart-card">
+        <div class="chart-summary"><div><div class="eyebrow">Статистика недели</div><div class="insight-title" id="chart-title">Основной заместитель ГА</div></div><div class="chart-kpi" id="weekly-kpi">0%<span>недельный КПД</span></div></div>
+        <div class="chart-wrap" id="progress-chart"></div>
+      </article>
+    </section>
+
+    <section class="view" id="view-create">
+      <article class="card owner-intro">
+        <div class="eyebrow">Новое поручение</div><h2>Постановка задачи</h2>
+        <p>Исполнитель закрепляется по должности. Приоритет определяет порядок, контроль срока и допустимость недельной ротации.</p>
+      </article>
+      <article class="card form-card">
+        <form id="master-task-form">
+          <div class="form-grid">
+            <label class="field wide"><span>Название задачи</span><input id="task-title" maxlength="120" placeholder="Что необходимо выполнить" required></label>
+            <label class="field wide"><span>Описание и ожидаемый результат</span><textarea id="task-description" maxlength="600" placeholder="Что именно должно быть сделано и как проверить результат"></textarea></label>
+            <label class="field"><span>Должность</span><select id="task-role"></select></label>
+            <label class="field"><span>Приоритет</span><select id="task-priority"><option value="high">Критический</option><option value="medium">Высокий</option><option value="normal" selected>Плановый</option></select></label>
+            <label class="field"><span>День выполнения</span><select id="task-day"></select></label>
+            <label class="field"><span>Срок</span><input id="task-due" type="time" value="20:00"></label>
+            <label class="field"><span>Расчётное время, минут</span><input id="task-minutes" type="number" min="5" max="480" step="5" value="30"></label>
+          </div>
+          <label class="check-field"><input id="task-rotation" type="checkbox"><span>Разрешить менять день на следующей неделе. Ответственный руководитель не меняется.</span></label>
+          <div class="form-actions"><button class="btn primary" type="submit">Добавить задачу</button></div>
+        </form>
+      </article>
+      <div class="priority-guide">
+        <article class="priority-item"><strong style="color:var(--red)">Критический</strong><span>Всегда наверху, фиксированный срок, требует результата.</span></article>
+        <article class="priority-item"><strong style="color:var(--yellow)">Высокий</strong><span>Контроль в течение назначенного дня и напоминание.</span></article>
+        <article class="priority-item"><strong style="color:var(--blue)">Плановый</strong><span>Обычная недельная задача, день можно ротировать.</span></article>
+      </div>
+    </section>
+
+    <section class="view" id="view-registry">
+      <article class="card owner-intro">
+        <div class="eyebrow">Полный реестр</div><h2>Все задачи недели</h2>
+        <p>Приоритет, должность, срок, статус и правило распределения каждой задачи.</p>
+      </article>
+      <div class="card registry-toolbar registry-filters">
+        <div class="registry-filter-summary"><div class="rule-name">Фильтры реестра</div><div class="rule-note" id="registry-count">0 задач</div></div>
+        <input id="master-search-filter" type="search" placeholder="Поиск по названию" aria-label="Поиск по названию">
+        <select id="master-role-filter" aria-label="Фильтр должности"><option value="all">Все должности</option></select>
+        <select id="master-priority-filter" aria-label="Фильтр приоритета"><option value="all">Все приоритеты</option><option value="high">Критические</option><option value="medium">Высокие</option><option value="normal">Плановые</option></select>
+        <select id="master-status-filter" aria-label="Фильтр статуса"><option value="all">Все статусы</option><option value="todo">К выполнению</option><option value="done">Выполнено</option><option value="failed">Не выполнено</option></select>
+      </div>
+      <div class="registry-list" id="master-registry"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Разделы центра контроля">
+    <button class="nav-btn active" data-view="progress" type="button"><strong>01</strong>Обзор</button>
+    <button class="nav-btn" data-view="create" type="button"><strong>02</strong>Поставить задачу</button>
+    <button class="nav-btn" data-view="registry" type="button"><strong>03</strong>Реестр</button>
+  </nav>
+
+  <div class="modal-backdrop" id="master-task-modal" role="dialog" aria-modal="true" aria-labelledby="master-task-modal-title">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="eyebrow">Редактирование задачи</div><h3 id="master-task-modal-title">Задача</h3></div>
+        <button class="modal-close" data-close="master-task-modal" type="button">×</button>
+      </div>
+      <div class="form-grid modal-form-grid">
+        <label class="field wide"><span>Название</span><input id="edit-task-title" maxlength="120"></label>
+        <label class="field wide"><span>Описание и ожидаемый результат</span><textarea id="edit-task-description" maxlength="600"></textarea></label>
+        <label class="field"><span>Ответственный</span><select id="edit-task-role" disabled></select></label>
+        <label class="field"><span>Приоритет</span><select id="edit-task-priority"><option value="high">Критический</option><option value="medium">Высокий</option><option value="normal">Плановый</option></select></label>
+        <label class="field"><span>Дата</span><input id="edit-task-date" type="date"></label>
+        <label class="field"><span>Срок</span><input id="edit-task-due" type="time"></label>
+        <label class="field"><span>Расчётное время, минут</span><input id="edit-task-minutes" type="number" min="5" max="480" step="5"></label>
+        <label class="field"><span>Статус</span><select id="edit-task-status"><option value="todo">К выполнению</option><option value="done">Выполнено</option><option value="failed">Не выполнено</option></select></label>
+      </div>
+      <label class="check-field"><input id="edit-task-rotation" type="checkbox"><span>Разрешить переносить задачу между днями. Ответственный руководитель остаётся прежним.</span></label>
+      <div class="history-block">
+        <div class="history-title">История изменений</div>
+        <div class="history-list" id="edit-task-history"></div>
+      </div>
+      <div class="modal-note">Перенос даты не меняет закреплённого руководителя.</div>
+      <div class="modal-actions master-edit-actions">
+        <button class="btn danger" id="delete-task" type="button">Удалить</button>
+        <button class="btn" id="duplicate-task" type="button">Создать копию</button>
+        <button class="btn primary" id="save-task" type="button">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" aria-live="polite"></div>
+  <script src="leadership-tasks-preview.js"></script>
+</body>
+</html>
