@@ -12,8 +12,10 @@
   const APP_MODE = document.body.dataset.mode || 'team';
   const STORAGE_KEY = 'leadership-task-preview-v4';
   const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/leadership/tasks';
-  const PREVIEW_MODE = new URLSearchParams(window.location.search).get('preview') === '1'
+  const URL_PARAMS = new URLSearchParams(window.location.search);
+  const PREVIEW_MODE = URL_PARAMS.get('preview') === '1'
     || !tg || !tg.initData;
+  const LOCAL_GA_VIEW = PREVIEW_MODE && URL_PARAMS.get('ga_view') === '1';
 
   let roles = [
     { id: 'main', nickname: 'Alexandr_Ermakov', title: 'Основной заместитель ГА', initials: 'AE' },
@@ -180,6 +182,10 @@
     if (PREVIEW_MODE) localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tasks));
   }
 
+  function isGaTeamPreview() {
+    return APP_MODE === 'team' && (LOCAL_GA_VIEW || Boolean(state.viewer?.is_ga));
+  }
+
   async function apiRequest(action, payload = {}) {
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -204,15 +210,14 @@
       if (APP_MODE === 'master' && !data.viewer?.is_ga) {
         throw new Error('Окно контроля доступно только ГА');
       }
-      if (APP_MODE === 'team' && data.viewer?.is_ga) {
-        throw new Error('Для ГА используется отдельное окно контроля');
-      }
       roles = Array.isArray(data.roles) && data.roles.length ? data.roles : roles;
       state.viewer = data.viewer || null;
       state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
       state.role = APP_MODE === 'master'
         ? (roles.some(role => role.id === state.role) ? state.role : roles[0].id)
-        : (data.viewer?.role_id || roles[0].id);
+        : (data.viewer?.is_ga
+          ? (roles.some(role => role.id === state.role) ? state.role : roles[0].id)
+          : (data.viewer?.role_id || roles[0].id));
       state.loading = false;
       initRoleSelect(true);
       initMasterRoleOptions();
@@ -281,6 +286,13 @@
     if (!select) return;
     select.innerHTML = roles.map(role => `<option value="${role.id}">${escapeHtml(role.title)}</option>`).join('');
     select.value = state.role;
+    if (APP_MODE === 'team') {
+      select.hidden = !isGaTeamPreview();
+      const previewNote = document.getElementById('ga-preview-note');
+      if (previewNote) previewNote.hidden = !isGaTeamPreview();
+      const backLink = document.getElementById('portal-back-link');
+      if (backLink) backLink.hidden = !isGaTeamPreview();
+    }
     if (!select.dataset.bound) {
       select.dataset.bound = '1';
       select.addEventListener('change', () => {
@@ -298,6 +310,12 @@
       avatar.textContent = 'ГА';
       document.getElementById('identity-name').textContent = state.viewer?.nickname || 'ГА';
       document.getElementById('identity-role').textContent = `Фильтр статистики: ${role.title}`;
+      return;
+    }
+    if (isGaTeamPreview()) {
+      avatar.textContent = role.initials;
+      document.getElementById('identity-name').textContent = role.nickname;
+      document.getElementById('identity-role').textContent = role.title;
       return;
     }
     avatar.textContent = state.viewer?.initials || role.initials;
@@ -344,7 +362,7 @@
 
   function taskCard(item) {
     const statusClass = item.status === 'done' ? 'done' : item.status === 'failed' ? 'failed' : '';
-    const disabled = item.status !== 'todo' ? 'disabled' : '';
+    const disabled = item.status !== 'todo' || isGaTeamPreview() ? 'disabled' : '';
     const completion = item.completedAt ? ` · отметка ${escapeHtml(item.completedAt)}` : '';
     const comment = item.comment ? `<div class="task-comment">${escapeHtml(item.comment)}</div>` : '';
     return `<article class="card task ${statusClass}" data-task-id="${item.id}" data-open-task="${item.id}" tabindex="0" role="button" aria-label="Открыть задачу ${escapeHtml(item.title)}">
@@ -381,6 +399,10 @@
   }
 
   async function updateTask(id, patch, message) {
+    if (isGaTeamPreview()) {
+      showToast('В режиме просмотра ГА отметки не изменяются');
+      return;
+    }
     const index = state.tasks.findIndex(item => item.id === id);
     if (index < 0) return;
     const current = state.tasks[index];
@@ -410,6 +432,10 @@
   }
 
   function openFailure(id) {
+    if (isGaTeamPreview()) {
+      showToast('В режиме просмотра ГА отметки не изменяются');
+      return;
+    }
     state.activeTask = id;
     closeModal('task-detail-modal');
     document.getElementById('failure-reason').value = '';
@@ -448,9 +474,10 @@
     ].map(([label, value]) => `<div class="detail-cell"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
     document.getElementById('task-detail-description').textContent = item.description || 'Описание для этой задачи пока не добавлено.';
     document.getElementById('task-detail-history').innerHTML = historyMarkup(item);
-    document.getElementById('detail-reopen').hidden = item.status === 'todo';
-    document.getElementById('detail-fail').hidden = item.status !== 'todo';
-    document.getElementById('detail-done').hidden = item.status !== 'todo';
+    const readonly = isGaTeamPreview();
+    document.getElementById('detail-reopen').hidden = readonly || item.status === 'todo';
+    document.getElementById('detail-fail').hidden = readonly || item.status !== 'todo';
+    document.getElementById('detail-done').hidden = readonly || item.status !== 'todo';
     modal.classList.add('open');
   }
 

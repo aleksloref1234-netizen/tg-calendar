@@ -6,11 +6,12 @@
   <title>Мой задачник</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="webapp-watermark.js" defer></script>
-  <link rel="stylesheet" href="leadership-tasks-preview.css">
+  <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261001-2">
 </head>
 <body data-mode="team">
   <main>
     <header class="card hero">
+      <a class="back-link" id="portal-back-link" href="leadership-tasks-preview.html?v=20261001-2" hidden>Выбор окна</a>
       <div class="hero-row">
         <div><div class="eyebrow">Admin Control BOT</div><h1>Мой задачник</h1><p class="hero-sub">Только личные задачи руководителя, отметки выполнения и собственный недельный график.</p></div>
         <span class="preview-pill">Для руководителя</span>
@@ -18,8 +19,14 @@
       <div class="identity">
         <div class="avatar" id="avatar">AE</div>
         <div><div class="identity-name" id="identity-name">Alexandr_Ermakov</div><div class="identity-role" id="identity-role">Основной заместитель ГА</div></div>
+        <select class="role-select team-role-select" id="role-select" aria-label="Просмотр должности" hidden></select>
       </div>
     </header>
+
+    <div class="card readonly-note" id="ga-preview-note" hidden>
+      <strong>Режим просмотра ГА</strong>
+      Вы видите интерфейс выбранного руководителя. Отметки выполнения в этом режиме недоступны.
+    </div>
 
     <section class="view active" id="view-personal">
       <div class="card toolbar"><div class="date-strip" id="date-strip"></div></div>
@@ -102,6 +109,6 @@
   </div>
 
   <div class="toast" id="toast" aria-live="polite"></div>
-  <script src="leadership-tasks-preview.js"></script>
+  <script src="leadership-tasks-preview.js?v=20261001-2"></script>
 </body>
 </html>

@@ -3,18 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Центр задач руководства — выбор окна</title>
-  <link rel="stylesheet" href="leadership-tasks-preview.css">
+  <title>Задачник руководства</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="webapp-watermark.js" defer></script>
+  <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261001-2">
 </head>
 <body>
   <main class="portal-main">
     <header class="card hero portal-hero">
-      <div class="eyebrow">Admin Control BOT · Прототип</div>
-      <h1>Центр задач руководства</h1>
+      <div class="eyebrow">Admin Control BOT</div>
+      <h1>Задачник руководства</h1>
+      <p class="hero-sub">Выберите рабочее окно. Режим руководителя для ГА открывается только для просмотра.</p>
     </header>
 
     <div class="access-grid">
-      <a class="card access-card" data-index="01" href="leadership-tasks-team-preview.html">
+      <a class="card access-card" data-index="01" href="leadership-tasks-team-preview.html?v=20261001-2">
         <div class="eyebrow">Для ЗГ и кураторов</div>
         <div class="access-title">Мой задачник</div>
         <div class="access-text">Личное рабочее окно без общей статистики и административных настроек.</div>
@@ -22,7 +25,7 @@
         <span class="access-link">Открыть окно руководителя</span>
       </a>
 
-      <a class="card access-card master" data-index="02" href="leadership-tasks-master-preview.html">
+      <a class="card access-card master" data-index="02" href="leadership-tasks-master-preview.html?v=20261001-2">
         <div class="eyebrow">Только для ГА</div>
         <div class="access-title">Центр контроля задач</div>
         <div class="access-text">Полная управленческая панель: все руководители, сроки, приоритеты и постановка задач.</div>
@@ -31,7 +34,11 @@
       </a>
     </div>
 
-    <p class="portal-note">Это локальный демонстрационный прототип. Он не связан с ботом, Google Таблицей, GitHub или Render.</p>
+    <p class="portal-note">Окна независимы: действия руководителей выполняются в личном задачнике, управление и статистика находятся в окне ГА.</p>
   </main>
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
+  </script>
 </body>
 </html>

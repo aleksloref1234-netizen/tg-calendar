@@ -46,6 +46,8 @@ h1 { position: relative; z-index: 1; margin: 7px 0 0; font-size: 24px; line-heig
 .identity-name { font-size: 13px; font-weight: 760; overflow-wrap: anywhere; }
 .identity-role { margin-top: 3px; color: #b8c6c0; font-size: 10px; }
 .role-select { max-width: 165px; min-height: 34px; padding: 7px 28px 7px 9px; border: 1px solid rgba(255,255,255,.13); border-radius: 10px; outline: none; color: #d9e2de; background: rgba(255,255,255,.07); font-size: 10px; }
+.readonly-note { margin-top: 12px; padding: 12px 14px; color: var(--sub); font-size: 9px; line-height: 1.5; }
+.readonly-note strong { display: block; margin-bottom: 3px; color: var(--text); font-size: 11px; }
 
 .view { display: none; }
 .view.active { display: block; }
