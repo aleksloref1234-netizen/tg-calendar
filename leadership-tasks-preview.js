@@ -67,7 +67,7 @@
 
   const state = {
     role: 'main',
-    dateMode: 'today',
+    dateMode: 'week',
     planWeek: 0,
     masterPriority: 'all',
     masterStatus: 'all',
@@ -273,12 +273,11 @@
   }
 
   function visibleTasks() {
+    const currentWeek = weekDates();
     const own = state.tasks.filter(item => item.role === state.role);
-    if (state.dateMode === 'week') return own.filter(item => weekDates().includes(item.date));
-    const offset = state.dateMode === 'tomorrow' ? 1 : 0;
-    const date = new Date();
-    date.setDate(date.getDate() + offset);
-    return own.filter(item => item.date === localIso(date));
+    return own.filter(item => state.dateMode === 'week'
+      ? currentWeek.includes(item.date)
+      : item.date === state.dateMode);
   }
 
   function initRoleSelect(refresh = false) {
@@ -324,14 +323,17 @@
   }
 
   function renderDateStrip() {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const days = weekDates();
+    if (state.dateMode !== 'week' && !days.includes(state.dateMode)) state.dateMode = 'week';
     const dates = [
-      { mode: 'today', title: 'Сегодня', label: formatDate(todayIso(), { weekday: 'short', day: '2-digit', month: '2-digit' }) },
-      { mode: 'tomorrow', title: 'Завтра', label: formatDate(localIso(tomorrow), { weekday: 'short', day: '2-digit', month: '2-digit' }) },
-      { mode: 'week', title: 'Неделя', label: `${formatDate(weekDates()[0], { day: '2-digit', month: '2-digit' })}–${formatDate(weekDates()[6], { day: '2-digit', month: '2-digit' })}` }
+      { mode: 'week', title: 'Вся неделя', label: `${formatDate(days[0], { day: '2-digit', month: '2-digit' })}–${formatDate(days[6], { day: '2-digit', month: '2-digit' })}` },
+      ...days.map((date, index) => ({
+        mode: date,
+        title: DAY_NAMES[index],
+        label: formatDate(date, { day: '2-digit', month: '2-digit' })
+      }))
     ];
-    document.getElementById('date-strip').innerHTML = dates.map(item => `<button class="date-chip ${state.dateMode === item.mode ? 'active' : ''}" data-date-mode="${item.mode}" type="button"><strong>${item.title}</strong><span>${item.label}</span></button>`).join('');
+    document.getElementById('date-strip').innerHTML = dates.map(item => `<button class="date-chip ${state.dateMode === item.mode ? 'active' : ''}" data-date-mode="${item.mode}" aria-pressed="${state.dateMode === item.mode}" type="button"><strong>${item.title}</strong><span>${item.label}</span></button>`).join('');
     document.querySelectorAll('[data-date-mode]').forEach(button => button.addEventListener('click', () => {
       state.dateMode = button.dataset.dateMode;
       renderPersonal();
@@ -340,23 +342,33 @@
 
   function renderPersonal() {
     renderDateStrip();
-    const tasks = visibleTasks().sort((a, b) => ({ high: 0, medium: 1, normal: 2 }[a.priority] - { high: 0, medium: 1, normal: 2 }[b.priority]) || a.due.localeCompare(b.due));
+    const weekMode = state.dateMode === 'week';
+    const byPriority = (a, b) => ({ high: 0, medium: 1, normal: 2 }[a.priority] - { high: 0, medium: 1, normal: 2 }[b.priority]) || a.due.localeCompare(b.due);
+    const tasks = visibleTasks().sort((a, b) => (weekMode ? a.date.localeCompare(b.date) : 0) || byPriority(a, b));
     const done = tasks.filter(item => item.status === 'done').length;
     const progress = tasks.length ? Math.round(done / tasks.length * 100) : 0;
     document.getElementById('metric-total').textContent = tasks.length;
     document.getElementById('metric-done').textContent = done;
-    document.getElementById('metric-scope').textContent = state.dateMode === 'week' ? 'на текущую неделю' : state.dateMode === 'tomorrow' ? 'на завтра' : 'на сегодня';
+    document.getElementById('metric-scope').textContent = weekMode ? 'на текущую неделю' : `на ${formatDate(state.dateMode, { day: '2-digit', month: '2-digit' })}`;
     document.getElementById('progress-value').textContent = `${progress}%`;
     document.getElementById('progress-fill').style.width = `${progress}%`;
-    document.getElementById('progress-note').textContent = state.dateMode === 'week' ? `Выполнено ${done} из ${tasks.length}. Недельный КПД формируется автоматически.` : `Выполнено ${done} из ${tasks.length}. Отметка сразу попадает в недельную статистику.`;
-    document.getElementById('tasks-heading').textContent = state.dateMode === 'week' ? 'Задачи недели' : state.dateMode === 'tomorrow' ? 'Задачи на завтра' : 'Задачи на сегодня';
-    document.getElementById('tasks-note').textContent = tasks.length ? 'сначала срочные' : 'задач нет';
+    document.getElementById('progress-note').textContent = weekMode ? `Выполнено ${done} из ${tasks.length}. Недельный КПД формируется автоматически.` : `Выполнено ${done} из ${tasks.length}. Отметка сразу попадает в недельную статистику.`;
+    document.getElementById('tasks-heading').textContent = weekMode ? 'Расписание на неделю' : DAY_NAMES[weekDates().indexOf(state.dateMode)];
+    document.getElementById('tasks-note').textContent = weekMode ? 'по дням' : tasks.length ? 'сначала срочные' : 'задач нет';
     const list = document.getElementById('tasks-list');
-    if (!tasks.length) {
+    if (!tasks.length && !weekMode) {
       list.innerHTML = '<div class="card empty"><strong>На этот период задач нет</strong>Следующая задача появится по недельному графику этой должности.</div>';
       return;
     }
-    list.innerHTML = tasks.map(taskCard).join('');
+    list.innerHTML = weekMode
+      ? weekDates().map((date, index) => {
+        const dayTasks = tasks.filter(item => item.date === date);
+        return `<section class="day-group" aria-label="${DAY_NAMES[index]}">
+          <div class="day-group-head"><h3>${DAY_NAMES[index]}</h3><span>${formatDate(date, { day: '2-digit', month: '2-digit' })} · ${dayTasks.length} ${taskWord(dayTasks.length)}</span></div>
+          <div class="day-group-tasks">${dayTasks.length ? dayTasks.map(taskCard).join('') : '<div class="card day-empty">Задач нет</div>'}</div>
+        </section>`;
+      }).join('')
+      : tasks.map(taskCard).join('');
     bindTaskActions();
   }
 
@@ -473,7 +485,6 @@
       ['Повторение', item.repeat]
     ].map(([label, value]) => `<div class="detail-cell"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
     document.getElementById('task-detail-description').textContent = item.description || 'Описание для этой задачи пока не добавлено.';
-    document.getElementById('task-detail-history').innerHTML = historyMarkup(item);
     const readonly = isGaTeamPreview();
     document.getElementById('detail-reopen').hidden = readonly || item.status === 'todo';
     document.getElementById('detail-fail').hidden = readonly || item.status !== 'todo';

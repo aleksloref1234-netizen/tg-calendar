@@ -52,9 +52,8 @@ h1 { position: relative; z-index: 1; margin: 7px 0 0; font-size: 24px; line-heig
 .view { display: none; }
 .view.active { display: block; }
 .toolbar { margin-top: 12px; padding: 12px; }
-.date-strip { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; }
-.date-strip::-webkit-scrollbar { display: none; }
-.date-chip { flex: none; min-width: 74px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--sub); background: var(--surface-2); text-align: left; cursor: pointer; }
+.date-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.date-chip { min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--sub); background: var(--surface-2); text-align: left; cursor: pointer; }
 .date-chip strong, .date-chip span { display: block; }
 .date-chip strong { color: var(--text); font-size: 11px; }
 .date-chip span { margin-top: 3px; font-size: 9px; }
@@ -85,6 +84,13 @@ h1 { position: relative; z-index: 1; margin: 7px 0 0; font-size: 24px; line-heig
 .section-head h2 { margin: 0; font-size: 15px; }
 .section-note { color: var(--sub); font-size: 9px; text-align: right; }
 .tasks, .leader-list, .week-board, .rotation-list { display: grid; gap: 9px; }
+.day-group { display: grid; gap: 8px; }
+.day-group + .day-group { margin-top: 7px; }
+.day-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 0 2px; }
+.day-group-head h3 { margin: 0; color: var(--text); font-size: 12px; }
+.day-group-head span { color: var(--sub); font-size: 9px; text-align: right; }
+.day-group-tasks { display: grid; gap: 9px; }
+.day-empty { padding: 11px 14px; color: var(--muted); font-size: 10px; }
 .task { padding: 14px; transition: opacity .2s ease, border-color .2s ease, transform .15s ease; }
 .task[data-open-task] { cursor: pointer; }
 .task[data-open-task]:hover, .registry-item[data-edit-task]:hover, .day-row[data-day-date]:hover { border-color: rgba(15,118,110,.34); }
@@ -273,7 +279,12 @@ h1 { position: relative; z-index: 1; margin: 7px 0 0; font-size: 24px; line-heig
   .registry-filter-summary, .registry-filters input { grid-column: 1 / -1; }
 }
 
+@media (max-width: 520px) {
+  .date-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 @media (max-width: 390px) {
+  .date-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   main { padding-right: 10px; padding-left: 10px; }
   .hero { padding: 15px; }
   h1 { font-size: 21px; }

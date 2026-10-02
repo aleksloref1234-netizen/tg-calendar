@@ -6,7 +6,7 @@
   <title>Мой задачник</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="webapp-watermark.js" defer></script>
-  <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261001-2">
+  <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261002-2">
 </head>
 <body data-mode="team">
   <main>
@@ -29,9 +29,9 @@
     </div>
 
     <section class="view active" id="view-personal">
-      <div class="card toolbar"><div class="date-strip" id="date-strip"></div></div>
+      <div class="card toolbar"><div class="date-strip" id="date-strip" aria-label="Расписание по дням недели"></div></div>
       <div class="summary-grid personal-summary">
-        <article class="card metric"><div class="metric-label">Задач</div><div class="metric-value blue" id="metric-total">0</div><div class="metric-note" id="metric-scope">на сегодня</div></article>
+        <article class="card metric"><div class="metric-label">Задач</div><div class="metric-value blue" id="metric-total">0</div><div class="metric-note" id="metric-scope">на текущую неделю</div></article>
         <article class="card metric"><div class="metric-label">Выполнено</div><div class="metric-value green" id="metric-done">0</div><div class="metric-note">отмечено в системе</div></article>
       </div>
       <article class="card progress-card">
@@ -40,7 +40,7 @@
         <div class="progress-note" id="progress-note">Выполненные задачи сразу учитываются в недельном КПД.</div>
       </article>
       <section class="section">
-        <div class="section-head"><h2 id="tasks-heading">Задачи на сегодня</h2><span class="section-note" id="tasks-note">сначала срочные</span></div>
+        <div class="section-head"><h2 id="tasks-heading">Расписание на неделю</h2><span class="section-note" id="tasks-note">по дням</span></div>
         <div class="tasks" id="tasks-list"></div>
       </section>
     </section>
@@ -72,7 +72,7 @@
       <div class="modal-head"><div><div class="eyebrow">Отметка выполнения</div><h3 id="failure-title">Почему задача не выполнена?</h3></div><button class="modal-close" data-close="failure-modal" type="button">×</button></div>
       <label class="field"><span>Причина</span><select id="failure-reason"><option value="">Выберите причину</option><option>Задача потеряла актуальность</option><option>Не хватило времени</option><option>Техническая проблема</option><option>Ожидание внешней проверки</option><option>Другая причина</option></select></label>
       <label class="field"><span>Комментарий</span><textarea id="failure-comment" placeholder="Коротко опишите ситуацию"></textarea></label>
-      <div class="modal-note">Комментарий сохранится в истории задачи.</div>
+      <div class="modal-note">Комментарий сохранится вместе с отметкой.</div>
       <div class="modal-actions"><button class="btn" data-close="failure-modal" type="button">Отмена</button><button class="btn danger" id="confirm-failure" type="button">Сохранить отметку</button></div>
     </div>
   </div>
@@ -86,10 +86,6 @@
       <div class="detail-tags" id="task-detail-tags"></div>
       <div class="detail-grid" id="task-detail-grid"></div>
       <div class="detail-description" id="task-detail-description"></div>
-      <div class="history-block">
-        <div class="history-title">История изменений</div>
-        <div class="history-list" id="task-detail-history"></div>
-      </div>
       <div class="modal-actions task-detail-actions">
         <button class="btn" id="detail-reopen" type="button">Вернуть в работу</button>
         <button class="btn danger" id="detail-fail" type="button">Не выполнено</button>
@@ -109,6 +105,6 @@
   </div>
 
   <div class="toast" id="toast" aria-live="polite"></div>
-  <script src="leadership-tasks-preview.js?v=20261001-2"></script>
+  <script src="leadership-tasks-preview.js?v=20261002-2"></script>
 </body>
 </html>
