@@ -179,19 +179,14 @@ h1 { position: relative; z-index: 1; margin: 7px 0 0; font-size: 24px; line-heig
 
 .portal-main { display: grid; min-height: 100vh; align-content: center; padding-bottom: 32px; }
 .portal-hero { padding: 24px; }
-.portal-note { margin-top: 12px; color: var(--sub); font-size: 10px; line-height: 1.55; }
 .access-grid { display: grid; gap: 12px; margin-top: 14px; }
-.access-card { position: relative; display: block; min-height: 190px; padding: 20px; overflow: hidden; color: var(--text); text-decoration: none; }
+.access-card { position: relative; display: flex; min-height: 146px; flex-direction: column; align-items: flex-start; padding: 19px 20px; overflow: hidden; color: var(--text); text-decoration: none; }
 .access-card::after { content: attr(data-index); position: absolute; right: 14px; bottom: -18px; color: rgba(15,118,110,.07); font-size: 94px; font-weight: 850; line-height: 1; }
 .access-card.master { color: #f7faf8; border: 0; background: #17231f; }
 .access-card.master::after { color: rgba(114,214,200,.07); }
-.access-card.master .access-text, .access-card.master .access-list { color: #b8c6c0; }
 .access-card.master .access-link { color: #86e1d5; border-color: rgba(114,214,200,.25); background: rgba(114,214,200,.08); }
 .access-title { position: relative; z-index: 1; margin-top: 8px; font-size: 20px; font-weight: 800; }
-.access-text { position: relative; z-index: 1; max-width: 480px; margin-top: 7px; color: var(--sub); font-size: 10px; line-height: 1.55; }
-.access-list { position: relative; z-index: 1; margin: 12px 0 0; padding: 0; list-style: none; color: var(--sub); font-size: 9px; line-height: 1.7; }
-.access-list li::before { content: "— "; color: var(--blue); }
-.access-link { position: relative; z-index: 1; display: inline-flex; margin-top: 14px; padding: 8px 11px; border: 1px solid rgba(15,118,110,.25); border-radius: 9px; color: var(--blue); background: rgba(15,118,110,.06); font-size: 9px; font-weight: 750; }
+.access-link { position: relative; z-index: 1; display: inline-flex; margin-top: auto; padding: 8px 11px; border: 1px solid rgba(15,118,110,.25); border-radius: 9px; color: var(--blue); background: rgba(15,118,110,.06); font-size: 9px; font-weight: 750; }
 .back-link { display: inline-flex; margin-bottom: 10px; color: var(--sub); font-size: 9px; text-decoration: none; }
 .hero .back-link { position: relative; z-index: 2; color: #b8c6c0; }
 
