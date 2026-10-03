@@ -145,6 +145,25 @@ h1 { position: relative; z-index: 1; margin: 7px 0 0; font-size: 24px; line-heig
 .chart-kpi span { display: block; margin-top: 3px; color: var(--sub); font-size: 8px; font-weight: 500; text-align: right; }
 .chart-wrap { margin-top: 12px; overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: #f7f9f5; }
 .chart-wrap svg { display: block; width: 100%; height: auto; min-height: 190px; }
+.sync-card { margin-top: 12px; padding: 15px; }
+.sync-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.sync-head h2 { margin: 6px 0 0; font-size: 15px; }
+.sync-state { flex: none; padding: 5px 8px; border: 1px solid rgba(22,130,79,.24); border-radius: 99px; color: var(--green); background: rgba(22,130,79,.07); font-size: 8px; font-weight: 760; }
+.sync-state.warn { color: var(--yellow); border-color: rgba(183,121,31,.24); background: rgba(183,121,31,.07); }
+.sync-state.error { color: var(--red); border-color: rgba(201,75,95,.26); background: rgba(201,75,95,.07); }
+.sync-metrics { display: grid; grid-template-columns: .8fr 1fr 1.35fr; gap: 7px; margin-top: 12px; }
+.sync-metrics div { min-width: 0; padding: 9px; border-radius: 10px; background: var(--surface-2); }
+.sync-metrics span, .sync-metrics strong { display: block; }
+.sync-metrics span { color: var(--sub); font-size: 8px; }
+.sync-metrics strong { margin-top: 4px; overflow-wrap: anywhere; font-size: 11px; }
+.sync-details { margin-top: 10px; border-top: 1px solid var(--line); }
+.sync-details summary { padding: 10px 0 4px; color: var(--sub); font-size: 9px; font-weight: 700; cursor: pointer; }
+.sync-journal { display: grid; gap: 6px; margin-top: 7px; }
+.sync-entry { padding: 8px 9px; border-radius: 9px; color: var(--sub); background: var(--surface-2); font-size: 8px; line-height: 1.4; }
+.sync-entry strong { display: block; margin-bottom: 2px; color: var(--text); font-size: 9px; }
+.sync-entry.error { border-left: 2px solid var(--red); }
+.sync-empty { padding: 8px 0 2px; color: var(--muted); font-size: 9px; }
+.sync-refresh { margin-top: 10px; }
 .chart-grid { stroke: rgba(24,39,34,.11); stroke-width: 1; }
 .chart-area { fill: url(#chart-gradient); }
 .chart-line { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }

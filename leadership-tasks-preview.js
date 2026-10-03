@@ -75,6 +75,15 @@
     masterSearch: '',
     activeTask: null,
     viewer: null,
+    persistence: PREVIEW_MODE ? {
+      unsaved: 0,
+      pending: 0,
+      processing: 0,
+      errors: 0,
+      completed: 24,
+      last_completed_at: new Date().toISOString(),
+      recent: []
+    } : null,
     loading: !PREVIEW_MODE,
     tasks: loadTasks()
   };
@@ -212,6 +221,7 @@
       }
       roles = Array.isArray(data.roles) && data.roles.length ? data.roles : roles;
       state.viewer = data.viewer || null;
+      state.persistence = data.persistence || null;
       state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
       state.role = APP_MODE === 'master'
         ? (roles.some(role => role.id === state.role) ? state.role : roles[0].id)
@@ -525,6 +535,57 @@
       showToast(`Открыта статистика: ${getRole().title}`);
     }));
     renderChart();
+  }
+
+  function renderPersistenceStatus() {
+    const stateNode = document.getElementById('sync-state');
+    if (!stateNode) return;
+    const status = state.persistence || {
+      unsaved: 0,
+      errors: 0,
+      last_completed_at: '',
+      recent: []
+    };
+    const unsaved = Number(status.unsaved || 0);
+    const errors = Number(status.errors || 0);
+    stateNode.textContent = errors ? 'Требует внимания' : (unsaved ? 'Сохраняется' : 'Все сохранено');
+    stateNode.classList.toggle('warn', Boolean(unsaved && !errors));
+    stateNode.classList.toggle('error', Boolean(errors));
+    document.getElementById('sync-unsaved').textContent = unsaved;
+    document.getElementById('sync-errors').textContent = errors;
+    const completedAt = String(status.last_completed_at || '');
+    let lastLabel = '—';
+    if (completedAt) {
+      const parsed = new Date(completedAt);
+      lastLabel = Number.isNaN(parsed.getTime())
+        ? completedAt
+        : parsed.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+    document.getElementById('sync-last').textContent = lastLabel;
+    const recent = Array.isArray(status.recent) ? status.recent : [];
+    const journal = document.getElementById('sync-journal');
+    journal.innerHTML = recent.length
+      ? recent.map(item => `<div class="sync-entry ${item.last_error ? 'error' : ''}"><strong>${item.kind === 'definition' ? 'Задача' : 'Отметка выполнения'} · попытка ${Number(item.attempts || 0)}</strong>${item.last_error ? escapeHtml(item.last_error) : 'Ожидает передачи в Google Sheets'}</div>`).join('')
+      : '<div class="sync-empty">Несохранённых операций нет.</div>';
+  }
+
+  async function refreshPersistenceStatus() {
+    if (PREVIEW_MODE) {
+      renderPersistenceStatus();
+      showToast('Все изменения сохранены');
+      return;
+    }
+    const button = document.getElementById('sync-refresh');
+    if (button) button.disabled = true;
+    try {
+      state.persistence = await apiRequest('persistence_status');
+      renderPersistenceStatus();
+      showToast(state.persistence.errors ? 'Есть операции для повторной отправки' : 'Состояние обновлено');
+    } catch (error) {
+      showToast(error.message || 'Не удалось обновить журнал');
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   function renderChart() {
@@ -985,6 +1046,8 @@
   if (planNext) planNext.addEventListener('click', () => { state.planWeek = 1; renderPlan(); });
   const resetButton = document.getElementById('reset-btn');
   if (resetButton) resetButton.addEventListener('click', resetDemo);
+  const syncRefresh = document.getElementById('sync-refresh');
+  if (syncRefresh) syncRefresh.addEventListener('click', refreshPersistenceStatus);
   document.querySelectorAll('.toggle').forEach(toggle => toggle.addEventListener('click', () => {
     toggle.classList.toggle('on');
     showToast('Настройка изменена в демонстрационном режиме');
@@ -998,6 +1061,7 @@
     renderIdentity();
     if (document.getElementById('view-personal')) renderPersonal();
     if (document.getElementById('view-progress')) renderProgress();
+    renderPersistenceStatus();
     if (document.getElementById('view-plan')) renderPlan();
     renderMasterRegistry();
   }

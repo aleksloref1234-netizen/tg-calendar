@@ -6,12 +6,12 @@
   <title>Центр контроля задач</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="webapp-watermark.js" defer></script>
-  <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261001-2">
+  <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261003-1">
 </head>
 <body data-mode="master">
   <main>
     <header class="card hero">
-      <a class="back-link" href="leadership-tasks-preview.html?v=20261002-1">Выбор окна</a>
+      <a class="back-link" href="leadership-tasks-preview.html?v=20261003-2">Выбор окна</a>
       <div class="hero-row">
         <div><div class="eyebrow">Admin Control BOT</div><h1>Центр контроля задач</h1><p class="hero-sub">Закрытое окно ГА: общая статистика, контроль сроков и постановка задач руководителям.</p></div>
         <span class="preview-pill">Только для ГА</span>
@@ -33,6 +33,22 @@
         <article class="card metric"><div class="metric-label">Закрыто</div><div class="metric-value green" id="team-done">0</div><div class="metric-note">за текущую неделю</div></article>
         <article class="card metric"><div class="metric-label">Риск срока</div><div class="metric-value yellow" id="team-risk">0</div><div class="metric-note">требуют внимания</div></article>
       </div>
+      <article class="card sync-card">
+        <div class="sync-head">
+          <div><div class="eyebrow">Сохранение данных</div><h2>Синхронизация с таблицей</h2></div>
+          <span class="sync-state" id="sync-state">Проверка</span>
+        </div>
+        <div class="sync-metrics">
+          <div><span>Не сохранено</span><strong id="sync-unsaved">0</strong></div>
+          <div><span>Повторные попытки</span><strong id="sync-errors">0</strong></div>
+          <div><span>Последний экспорт</span><strong id="sync-last">—</strong></div>
+        </div>
+        <details class="sync-details">
+          <summary>Журнал несохранённых операций</summary>
+          <div class="sync-journal" id="sync-journal"></div>
+        </details>
+        <button class="btn sync-refresh" id="sync-refresh" type="button">Обновить состояние</button>
+      </article>
       <section class="section">
         <div class="section-head"><h2>Руководители</h2><span class="section-note">нажмите для подробного графика</span></div>
         <div class="leader-list" id="leader-list"></div>
@@ -123,6 +139,6 @@
   </div>
 
   <div class="toast" id="toast" aria-live="polite"></div>
-  <script src="leadership-tasks-preview.js?v=20261003-1"></script>
+  <script src="leadership-tasks-preview.js?v=20261003-2"></script>
 </body>
 </html>
