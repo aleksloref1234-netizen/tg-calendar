@@ -377,8 +377,10 @@
     const disabled = item.status !== 'todo' || isGaTeamPreview() ? 'disabled' : '';
     const completion = item.completedAt ? ` · отметка ${escapeHtml(item.completedAt)}` : '';
     const comment = item.comment ? `<div class="task-comment">${escapeHtml(item.comment)}</div>` : '';
+    const category = visibleCategory(item.category);
+    const categoryTag = category ? `<span class="tag">${escapeHtml(category)}</span>` : '';
     return `<article class="card task ${statusClass}" data-task-id="${item.id}" data-open-task="${item.id}" tabindex="0" role="button" aria-label="Открыть задачу ${escapeHtml(item.title)}">
-      <div class="task-overline"><span class="tag ${item.priority}">${priorityLabel(item.priority)}</span><span class="tag">${escapeHtml(item.category)}</span><span class="tag ${item.status === 'done' ? 'done' : item.status === 'todo' ? 'blue' : 'high'}">${statusLabel(item.status)}</span></div>
+      <div class="task-overline"><span class="tag ${item.priority}">${priorityLabel(item.priority)}</span>${categoryTag}<span class="tag ${item.status === 'done' ? 'done' : item.status === 'todo' ? 'blue' : 'high'}">${statusLabel(item.status)}</span></div>
       <div class="task-title">${escapeHtml(item.title)}</div>
       <div class="task-meta">${formatDate(item.date, { weekday: 'long', day: '2-digit', month: 'long' })} · ${escapeHtml(item.repeat)}${completion}</div>
       ${comment}
@@ -466,6 +468,13 @@
     return history.map(entry => `<div class="history-item"><time>${escapeHtml(entry.at)}</time><span>${escapeHtml(entry.text)}</span></div>`).join('');
   }
 
+  function visibleCategory(value) {
+    const category = String(value || '').trim();
+    return category.replace(/\s+/g, ' ').toLocaleLowerCase('ru-RU') === 'импорт из таблицы'
+      ? ''
+      : category;
+  }
+
   function openTaskDetails(id) {
     const item = state.tasks.find(taskItem => taskItem.id === id);
     if (!item) return;
@@ -477,7 +486,9 @@
     const modal = document.getElementById('task-detail-modal');
     if (!modal) return;
     document.getElementById('task-detail-title').textContent = item.title;
-    document.getElementById('task-detail-tags').innerHTML = `<span class="tag ${item.priority}">${priorityLabel(item.priority)}</span><span class="tag">${escapeHtml(item.category)}</span><span class="tag ${item.status === 'done' ? 'done' : item.status === 'failed' ? 'high' : 'blue'}">${statusLabel(item.status)}</span>`;
+    const category = visibleCategory(item.category);
+    const categoryTag = category ? `<span class="tag">${escapeHtml(category)}</span>` : '';
+    document.getElementById('task-detail-tags').innerHTML = `<span class="tag ${item.priority}">${priorityLabel(item.priority)}</span>${categoryTag}<span class="tag ${item.status === 'done' ? 'done' : item.status === 'failed' ? 'high' : 'blue'}">${statusLabel(item.status)}</span>`;
     document.getElementById('task-detail-grid').innerHTML = [
       ['Дата', formatDate(item.date, { weekday: 'long', day: '2-digit', month: 'long' })],
       ['Срок', item.due],
@@ -559,7 +570,7 @@
     }
     list.innerHTML = items.map(item => `<article class="card registry-item" data-edit-task="${item.id}" tabindex="0" role="button" aria-label="Открыть и изменить задачу ${escapeHtml(item.title)}">
       <div class="registry-top"><div><div class="task-overline"><span class="tag ${item.priority}">${priorityLabel(item.priority)}</span><span class="tag">${escapeHtml(getRole(item.role).title)}</span><span class="tag ${item.status === 'done' ? 'done' : item.status === 'failed' ? 'high' : 'blue'}">${statusLabel(item.status)}</span></div><div class="task-title">${escapeHtml(item.title)}</div></div><div class="registry-date">${formatDate(item.date, { weekday: 'short', day: '2-digit', month: '2-digit' })}<strong>${item.due}</strong></div></div>
-      <div class="task-meta">${escapeHtml(item.category)} · ${item.fixed ? 'фиксированный день' : 'разрешена недельная ротация'} · нажмите, чтобы изменить</div>
+      <div class="task-meta">${[visibleCategory(item.category), item.fixed ? 'фиксированный день' : 'разрешена недельная ротация', 'нажмите, чтобы изменить'].filter(Boolean).map(escapeHtml).join(' · ')}</div>
     </article>`).join('');
     document.querySelectorAll('[data-edit-task]').forEach(card => {
       card.addEventListener('click', () => openTaskDetails(card.dataset.editTask));
