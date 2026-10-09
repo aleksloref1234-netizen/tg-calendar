@@ -114,6 +114,18 @@
 
   function todayIso() { return localIso(new Date()); }
 
+  function moscowTodayIso() {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${value.year}-${value.month}-${value.day}`;
+  }
+
+  function canMarkTask(item) {
+    return PREVIEW_MODE || item.date === moscowTodayIso();
+  }
+
   function mondayOf(base = new Date(), weekOffset = 0) {
     const date = new Date(base);
     date.setHours(12, 0, 0, 0);
@@ -384,7 +396,8 @@
 
   function taskCard(item) {
     const statusClass = item.status === 'done' ? 'done' : item.status === 'failed' ? 'failed' : '';
-    const disabled = item.status !== 'todo' || isGaTeamPreview() ? 'disabled' : '';
+    const markingOpen = canMarkTask(item);
+    const disabled = item.status !== 'todo' || isGaTeamPreview() || !markingOpen ? 'disabled' : '';
     const completion = item.completedAt ? ` · отметка ${escapeHtml(item.completedAt)}` : '';
     const comment = item.comment ? `<div class="task-comment">${escapeHtml(item.comment)}</div>` : '';
     const category = visibleCategory(item.category);
@@ -394,6 +407,7 @@
       <div class="task-title">${escapeHtml(item.title)}</div>
       <div class="task-meta">${formatDate(item.date, { weekday: 'long', day: '2-digit', month: 'long' })} · ${escapeHtml(item.repeat)}${completion}</div>
       ${comment}
+      ${!markingOpen && item.status === 'todo' ? '<div class="task-comment">Отметка доступна только в день задачи до 00:00 МСК.</div>' : ''}
       <div class="task-footer"><div class="task-time">До ${item.due}<span>Расчётное время: ${item.minutes} минут</span></div><div class="task-actions"><button class="btn danger" data-fail="${item.id}" ${disabled} type="button">Не выполнено</button><button class="btn success" data-done="${item.id}" ${disabled} type="button">Выполнено</button></div></div>
     </article>`;
   }
@@ -430,6 +444,10 @@
     const index = state.tasks.findIndex(item => item.id === id);
     if (index < 0) return;
     const current = state.tasks[index];
+    if (!canMarkTask(current)) {
+      showToast('Отметка доступна только в день задачи до 00:00 МСК');
+      return;
+    }
     state.tasks[index] = { ...current, ...patch, history: withHistory(current, message) };
     saveTasks();
     renderAll();
@@ -458,6 +476,11 @@
   function openFailure(id) {
     if (isGaTeamPreview()) {
       showToast('В режиме просмотра ГА отметки не изменяются');
+      return;
+    }
+    const item = state.tasks.find(taskItem => taskItem.id === id);
+    if (!item || !canMarkTask(item)) {
+      showToast('Отметка доступна только в день задачи до 00:00 МСК');
       return;
     }
     state.activeTask = id;
@@ -507,9 +530,10 @@
     ].map(([label, value]) => `<div class="detail-cell"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
     document.getElementById('task-detail-description').textContent = item.description || 'Описание для этой задачи пока не добавлено.';
     const readonly = isGaTeamPreview();
-    document.getElementById('detail-reopen').hidden = readonly || item.status === 'todo';
-    document.getElementById('detail-fail').hidden = readonly || item.status !== 'todo';
-    document.getElementById('detail-done').hidden = readonly || item.status !== 'todo';
+    const closedDay = !canMarkTask(item);
+    document.getElementById('detail-reopen').hidden = readonly || closedDay || item.status === 'todo';
+    document.getElementById('detail-fail').hidden = readonly || closedDay || item.status !== 'todo';
+    document.getElementById('detail-done').hidden = readonly || closedDay || item.status !== 'todo';
     modal.classList.add('open');
   }
 
