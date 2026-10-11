@@ -148,10 +148,10 @@ test('the reprimand block is hidden in the initial markup', () => {
   assert.match(html, /class="discipline hidden" id="discipline"/);
 });
 
-test('failed result asks about punishment and sends the new API field', () => {
-  assert.match(html, /<b>Выдать наказание\?<\/b>/);
-  assert.doesNotMatch(html, /Выдать выговор\?/);
-  assert.match(html, /issue_punishment:disciplineDecision/);
+test('failed result asks about a warning and sends the explicit API field', () => {
+  assert.match(html, /<b>Начислить предупреждение\?<\/b>/);
+  assert.doesNotMatch(html, /Выдать (?:выговор|наказание)\?/);
+  assert.match(html, /issue_warning:disciplineDecision/);
 });
 
 test('dynamic norm entitlement is visible to the curator', () => {
