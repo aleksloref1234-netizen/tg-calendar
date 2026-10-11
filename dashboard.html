@@ -165,6 +165,98 @@
             line-height: 1.45;
         }
 
+        .reduced-norm-card {
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 16px;
+            padding: 15px;
+            border: 1px solid rgba(52, 211, 153, 0.32);
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(56, 189, 248, 0.07));
+        }
+
+        .reduced-norm-card::after {
+            content: "−50%";
+            position: absolute;
+            right: -3px;
+            bottom: -11px;
+            color: rgba(167, 243, 208, 0.08);
+            font-size: 54px;
+            font-weight: 900;
+            pointer-events: none;
+        }
+
+        .reduced-norm-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .reduced-norm-title {
+            color: #a7f3d0;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .reduced-norm-badge {
+            flex: none;
+            padding: 5px 8px;
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 999px;
+            color: #6ee7b7;
+            background: rgba(16, 185, 129, 0.1);
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .reduced-norm-caption {
+            position: relative;
+            z-index: 1;
+            margin: 7px 0 12px;
+            color: #cbd5e1;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .reduced-norm-grid {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 7px;
+        }
+
+        .reduced-norm-metric {
+            min-width: 0;
+            padding: 8px;
+            border: 1px solid rgba(167, 243, 208, 0.12);
+            border-radius: 9px;
+            background: rgba(15, 23, 42, 0.24);
+        }
+
+        .reduced-norm-metric span {
+            display: block;
+            overflow: hidden;
+            color: var(--text-sub);
+            font-size: 9px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .reduced-norm-metric b {
+            display: block;
+            margin-top: 4px;
+            color: #ecfdf5;
+            font-size: 14px;
+        }
+
+        @media (max-width: 420px) {
+            .reduced-norm-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         .chart-container {
             background: var(--card-bg);
             border-radius: 16px;
@@ -214,7 +306,7 @@
             line-height: 1.5;
             word-break: break-word;
         }
-        
+
         .error-title {
             color: var(--danger);
             font-weight: bold;
@@ -237,6 +329,25 @@
             <h1 class="user-title" id="nickname">-</h1>
             <p class="user-role" id="role">-</p>
         </div>
+
+        <section class="reduced-norm-card" id="reduced-norm-card" hidden>
+            <div class="reduced-norm-head">
+                <div>
+                    <div class="reduced-norm-title">Сокращённая норма действует</div>
+                    <div class="card-label" id="reduced-norm-category">Зелёная зона</div>
+                </div>
+                <div class="reduced-norm-badge">−50%</div>
+            </div>
+            <p class="reduced-norm-caption">
+                Показатели соответствуют условиям зелёной зоны. Ниже указан действующий дневной норматив.
+            </p>
+            <div class="reduced-norm-grid">
+                <div class="reduced-norm-metric"><span>Репорты</span><b id="reduced-reports">—</b></div>
+                <div class="reduced-norm-metric"><span>Минуты</span><b id="reduced-minutes">—</b></div>
+                <div class="reduced-norm-metric"><span>Мероприятия</span><b id="reduced-events">—</b></div>
+                <div class="reduced-norm-metric"><span>Реагирования</span><b id="reduced-reactions">—</b></div>
+            </div>
+        </section>
 
         <div class="card performance-card" data-ui-block="performance_index">
             <div class="performance-head">
@@ -339,7 +450,7 @@
         tg.expand();
 
         // 🟢 Ссылка на твой Render
-        const RAW_BACKEND_URL = "https://tg-admin-bot-1k1g.onrender.com"; 
+        const RAW_BACKEND_URL = "https://tg-admin-bot-1k1g.onrender.com";
         const BACKEND_URL = RAW_BACKEND_URL.replace(/\/+$/, "");
 
         let myChartInstance = null;
@@ -402,7 +513,7 @@
                         const errJson = JSON.parse(errorText);
                         if (errJson.message) errorMsg += `: ${errJson.message}`;
                     } catch(e) {}
-                    
+
                     showError("Ошибка ответа сервера", errorMsg);
                     return;
                 }
@@ -419,7 +530,7 @@
 
                 // Заполняем ник
                 document.getElementById('nickname').innerText = d.nickname || "Без ника";
-                
+
                 // Выводим категорию (Младший модератор и т.д.) крупно, а под ней — должность (Следящий)
                 const categoryName = d.group_header || "Администратор";
                 const roleName = d.role || "Без должности";
@@ -438,6 +549,7 @@
                     : d.activity_coef + "%";
                 document.getElementById('punishments').innerText = `${d.reprimands ?? 0} / ${d.warnings ?? 0}`;
                 document.getElementById('meeting-percent').innerText = d.meeting_percent ?? "0%";
+                renderReducedNorm(d.reduced_norm);
                 renderPerformanceIndex(d.performance_index);
                 renderTestResults(d.test_results);
                 renderComplaintRepeat(d.complaint_repeat);
@@ -446,7 +558,7 @@
                 if (d.promotion) {
                     const prog = d.promotion.progress || 0;
                     document.getElementById('promo-percent').innerText = prog + "%";
-                    
+
                     const fillElement = document.getElementById('promo-fill');
                     fillElement.style.width = prog + "%";
 
@@ -490,6 +602,27 @@
             if (value === null || value === undefined) return "—";
             const numberValue = Number(value);
             return `${Number.isInteger(numberValue) ? numberValue : numberValue.toFixed(1)}%`;
+        }
+
+        function renderReducedNorm(profile) {
+            const card = document.getElementById('reduced-norm-card');
+            const active = Boolean(profile?.available && profile?.active);
+            card.hidden = !active;
+            if (!active) return;
+
+            const norm = profile.effective_norm || {};
+            const formatNorm = (value) => {
+                const number = Number(value);
+                return Number.isFinite(number)
+                    ? (Number.isInteger(number) ? String(number) : number.toFixed(1))
+                    : "—";
+            };
+            document.getElementById('reduced-norm-category').innerText =
+                `${profile.category_title || 'Текущая категория'} · зелёная зона`;
+            document.getElementById('reduced-reports').innerText = formatNorm(norm.reports);
+            document.getElementById('reduced-minutes').innerText = formatNorm(norm.minutes);
+            document.getElementById('reduced-events').innerText = formatNorm(norm.events);
+            document.getElementById('reduced-reactions').innerText = formatNorm(norm.reactions);
         }
 
         function renderPerformanceIndex(performance) {
@@ -587,7 +720,7 @@
 
         function renderChart(dailyData) {
             const ctx = document.getElementById('reportsChart').getContext('2d');
-            
+
             if (myChartInstance) {
                 myChartInstance.destroy();
             }
@@ -622,7 +755,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { 
+                    plugins: {
                         legend: { display: false },
                         tooltip: {
                             backgroundColor: '#0f172a',
