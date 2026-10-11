@@ -250,7 +250,7 @@
                 <div class="performance-fill" id="performance-fill"></div>
             </div>
             <p class="card-label performance-caption" id="performance-caption">
-                Индекс объединяет норматив, посещаемость, дисциплину, повторные жалобы и активные нарушения.
+                Индекс объединяет норматив, рейтинг качества помощи игрокам, посещаемость, дисциплину, повторные жалобы и активные нарушения.
             </p>
         </div>
 
@@ -523,6 +523,13 @@
             const factors = Array.isArray(performance.risk_factors)
                 ? performance.risk_factors.filter(Boolean)
                 : [];
+            const rawHelpRating = performance?.help_rating;
+            const helpRating = rawHelpRating === null || rawHelpRating === undefined
+                ? Number.NaN
+                : Number(rawHelpRating);
+            const ratingNote = Number.isFinite(helpRating)
+                ? `Рейтинг качества помощи: ${helpRating.toFixed(1).replace('.0', '')}/5. `
+                : "";
 
             valueElement.innerText = `${formattedValue}%`;
             valueElement.style.color = zone.color;
@@ -532,8 +539,8 @@
             fillElement.style.width = `${clampedValue}%`;
             fillElement.style.background = zone.color;
             captionElement.innerText = factors.length
-                ? `На индекс сейчас влияют: ${factors.join(" · ")}.`
-                : "Показатели находятся в стабильной зоне. Критичных факторов не выявлено.";
+                ? `${ratingNote}На индекс сейчас влияют: ${factors.join(" · ")}.`
+                : `${ratingNote}Показатели находятся в стабильной зоне. Критичных факторов не выявлено.`;
         }
 
         function renderTestResults(testResults) {

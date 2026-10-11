@@ -33,6 +33,7 @@ function fixture() {
     }],
     selected: 1,
     disciplineDecision: null,
+    overNorm: {threshold_reports: 250, bonus_reports: 200},
     $: id => {
       if (!nodes.has(id)) nodes.set(id, makeNode(id));
       return nodes.get(id);
@@ -76,6 +77,17 @@ test('completed and partial results do not show the reprimand choice', () => {
   assert.equal(nodes.get('discipline').classList.contains('hidden'), true);
 });
 
+test('250 reports with completed requirements is shown as overcompleted', () => {
+  const {context, nodes} = fixture();
+  const facts = {report: 250, minutes: 90, events: 2, reactions: 15};
+  for (const [id, value] of Object.entries(facts)) nodes.get(id).value = String(value);
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Перенорма выполнена');
+  assert.equal(nodes.get('result-note').textContent, 'За 250 репортов в таблицу будет записано 450.');
+  assert.equal(nodes.get('percent').className, 'zone magenta');
+  assert.equal(nodes.get('discipline').classList.contains('hidden'), true);
+});
+
 test('the reprimand block is hidden in the initial markup', () => {
   assert.match(html, /class="discipline hidden" id="discipline"/);
 });
@@ -84,9 +96,11 @@ test('status badges use soft translucent colors', () => {
   assert.match(html, /--status-done-bg:rgba\([^)]*,\.14\)/);
   assert.match(html, /--status-partial-bg:rgba\([^)]*,\.16\)/);
   assert.match(html, /--status-failed-bg:rgba\([^)]*,\.13\)/);
+  assert.match(html, /--status-over-bg:rgba\([^)]*,\.13\)/);
   assert.match(html, /\.state\.completed\{[^}]*background:var\(--status-done-bg\)/);
   assert.match(html, /\.state\.partial\{[^}]*background:var\(--status-partial-bg\)/);
   assert.match(html, /\.state\.failed\{[^}]*background:var\(--status-failed-bg\)/);
+  assert.match(html, /\.state\.overcompleted\{[^}]*background:var\(--status-over-bg\)/);
 });
 
 test('norm check inline scripts parse', () => {
