@@ -161,6 +161,13 @@ test('dynamic norm entitlement is visible to the curator', () => {
   assert.doesNotMatch(html, /льготн/i);
 });
 
+test('weekly reduced-norm lock is explained to the curator', () => {
+  assert.match(html, /Сокращённый норматив приостановлен/);
+  assert.match(html, /До следующего понедельника применяется стандартный норматив/);
+  assert.match(html, /dynamic\.weekly_locked/);
+  assert.match(html, /dynamic\.weekly_lock_reasons/);
+});
+
 test('status badges use soft translucent colors', () => {
   assert.match(html, /--status-done-bg:rgba\([^)]*,\.14\)/);
   assert.match(html, /--status-partial-bg:rgba\([^)]*,\.16\)/);

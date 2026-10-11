@@ -186,6 +186,26 @@
             pointer-events: none;
         }
 
+        .reduced-norm-card.locked {
+            border-color: rgba(245, 158, 11, 0.32);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(148, 163, 184, 0.06));
+        }
+
+        .reduced-norm-card.locked::after {
+            content: "ДО ПН";
+            color: rgba(253, 230, 138, 0.08);
+        }
+
+        .reduced-norm-card.locked .reduced-norm-title {
+            color: #fde68a;
+        }
+
+        .reduced-norm-card.locked .reduced-norm-badge {
+            border-color: rgba(245, 158, 11, 0.35);
+            color: #fcd34d;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
         .reduced-norm-head {
             display: flex;
             align-items: flex-start;
@@ -333,12 +353,12 @@
         <section class="reduced-norm-card" id="reduced-norm-card" hidden>
             <div class="reduced-norm-head">
                 <div>
-                    <div class="reduced-norm-title">Сокращённая норма действует</div>
+                    <div class="reduced-norm-title" id="reduced-norm-title">Сокращённая норма действует</div>
                     <div class="card-label" id="reduced-norm-category">Зелёная зона</div>
                 </div>
-                <div class="reduced-norm-badge">−50%</div>
+                <div class="reduced-norm-badge" id="reduced-norm-badge">−50%</div>
             </div>
-            <p class="reduced-norm-caption">
+            <p class="reduced-norm-caption" id="reduced-norm-caption">
                 Показатели соответствуют условиям зелёной зоны. Ниже указан действующий дневной норматив.
             </p>
             <div class="reduced-norm-grid">
@@ -607,8 +627,9 @@
         function renderReducedNorm(profile) {
             const card = document.getElementById('reduced-norm-card');
             const active = Boolean(profile?.available && profile?.active);
-            card.hidden = !active;
-            if (!active) return;
+            const locked = Boolean(profile?.available && profile?.weekly_locked && !active);
+            card.hidden = !active && !locked;
+            if (!active && !locked) return;
 
             const norm = profile.effective_norm || {};
             const formatNorm = (value) => {
@@ -617,8 +638,30 @@
                     ? String(Math.round(number))
                     : "—";
             };
-            document.getElementById('reduced-norm-category').innerText =
-                `${profile.category_title || 'Текущая категория'} · зелёная зона`;
+            card.classList.toggle('locked', locked);
+            const reasonLabels = {
+                index: 'индекс опускался ниже 75%',
+                days_on_role: 'стаж был менее 14 дней',
+                no_reprimands: 'был получен выговор',
+                no_serious_active_violations: 'было серьёзное нарушение',
+                weekly_complaints: 'одобрено более трёх жалоб',
+                no_similar_weekly_complaints: 'повторилось аналогичное нарушение',
+            };
+            const reasons = (profile.weekly_lock_reasons || [])
+                .map(code => reasonLabels[code] || code)
+                .join('; ');
+            document.getElementById('reduced-norm-title').innerText = locked
+                ? 'Сокращённая норма приостановлена'
+                : 'Сокращённая норма действует';
+            document.getElementById('reduced-norm-category').innerText = locked
+                ? `${profile.category_title || 'Текущая категория'} · до следующей недели`
+                : `${profile.category_title || 'Текущая категория'} · зелёная зона`;
+            document.getElementById('reduced-norm-badge').innerText = locked
+                ? 'СТАНДАРТ'
+                : '−50%';
+            document.getElementById('reduced-norm-caption').innerText = locked
+                ? `В течение недели было нарушено условие: ${reasons || 'статус зелёной зоны изменился'}. До понедельника применяется стандартный норматив.`
+                : 'Показатели соответствуют условиям зелёной зоны. Ниже указан действующий дневной норматив.';
             document.getElementById('reduced-reports').innerText = formatNorm(norm.reports);
             document.getElementById('reduced-minutes').innerText = formatNorm(norm.minutes);
             document.getElementById('reduced-events').innerText = formatNorm(norm.events);
