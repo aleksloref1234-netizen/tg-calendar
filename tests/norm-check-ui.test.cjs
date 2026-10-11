@@ -80,6 +80,15 @@ test('the reprimand block is hidden in the initial markup', () => {
   assert.match(html, /class="discipline hidden" id="discipline"/);
 });
 
+test('status badges use soft translucent colors', () => {
+  assert.match(html, /--status-done-bg:rgba\([^)]*,\.14\)/);
+  assert.match(html, /--status-partial-bg:rgba\([^)]*,\.16\)/);
+  assert.match(html, /--status-failed-bg:rgba\([^)]*,\.13\)/);
+  assert.match(html, /\.state\.completed\{[^}]*background:var\(--status-done-bg\)/);
+  assert.match(html, /\.state\.partial\{[^}]*background:var\(--status-partial-bg\)/);
+  assert.match(html, /\.state\.failed\{[^}]*background:var\(--status-failed-bg\)/);
+});
+
 test('norm check inline scripts parse', () => {
   for (const [, script] of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) {
     new vm.Script(script);
