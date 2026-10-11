@@ -92,6 +92,18 @@ test('the reprimand block is hidden in the initial markup', () => {
   assert.match(html, /class="discipline hidden" id="discipline"/);
 });
 
+test('failed result asks about punishment and sends the new API field', () => {
+  assert.match(html, /<b>Выдать наказание\?<\/b>/);
+  assert.doesNotMatch(html, /Выдать выговор\?/);
+  assert.match(html, /issue_punishment:disciplineDecision/);
+});
+
+test('dynamic norm entitlement is visible to the curator', () => {
+  assert.match(html, /class="discount hidden" id="discount"/);
+  assert.match(html, /Динамическая норма снижена в 2 раза/);
+  assert.match(html, /норма −50%/);
+});
+
 test('status badges use soft translucent colors', () => {
   assert.match(html, /--status-done-bg:rgba\([^)]*,\.14\)/);
   assert.match(html, /--status-partial-bg:rgba\([^)]*,\.16\)/);
