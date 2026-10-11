@@ -1,0 +1,87 @@
+const {test} = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+const html = fs.readFileSync(path.join(__dirname, '../norm-check.html'), 'utf8');
+const source = html.slice(html.indexOf('    const factFields='), html.indexOf('    function nextUnchecked('));
+
+function fixture() {
+  const nodes = new Map();
+  const makeNode = id => {
+    const classes = new Set(id === 'discipline' ? ['hidden'] : []);
+    return {
+      value: '', textContent: '', className: '', style: {},
+      classList: {
+        add(value) { classes.add(value); },
+        contains(value) { return classes.has(value); },
+        toggle(value, force) {
+          const enabled = force === undefined ? !classes.has(value) : Boolean(force);
+          enabled ? classes.add(value) : classes.delete(value);
+          return enabled;
+        },
+      },
+    };
+  };
+  const context = vm.createContext({
+    admins: [{
+      telegram_id: 1,
+      locked: false,
+      check: null,
+      norm: {reports: 40, minutes: 90, events: 2, reactions: 15},
+    }],
+    selected: 1,
+    disciplineDecision: null,
+    $: id => {
+      if (!nodes.has(id)) nodes.set(id, makeNode(id));
+      return nodes.get(id);
+    },
+  });
+  vm.runInContext(source, context);
+  for (const id of ['report', 'minutes', 'events', 'reactions']) context.$(id);
+  return {context, nodes};
+}
+
+test('reprimand choice is hidden before all four facts are entered', () => {
+  const {context, nodes} = fixture();
+  nodes.get('report').value = '0';
+  nodes.get('minutes').value = '0';
+  nodes.get('events').value = '0';
+  context.evaluate();
+  assert.equal(nodes.get('discipline').classList.contains('hidden'), true);
+  assert.equal(nodes.get('result').textContent, 'Заполните все показатели');
+  assert.equal(nodes.get('percent').textContent, '—');
+});
+
+test('reprimand choice appears only after a complete failed result', () => {
+  const {context, nodes} = fixture();
+  for (const id of ['report', 'minutes', 'events', 'reactions']) nodes.get(id).value = '0';
+  context.evaluate();
+  assert.equal(nodes.get('discipline').classList.contains('hidden'), false);
+  assert.equal(nodes.get('result').textContent, 'Норма не выполнена');
+  assert.equal(nodes.get('percent').textContent, '0%');
+});
+
+test('completed and partial results do not show the reprimand choice', () => {
+  const {context, nodes} = fixture();
+  const setFacts = values => Object.entries(values).forEach(([id, value]) => { nodes.get(id).value = String(value); });
+  setFacts({report: 30, minutes: 68, events: 2, reactions: 12});
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Норма натянута');
+  assert.equal(nodes.get('discipline').classList.contains('hidden'), true);
+  setFacts({report: 40, minutes: 90, events: 2, reactions: 15});
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Норма выполнена');
+  assert.equal(nodes.get('discipline').classList.contains('hidden'), true);
+});
+
+test('the reprimand block is hidden in the initial markup', () => {
+  assert.match(html, /class="discipline hidden" id="discipline"/);
+});
+
+test('norm check inline scripts parse', () => {
+  for (const [, script] of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) {
+    new vm.Script(script);
+  }
+});
