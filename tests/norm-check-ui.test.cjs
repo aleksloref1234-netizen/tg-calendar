@@ -100,8 +100,9 @@ test('failed result asks about punishment and sends the new API field', () => {
 
 test('dynamic norm entitlement is visible to the curator', () => {
   assert.match(html, /class="discount hidden" id="discount"/);
-  assert.match(html, /Динамическая норма снижена в 2 раза/);
-  assert.match(html, /норма −50%/);
+  assert.match(html, /Сокращённый норматив активен/);
+  assert.match(html, /находится в зелёной зоне/);
+  assert.doesNotMatch(html, /льготн/i);
 });
 
 test('status badges use soft translucent colors', () => {
