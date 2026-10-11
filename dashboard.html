@@ -614,7 +614,7 @@
             const formatNorm = (value) => {
                 const number = Number(value);
                 return Number.isFinite(number)
-                    ? (Number.isInteger(number) ? String(number) : number.toFixed(1))
+                    ? String(Math.round(number))
                     : "—";
             };
             document.getElementById('reduced-norm-category').innerText =

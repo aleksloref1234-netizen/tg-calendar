@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const html = fs.readFileSync(path.join(__dirname, '../norm-check.html'), 'utf8');
-const source = html.slice(html.indexOf('    const factFields='), html.indexOf('    function nextUnchecked('));
+const source = html.slice(html.indexOf('    const whole='), html.indexOf('    function nextUnchecked('));
 
 function fixture() {
   const nodes = new Map();
@@ -34,6 +34,8 @@ function fixture() {
     selected: 1,
     disciplineDecision: null,
     overNorm: {threshold_reports: 250, bonus_reports: 200},
+    partialNorm: {reports_deficit: 30, minutes_deficit: 30, reduced_factor: 0.5},
+    eventBonus: {starts_after: 2, reports_per_event: 50},
     $: id => {
       if (!nodes.has(id)) nodes.set(id, makeNode(id));
       return nodes.get(id);
@@ -67,14 +69,68 @@ test('reprimand choice appears only after a complete failed result', () => {
 test('completed and partial results do not show the reprimand choice', () => {
   const {context, nodes} = fixture();
   const setFacts = values => Object.entries(values).forEach(([id, value]) => { nodes.get(id).value = String(value); });
-  setFacts({report: 30, minutes: 68, events: 2, reactions: 12});
+  setFacts({report: 10, minutes: 60, events: 2, reactions: 15});
   context.evaluate();
   assert.equal(nodes.get('result').textContent, 'Норма натянута');
+  assert.equal(nodes.get('percent').textContent, '25%');
+  assert.match(nodes.get('result-note').textContent, /до 30 репортов и 30 минут/);
   assert.equal(nodes.get('discipline').classList.contains('hidden'), true);
   setFacts({report: 40, minutes: 90, events: 2, reactions: 15});
   context.evaluate();
   assert.equal(nodes.get('result').textContent, 'Норма выполнена');
   assert.equal(nodes.get('discipline').classList.contains('hidden'), true);
+});
+
+test('partial result fails beyond the fixed deficit or without all secondary metrics', () => {
+  const {context, nodes} = fixture();
+  const setFacts = values => Object.entries(values).forEach(([id, value]) => { nodes.get(id).value = String(value); });
+  setFacts({report: 9, minutes: 60, events: 2, reactions: 15});
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Норма не выполнена');
+  assert.equal(nodes.get('discipline').classList.contains('hidden'), false);
+  setFacts({report: 10, minutes: 60, events: 2, reactions: 14});
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Норма не выполнена');
+});
+
+test('reduced norm halves both partial deficit limits', () => {
+  const {context, nodes} = fixture();
+  context.admins[0].norm.dynamic_discount = {applied: true};
+  const setFacts = values => Object.entries(values).forEach(([id, value]) => { nodes.get(id).value = String(value); });
+  setFacts({report: 25, minutes: 75, events: 2, reactions: 15});
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Норма натянута');
+  assert.match(nodes.get('result-note').textContent, /до 15 репортов и 15 минут/);
+  setFacts({report: 24, minutes: 75, events: 2, reactions: 15});
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Норма не выполнена');
+});
+
+test('each event after the second adds 50 reports to the exported daily value', () => {
+  const {context, nodes} = fixture();
+  const facts = {report: 40, minutes: 90, events: 4, reactions: 15};
+  for (const [id, value] of Object.entries(facts)) nodes.get(id).value = String(value);
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Норма выполнена');
+  assert.equal(
+    nodes.get('result-note').textContent,
+    'В таблицу будет записано 140 репортов: 40 фактически + 100 за 2 доп. МП.',
+  );
+});
+
+test('fractional requirements and entered facts are rounded to whole numbers', () => {
+  const {context, nodes} = fixture();
+  context.admins[0].norm.reactions = 7.5;
+  nodes.get('report').value = '40';
+  nodes.get('minutes').value = '90';
+  nodes.get('events').value = '2';
+  nodes.get('reactions').value = '7.5';
+
+  context.evaluate();
+
+  assert.equal(vm.runInContext('whole(7.5)', context), 8);
+  assert.equal(vm.runInContext('values().reactions', context), 8);
+  assert.equal(nodes.get('result').textContent, 'Норма выполнена');
 });
 
 test('250 reports with completed requirements is shown as overcompleted', () => {
@@ -83,7 +139,7 @@ test('250 reports with completed requirements is shown as overcompleted', () => 
   for (const [id, value] of Object.entries(facts)) nodes.get(id).value = String(value);
   context.evaluate();
   assert.equal(nodes.get('result').textContent, 'Перенорма выполнена');
-  assert.equal(nodes.get('result-note').textContent, 'За 250 репортов в таблицу будет записано 450.');
+  assert.equal(nodes.get('result-note').textContent, 'В таблицу будет записано 450 репортов: 250 фактически + 200 за перенорму.');
   assert.equal(nodes.get('percent').className, 'zone magenta');
   assert.equal(nodes.get('discipline').classList.contains('hidden'), true);
 });
