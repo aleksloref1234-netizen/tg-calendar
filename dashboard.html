@@ -509,11 +509,11 @@
                 <div class="performance-factor performance-part-violations"><div class="performance-factor-fill" id="performance-fill-violations"></div><span>5%</span></div>
             </div>
             <div class="performance-legend">
-                <span><b>Норма</b> <span id="performance-points-norm">— из 40</span></span>
-                <span><b>Рейтинг</b> <span id="performance-points-rating">— из 25</span></span>
-                <span><b>Собрания</b> <span id="performance-points-meetings">— из 20</span></span>
-                <span><b>Дисциплина</b> <span id="performance-points-discipline">— из 10</span></span>
-                <span><b>Нарушения</b> <span id="performance-points-violations">— из 5</span></span>
+                <span><b>Норма</b> <span id="performance-points-norm">— из 40%</span></span>
+                <span><b>Рейтинг</b> <span id="performance-points-rating">— из 25%</span></span>
+                <span><b>Собрания</b> <span id="performance-points-meetings">— из 20%</span></span>
+                <span><b>Дисциплина</b> <span id="performance-points-discipline">— из 10%</span></span>
+                <span><b>Нарушения</b> <span id="performance-points-violations">— из 5%</span></span>
             </div>
         </div>
 
@@ -855,8 +855,8 @@
                     ? `${Math.max(0, Math.min(100, score))}%`
                     : '0%';
                 document.getElementById(`performance-points-${key}`).innerText = available
-                    ? `${formatDecimal(points)} из ${formatDecimal(maximum)}`
-                    : `— из ${formatDecimal(maximum)}`;
+                    ? `${formatDecimal(points)}% из ${formatDecimal(maximum)}%`
+                    : `— из ${formatDecimal(maximum)}%`;
             });
 
             if (Number.isFinite(helpRating)) {
@@ -875,7 +875,7 @@
                 ratingValueElement.innerText = formatDecimal(clampedRating);
                 ratingFillElement.style.width = `${clampedRating / 5 * 100}%`;
                 ratingLevelElement.innerText = ratingLevel;
-                contributionElement.innerText = `Рейтинг даёт ${formatDecimal(contribution)} из 25 баллов`;
+                contributionElement.innerText = `Рейтинг даёт ${formatDecimal(contribution)}% из 25%`;
             } else {
                 ratingValueElement.innerText = '—';
                 ratingFillElement.style.width = '0%';

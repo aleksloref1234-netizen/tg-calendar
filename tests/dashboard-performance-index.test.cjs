@@ -49,8 +49,8 @@ test('factor vessels fill from live component scores and show earned points', ()
   assert.equal(nodes.get('performance-fill-norm').style.width, '80%');
   assert.equal(nodes.get('performance-fill-rating').style.width, '94%');
   assert.equal(nodes.get('performance-fill-violations').style.width, '60%');
-  assert.equal(nodes.get('performance-points-rating').innerText, '23,5 из 25');
-  assert.equal(nodes.get('performance-contribution').innerText, 'Рейтинг даёт 23,5 из 25 баллов');
+  assert.equal(nodes.get('performance-points-rating').innerText, '23,5% из 25%');
+  assert.equal(nodes.get('performance-contribution').innerText, 'Рейтинг даёт 23,5% из 25%');
   assert.equal(nodes.get('help-rating-value').innerText, '4,7');
   assert.equal(nodes.get('help-rating-level').innerText, 'Высокий');
   assert.equal(nodes.get('help-rating-fill').style.width, '94%');
@@ -75,7 +75,7 @@ test('unavailable components stay empty instead of pretending to be zero', () =>
 
   assert.equal(nodes.get('performance-value').innerText, '—');
   assert.equal(nodes.get('performance-fill-norm').style.width, '0%');
-  assert.equal(nodes.get('performance-points-norm').innerText, '— из 40');
+  assert.equal(nodes.get('performance-points-norm').innerText, '— из 40%');
   assert.equal(nodes.get('help-rating-value').innerText, '—');
   assert.equal(nodes.get('help-rating-level').innerText, 'Нет данных');
 });
