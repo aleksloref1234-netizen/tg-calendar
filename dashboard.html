@@ -103,6 +103,8 @@
             margin-bottom: 16px;
             overflow: hidden;
             position: relative;
+            padding: 16px;
+            border-color: rgba(96, 165, 250, 0.24);
         }
 
         .performance-card::after {
@@ -117,52 +119,176 @@
             pointer-events: none;
         }
 
-        .performance-head {
+        .performance-index-head {
             display: flex;
-            align-items: flex-start;
+            align-items: flex-end;
             justify-content: space-between;
             gap: 12px;
+            margin: 10px 0 14px;
         }
 
         .performance-value {
-            font-size: 28px;
+            font-size: 34px;
             line-height: 1;
-            font-weight: 800;
+            font-weight: 600;
             color: var(--text-sub);
         }
 
-        .performance-zone {
-            display: inline-flex;
-            margin-top: 8px;
-            padding: 4px 8px;
-            border: 1px solid rgba(148, 163, 184, 0.24);
-            border-radius: 999px;
+        .performance-contribution {
             color: var(--text-sub);
-            font-size: 11px;
-            font-weight: 700;
+            font-size: 12px;
+            text-align: right;
         }
 
-        .performance-track {
+        .performance-strip {
+            display: flex;
             width: 100%;
-            height: 8px;
-            margin-top: 14px;
+            height: 42px;
             overflow: hidden;
-            border-radius: 999px;
-            background: rgba(148, 163, 184, 0.14);
+            border-radius: 10px;
         }
 
-        .performance-fill {
+        .performance-factor {
+            position: relative;
+            display: grid;
+            place-items: center;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .performance-factor-fill {
+            position: absolute;
+            inset: 0 auto 0 0;
             width: 0;
-            height: 100%;
-            border-radius: inherit;
-            background: var(--text-sub);
             transition: width .45s ease;
         }
 
-        .performance-caption {
-            margin-top: 10px;
-            margin-bottom: 0;
-            line-height: 1.45;
+        .performance-factor span {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            place-items: center;
+            min-width: 0;
+            color: #f8fbff;
+            font-size: clamp(8px, 2.6vw, 11px);
+            font-weight: 700;
+        }
+
+        .performance-part-norm { width: 40%; background: rgba(36, 126, 170, .22); }
+        .performance-part-rating { width: 25%; background: rgba(170, 124, 44, .22); }
+        .performance-part-meeting { width: 20%; background: rgba(85, 114, 156, .22); }
+        .performance-part-discipline { width: 10%; background: rgba(63, 128, 109, .22); }
+        .performance-part-violations { width: 5%; background: rgba(107, 95, 143, .22); }
+        .performance-part-norm .performance-factor-fill { background: #247eaa; }
+        .performance-part-rating .performance-factor-fill { background: #aa7c2c; }
+        .performance-part-meeting .performance-factor-fill { background: #55729c; }
+        .performance-part-discipline .performance-factor-fill { background: #3f806d; }
+        .performance-part-violations .performance-factor-fill { background: #6b5f8f; }
+
+        .performance-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 14px;
+            margin-top: 12px;
+            color: var(--text-sub);
+            font-size: 12px;
+        }
+
+        .performance-legend b {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .help-rating-card {
+            margin-bottom: 16px;
+            padding: 16px;
+            border-color: rgba(96, 165, 250, 0.24);
+        }
+
+        .help-rating-layout {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .help-rating-value {
+            color: #f8bd4d;
+            font-size: 32px;
+            font-weight: 600;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .help-rating-value small {
+            color: var(--text-sub);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .help-rating-title {
+            margin-bottom: 8px;
+            color: var(--text-main);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .help-rating-track {
+            width: 100%;
+            height: 7px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.16);
+        }
+
+        .help-rating-fill {
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: #e3ad45;
+            transition: width .45s ease;
+        }
+
+        .help-rating-level {
+            min-width: 66px;
+            padding: 10px 11px;
+            border-radius: 11px;
+            background: rgba(14, 116, 144, 0.34);
+            color: var(--accent-color);
+            text-align: center;
+        }
+
+        .help-rating-level span,
+        .help-rating-level strong {
+            display: block;
+        }
+
+        .help-rating-level span {
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .help-rating-level strong {
+            font-size: 13px;
+        }
+
+        @media (max-width: 380px) {
+            .performance-contribution {
+                max-width: 145px;
+            }
+
+            .help-rating-layout {
+                gap: 10px;
+            }
+
+            .help-rating-value {
+                font-size: 28px;
+            }
+
+            .help-rating-level {
+                min-width: 60px;
+                padding-inline: 8px;
+            }
         }
 
         .reduced-norm-card {
@@ -370,19 +496,41 @@
         </section>
 
         <div class="card performance-card" data-ui-block="performance_index">
-            <div class="performance-head">
-                <div>
-                    <div class="card-label">Индекс успеваемости</div>
-                    <div class="performance-zone" id="performance-zone">Нет данных</div>
-                </div>
+            <div class="card-label">Индекс успеваемости</div>
+            <div class="performance-index-head">
                 <div class="performance-value" id="performance-value">—</div>
+                <div class="performance-contribution" id="performance-contribution">Рейтинг: нет данных</div>
             </div>
-            <div class="performance-track">
-                <div class="performance-fill" id="performance-fill"></div>
+            <div class="performance-strip" aria-label="Структура индекса успеваемости">
+                <div class="performance-factor performance-part-norm"><div class="performance-factor-fill" id="performance-fill-norm"></div><span>40%</span></div>
+                <div class="performance-factor performance-part-rating"><div class="performance-factor-fill" id="performance-fill-rating"></div><span>25%</span></div>
+                <div class="performance-factor performance-part-meeting"><div class="performance-factor-fill" id="performance-fill-meetings"></div><span>20%</span></div>
+                <div class="performance-factor performance-part-discipline"><div class="performance-factor-fill" id="performance-fill-discipline"></div><span>10%</span></div>
+                <div class="performance-factor performance-part-violations"><div class="performance-factor-fill" id="performance-fill-violations"></div><span>5%</span></div>
             </div>
-            <p class="card-label performance-caption" id="performance-caption">
-                Индекс объединяет норматив, рейтинг качества помощи игрокам, посещаемость, дисциплину, повторные жалобы и активные нарушения.
-            </p>
+            <div class="performance-legend">
+                <span><b>Норма</b> <span id="performance-points-norm">— из 40</span></span>
+                <span><b>Рейтинг</b> <span id="performance-points-rating">— из 25</span></span>
+                <span><b>Собрания</b> <span id="performance-points-meetings">— из 20</span></span>
+                <span><b>Дисциплина</b> <span id="performance-points-discipline">— из 10</span></span>
+                <span><b>Нарушения</b> <span id="performance-points-violations">— из 5</span></span>
+            </div>
+        </div>
+
+        <div class="card help-rating-card" data-ui-block="performance_index">
+            <div class="help-rating-layout">
+                <div class="help-rating-value"><span id="help-rating-value">—</span><small>/5</small></div>
+                <div>
+                    <div class="help-rating-title">Рейтинг качества помощи</div>
+                    <div class="help-rating-track">
+                        <div class="help-rating-fill" id="help-rating-fill"></div>
+                    </div>
+                </div>
+                <div class="help-rating-level">
+                    <span>Уровень</span>
+                    <strong id="help-rating-level">Нет данных</strong>
+                </div>
+            </div>
         </div>
 
         <!-- Прогресс повышения -->
@@ -670,53 +818,83 @@
 
         function renderPerformanceIndex(performance) {
             const valueElement = document.getElementById('performance-value');
-            const zoneElement = document.getElementById('performance-zone');
-            const fillElement = document.getElementById('performance-fill');
-            const captionElement = document.getElementById('performance-caption');
+            const contributionElement = document.getElementById('performance-contribution');
+            const ratingValueElement = document.getElementById('help-rating-value');
+            const ratingFillElement = document.getElementById('help-rating-fill');
+            const ratingLevelElement = document.getElementById('help-rating-level');
             const numericValue = Number(performance?.value);
-
-            if (!performance?.has_data || !Number.isFinite(numericValue)) {
-                valueElement.innerText = "—";
-                valueElement.style.color = "var(--text-sub)";
-                zoneElement.innerText = "Нет данных";
-                zoneElement.style.color = "var(--text-sub)";
-                zoneElement.style.borderColor = "rgba(148, 163, 184, 0.24)";
-                fillElement.style.width = "0%";
-                captionElement.innerText = "Индекс появится, когда будут доступны данные норматива и остальные показатели.";
-                return;
-            }
-
-            const zones = {
-                red: { label: "Красная зона", color: "var(--danger)" },
-                yellow: { label: "Жёлтая зона", color: "var(--warning)" },
-                green: { label: "Зелёная зона", color: "var(--success)" },
-            };
-            const zone = zones[performance.zone] || { label: "Зона не определена", color: "var(--text-sub)" };
-            const clampedValue = Math.max(0, Math.min(100, numericValue));
-            const formattedValue = Number.isInteger(numericValue)
-                ? numericValue.toFixed(0)
-                : numericValue.toFixed(1);
-            const factors = Array.isArray(performance.risk_factors)
-                ? performance.risk_factors.filter(Boolean)
-                : [];
             const rawHelpRating = performance?.help_rating;
             const helpRating = rawHelpRating === null || rawHelpRating === undefined
                 ? Number.NaN
                 : Number(rawHelpRating);
-            const ratingNote = Number.isFinite(helpRating)
-                ? `Рейтинг качества помощи: ${helpRating.toFixed(1).replace('.0', '')}/5. `
-                : "";
+            const formatDecimal = (value) => {
+                const rounded = Math.round(value * 10) / 10;
+                return String(rounded).replace('.', ',');
+            };
+            const componentMap = new Map(
+                (Array.isArray(performance?.components) ? performance.components : [])
+                    .filter(item => item?.key)
+                    .map(item => [item.key, item])
+            );
+            const componentMaximums = {
+                norm: 40,
+                rating: 25,
+                meetings: 20,
+                discipline: 10,
+                violations: 5,
+            };
+            Object.entries(componentMaximums).forEach(([key, fallbackMaximum]) => {
+                const component = componentMap.get(key);
+                const score = Number(component?.score_percent);
+                const points = Number(component?.points);
+                const maximum = Number(component?.max_points) || fallbackMaximum;
+                const available = Boolean(component?.available)
+                    && Number.isFinite(score)
+                    && Number.isFinite(points);
+                document.getElementById(`performance-fill-${key}`).style.width = available
+                    ? `${Math.max(0, Math.min(100, score))}%`
+                    : '0%';
+                document.getElementById(`performance-points-${key}`).innerText = available
+                    ? `${formatDecimal(points)} из ${formatDecimal(maximum)}`
+                    : `— из ${formatDecimal(maximum)}`;
+            });
+
+            if (Number.isFinite(helpRating)) {
+                const clampedRating = Math.max(0, Math.min(5, helpRating));
+                const ratingPoints = Number(componentMap.get('rating')?.points);
+                const contribution = Number.isFinite(ratingPoints)
+                    ? ratingPoints
+                    : clampedRating / 5 * 25;
+                const ratingLevel = clampedRating >= 4.5
+                    ? 'Высокий'
+                    : clampedRating >= 3.5
+                        ? 'Стабильный'
+                        : clampedRating >= 2.5
+                            ? 'Средний'
+                            : 'Требует внимания';
+                ratingValueElement.innerText = formatDecimal(clampedRating);
+                ratingFillElement.style.width = `${clampedRating / 5 * 100}%`;
+                ratingLevelElement.innerText = ratingLevel;
+                contributionElement.innerText = `Рейтинг даёт ${formatDecimal(contribution)} из 25 баллов`;
+            } else {
+                ratingValueElement.innerText = '—';
+                ratingFillElement.style.width = '0%';
+                ratingLevelElement.innerText = 'Нет данных';
+                contributionElement.innerText = 'Рейтинг: нет данных';
+            }
+
+            if (!performance?.has_data || !Number.isFinite(numericValue)) {
+                valueElement.innerText = "—";
+                valueElement.style.color = "var(--text-sub)";
+                return;
+            }
+
+            const formattedValue = Number.isInteger(numericValue)
+                ? numericValue.toFixed(0)
+                : numericValue.toFixed(1);
 
             valueElement.innerText = `${formattedValue}%`;
-            valueElement.style.color = zone.color;
-            zoneElement.innerText = zone.label;
-            zoneElement.style.color = zone.color;
-            zoneElement.style.borderColor = zone.color;
-            fillElement.style.width = `${clampedValue}%`;
-            fillElement.style.background = zone.color;
-            captionElement.innerText = factors.length
-                ? `${ratingNote}На индекс сейчас влияют: ${factors.join(" · ")}.`
-                : `${ratingNote}Показатели находятся в стабильной зоне. Критичных факторов не выявлено.`;
+            valueElement.style.color = "var(--text-main)";
         }
 
         function renderTestResults(testResults) {
