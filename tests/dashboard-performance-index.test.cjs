@@ -14,6 +14,10 @@ test('dashboard shows the index composition and a separate help rating card', ()
   assert.match(html, /performance-fill-meetings/);
   assert.match(html, /performance-fill-discipline/);
   assert.match(html, /performance-fill-violations/);
+  assert.match(html, /id="performance-zone-badge">Нет данных/);
+  assert.match(html, /performance-card\.zone-green/);
+  assert.match(html, /performance-card\.zone-yellow/);
+  assert.match(html, /performance-card\.zone-red/);
   assert.doesNotMatch(html, /Основано на .*оценк/);
 });
 
@@ -21,7 +25,18 @@ test('factor vessels fill from live component scores and show earned points', ()
   const nodes = new Map();
   const document = {
     getElementById(id) {
-      if (!nodes.has(id)) nodes.set(id, {innerText: '', style: {}});
+      if (!nodes.has(id)) {
+        const classes = new Set();
+        nodes.set(id, {
+          innerText: '',
+          style: {},
+          classes,
+          classList: {
+            add(...values) { values.forEach(value => classes.add(value)); },
+            remove(...values) { values.forEach(value => classes.delete(value)); },
+          },
+        });
+      }
       return nodes.get(id);
     },
   };
@@ -35,6 +50,7 @@ test('factor vessels fill from live component scores and show earned points', ()
   context.renderPerformanceIndex({
     has_data: true,
     value: 87,
+    zone: 'green',
     help_rating: 4.7,
     components: [
       {key: 'norm', available: true, score_percent: 80, points: 32, max_points: 40},
@@ -46,11 +62,13 @@ test('factor vessels fill from live component scores and show earned points', ()
   });
 
   assert.equal(nodes.get('performance-value').innerText, '87%');
+  assert.equal(nodes.get('performance-zone-badge').innerText, 'Зелёная зона');
+  assert.equal(nodes.get('performance-card').classes.has('zone-green'), true);
   assert.equal(nodes.get('performance-fill-norm').style.width, '80%');
   assert.equal(nodes.get('performance-fill-rating').style.width, '94%');
   assert.equal(nodes.get('performance-fill-violations').style.width, '60%');
   assert.equal(nodes.get('performance-points-rating').innerText, '23,5% из 25%');
-  assert.equal(nodes.get('performance-contribution').innerText, 'Рейтинг даёт 23,5% из 25%');
+  assert.doesNotMatch(html, /Рейтинг даёт/);
   assert.equal(nodes.get('help-rating-value').innerText, '4,7');
   assert.equal(nodes.get('help-rating-level').innerText, 'Высокий');
   assert.equal(nodes.get('help-rating-fill').style.width, '94%');
@@ -60,7 +78,18 @@ test('unavailable components stay empty instead of pretending to be zero', () =>
   const nodes = new Map();
   const document = {
     getElementById(id) {
-      if (!nodes.has(id)) nodes.set(id, {innerText: '', style: {}});
+      if (!nodes.has(id)) {
+        const classes = new Set();
+        nodes.set(id, {
+          innerText: '',
+          style: {},
+          classes,
+          classList: {
+            add(...values) { values.forEach(value => classes.add(value)); },
+            remove(...values) { values.forEach(value => classes.delete(value)); },
+          },
+        });
+      }
       return nodes.get(id);
     },
   };
@@ -74,6 +103,8 @@ test('unavailable components stay empty instead of pretending to be zero', () =>
   context.renderPerformanceIndex({has_data: false, value: null, help_rating: null, components: []});
 
   assert.equal(nodes.get('performance-value').innerText, '—');
+  assert.equal(nodes.get('performance-zone-badge').innerText, 'Нет данных');
+  assert.equal(nodes.get('performance-card').classes.has('zone-unknown'), true);
   assert.equal(nodes.get('performance-fill-norm').style.width, '0%');
   assert.equal(nodes.get('performance-points-norm').innerText, '— из 40%');
   assert.equal(nodes.get('help-rating-value').innerText, '—');

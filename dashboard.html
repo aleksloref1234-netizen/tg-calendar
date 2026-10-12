@@ -100,11 +100,42 @@
         }
 
         .performance-card {
+            --performance-rgb: 148, 163, 184;
             margin-bottom: 16px;
             overflow: hidden;
             position: relative;
             padding: 16px;
-            border-color: rgba(96, 165, 250, 0.24);
+            border-color: rgba(var(--performance-rgb), 0.3);
+            background:
+                linear-gradient(135deg, rgba(var(--performance-rgb), 0.1), transparent 52%),
+                var(--card-bg);
+            box-shadow: inset 3px 0 0 rgba(var(--performance-rgb), 0.72);
+            transition: border-color .3s ease, background .3s ease, box-shadow .3s ease;
+        }
+
+        .performance-card.zone-green { --performance-rgb: 52, 211, 153; }
+        .performance-card.zone-yellow { --performance-rgb: 245, 158, 11; }
+        .performance-card.zone-red { --performance-rgb: 248, 113, 113; }
+        .performance-card.zone-unknown { --performance-rgb: 148, 163, 184; }
+
+        .performance-title-row {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .performance-zone-badge {
+            padding: 4px 8px;
+            border: 1px solid rgba(var(--performance-rgb), 0.34);
+            border-radius: 999px;
+            background: rgba(var(--performance-rgb), 0.11);
+            color: rgb(var(--performance-rgb));
+            font-size: 10px;
+            font-weight: 700;
+            white-space: nowrap;
         }
 
         .performance-card::after {
@@ -115,15 +146,14 @@
             top: -70px;
             right: -45px;
             border-radius: 50%;
-            border: 18px solid rgba(56, 189, 248, 0.06);
+            border: 18px solid rgba(var(--performance-rgb), 0.07);
             pointer-events: none;
+            transition: border-color .3s ease;
         }
 
         .performance-index-head {
             display: flex;
             align-items: flex-end;
-            justify-content: space-between;
-            gap: 12px;
             margin: 10px 0 14px;
         }
 
@@ -131,13 +161,9 @@
             font-size: 34px;
             line-height: 1;
             font-weight: 600;
-            color: var(--text-sub);
-        }
-
-        .performance-contribution {
-            color: var(--text-sub);
-            font-size: 12px;
-            text-align: right;
+            color: rgb(var(--performance-rgb));
+            text-shadow: 0 0 18px rgba(var(--performance-rgb), 0.16);
+            transition: color .3s ease, text-shadow .3s ease;
         }
 
         .performance-strip {
@@ -273,10 +299,6 @@
         }
 
         @media (max-width: 380px) {
-            .performance-contribution {
-                max-width: 145px;
-            }
-
             .help-rating-layout {
                 gap: 10px;
             }
@@ -495,11 +517,13 @@
             </div>
         </section>
 
-        <div class="card performance-card" data-ui-block="performance_index">
-            <div class="card-label">Индекс успеваемости</div>
+        <div class="card performance-card zone-unknown" id="performance-card" data-ui-block="performance_index">
+            <div class="performance-title-row">
+                <div class="card-label" style="margin-bottom: 0;">Индекс успеваемости</div>
+                <div class="performance-zone-badge" id="performance-zone-badge">Нет данных</div>
+            </div>
             <div class="performance-index-head">
                 <div class="performance-value" id="performance-value">—</div>
-                <div class="performance-contribution" id="performance-contribution">Рейтинг: нет данных</div>
             </div>
             <div class="performance-strip" aria-label="Структура индекса успеваемости">
                 <div class="performance-factor performance-part-norm"><div class="performance-factor-fill" id="performance-fill-norm"></div><span>40%</span></div>
@@ -817,12 +841,25 @@
         }
 
         function renderPerformanceIndex(performance) {
+            const cardElement = document.getElementById('performance-card');
             const valueElement = document.getElementById('performance-value');
-            const contributionElement = document.getElementById('performance-contribution');
+            const zoneBadgeElement = document.getElementById('performance-zone-badge');
             const ratingValueElement = document.getElementById('help-rating-value');
             const ratingFillElement = document.getElementById('help-rating-fill');
             const ratingLevelElement = document.getElementById('help-rating-level');
             const numericValue = Number(performance?.value);
+            const zoneStyles = {
+                green: {className: 'zone-green', label: 'Зелёная зона'},
+                yellow: {className: 'zone-yellow', label: 'Жёлтая зона'},
+                red: {className: 'zone-red', label: 'Красная зона'},
+            };
+            const activeZone = zoneStyles[performance?.zone] || {
+                className: 'zone-unknown',
+                label: 'Нет данных',
+            };
+            cardElement.classList.remove('zone-green', 'zone-yellow', 'zone-red', 'zone-unknown');
+            cardElement.classList.add(activeZone.className);
+            zoneBadgeElement.innerText = activeZone.label;
             const rawHelpRating = performance?.help_rating;
             const helpRating = rawHelpRating === null || rawHelpRating === undefined
                 ? Number.NaN
@@ -861,10 +898,6 @@
 
             if (Number.isFinite(helpRating)) {
                 const clampedRating = Math.max(0, Math.min(5, helpRating));
-                const ratingPoints = Number(componentMap.get('rating')?.points);
-                const contribution = Number.isFinite(ratingPoints)
-                    ? ratingPoints
-                    : clampedRating / 5 * 25;
                 const ratingLevel = clampedRating >= 4.5
                     ? 'Высокий'
                     : clampedRating >= 3.5
@@ -875,17 +908,17 @@
                 ratingValueElement.innerText = formatDecimal(clampedRating);
                 ratingFillElement.style.width = `${clampedRating / 5 * 100}%`;
                 ratingLevelElement.innerText = ratingLevel;
-                contributionElement.innerText = `Рейтинг даёт ${formatDecimal(contribution)}% из 25%`;
             } else {
                 ratingValueElement.innerText = '—';
                 ratingFillElement.style.width = '0%';
                 ratingLevelElement.innerText = 'Нет данных';
-                contributionElement.innerText = 'Рейтинг: нет данных';
             }
 
             if (!performance?.has_data || !Number.isFinite(numericValue)) {
                 valueElement.innerText = "—";
-                valueElement.style.color = "var(--text-sub)";
+                cardElement.classList.remove('zone-green', 'zone-yellow', 'zone-red');
+                cardElement.classList.add('zone-unknown');
+                zoneBadgeElement.innerText = 'Нет данных';
                 return;
             }
 
@@ -894,7 +927,6 @@
                 : numericValue.toFixed(1);
 
             valueElement.innerText = `${formattedValue}%`;
-            valueElement.style.color = "var(--text-main)";
         }
 
         function renderTestResults(testResults) {
