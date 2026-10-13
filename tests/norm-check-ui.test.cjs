@@ -154,6 +154,14 @@ test('failed result asks about a warning and sends the explicit API field', () =
   assert.match(html, /issue_warning:disciplineDecision/);
 });
 
+test('submit retries transient failures with one stable operation id', () => {
+  assert.match(html, /const delays=\[0,700,1600,3000\]/);
+  assert.match(html, /\[429,502,503,504\]\.includes\(response\.status\)/);
+  assert.match(html, /const operationId=makeOperationId\(\)/);
+  assert.match(html, /operation_id:operationId/);
+  assert.match(html, /randomUUID/);
+});
+
 test('dynamic norm entitlement is visible to the curator', () => {
   assert.match(html, /class="discount hidden" id="discount"/);
   assert.match(html, /Сокращённый норматив активен/);
