@@ -9,6 +9,7 @@
 
   const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
   const DAY_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  const DEFAULT_DUE_TIME = '00:00';
   const APP_MODE = document.body.dataset.mode || 'team';
   const STORAGE_KEY = 'leadership-task-preview-v4';
   const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/leadership/tasks';
@@ -27,41 +28,41 @@
 
   const templates = {
     main: [
-      task('reports', 'Сдача всех отчётов', 'Отчётность', '22:00', 30, 'high', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
-      task('forum', 'Проверка форума на просрочки', 'Форум', '20:00', 25, 'high', { day: 0 }),
-      task('appeals', 'Рассмотрение обжалований', 'Контроль', '19:00', 35, 'medium', { day: 2 }),
-      task('vk', 'Проверка личных сообщений ВКонтакте', 'Коммуникации', '18:30', 20, 'normal', { day: 4 }),
-      task('blacklist', 'Просмотр форм на выдачу ЧС от главных следящих', 'Проверка', '20:30', 25, 'medium', { day: 1 }),
-      task('leaders', 'Проверка рекламы и работы по набору лидеров', 'Набор', '21:00', 30, 'normal', { day: 3 }),
-      task('meeting', 'Собрание руководящего состава', 'Собрание', '20:00', 45, 'high', { day: 6, fixed: true, repeat: 'По воскресеньям' })
+      task('reports', 'Сдача всех отчётов', 'Отчётность', DEFAULT_DUE_TIME, 30, 'high', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
+      task('forum', 'Проверка форума на просрочки', 'Форум', DEFAULT_DUE_TIME, 25, 'high', { day: 0 }),
+      task('appeals', 'Рассмотрение обжалований', 'Контроль', DEFAULT_DUE_TIME, 35, 'medium', { day: 2 }),
+      task('vk', 'Проверка личных сообщений ВКонтакте', 'Коммуникации', DEFAULT_DUE_TIME, 20, 'normal', { day: 4 }),
+      task('blacklist', 'Просмотр форм на выдачу ЧС от главных следящих', 'Проверка', DEFAULT_DUE_TIME, 25, 'medium', { day: 1 }),
+      task('leaders', 'Проверка рекламы и работы по набору лидеров', 'Набор', DEFAULT_DUE_TIME, 30, 'normal', { day: 3 }),
+      task('meeting', 'Собрание руководящего состава', 'Собрание', DEFAULT_DUE_TIME, 45, 'high', { day: 6, fixed: true, repeat: 'По воскресеньям' })
     ],
     deputy: [
-      task('control', 'Контроль работы администрации', 'Контроль', '22:00', 30, 'high', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
-      task('curators', 'Проверка отчётности кураторов', 'Отчётность', '21:00', 40, 'high', { day: 0 }),
-      task('messages', 'Проверка личных сообщений ВКонтакте', 'Коммуникации', '19:00', 20, 'normal', { day: 2 }),
-      task('review', 'Сводка проблем по направлениям', 'Аналитика', '20:30', 35, 'medium', { day: 4 }),
-      task('call', 'Созвон с руководителями направлений', 'Коммуникации', '20:00', 45, 'medium', { day: 6, fixed: true, repeat: 'По воскресеньям' })
+      task('control', 'Контроль работы администрации', 'Контроль', DEFAULT_DUE_TIME, 30, 'high', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
+      task('curators', 'Проверка отчётности кураторов', 'Отчётность', DEFAULT_DUE_TIME, 40, 'high', { day: 0 }),
+      task('messages', 'Проверка личных сообщений ВКонтакте', 'Коммуникации', DEFAULT_DUE_TIME, 20, 'normal', { day: 2 }),
+      task('review', 'Сводка проблем по направлениям', 'Аналитика', DEFAULT_DUE_TIME, 35, 'medium', { day: 4 }),
+      task('call', 'Созвон с руководителями направлений', 'Коммуникации', DEFAULT_DUE_TIME, 45, 'medium', { day: 6, fixed: true, repeat: 'По воскресеньям' })
     ],
     org: [
-      task('server', 'Время на сервере', 'Сервер', '23:30', 75, 'high', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
-      task('complaints', 'Рассмотрение жалоб на лидеров', 'Жалобы', '22:30', 35, 'high', { day: 0 }),
-      task('applications', 'Проверка заявок на лидерские должности', 'Набор', '20:00', 30, 'medium', { day: 2 }),
-      task('reports', 'Сбор отчётности следящих', 'Отчётность', '21:30', 40, 'medium', { day: 4 }),
-      task('forum', 'Проверка лидерского раздела', 'Форум', '22:00', 30, 'normal', { day: 5 })
+      task('server', 'Время на сервере', 'Сервер', DEFAULT_DUE_TIME, 75, 'high', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
+      task('complaints', 'Рассмотрение жалоб на лидеров', 'Жалобы', DEFAULT_DUE_TIME, 35, 'high', { day: 0 }),
+      task('applications', 'Проверка заявок на лидерские должности', 'Набор', DEFAULT_DUE_TIME, 30, 'medium', { day: 2 }),
+      task('reports', 'Сбор отчётности следящих', 'Отчётность', DEFAULT_DUE_TIME, 40, 'medium', { day: 4 }),
+      task('forum', 'Проверка лидерского раздела', 'Форум', DEFAULT_DUE_TIME, 30, 'normal', { day: 5 })
     ],
     admin: [
-      task('inactive', 'Контроль неактивов и освобождений', 'Кадры', '19:30', 25, 'medium', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
-      task('performance', 'Проверка недельной успеваемости администрации', 'Успеваемость', '20:00', 40, 'high', { day: 0 }),
-      task('appeals', 'Проверка обращений администрации', 'Коммуникации', '21:00', 30, 'normal', { day: 2 }),
-      task('violations', 'Подготовка сводки по нарушениям', 'Аналитика', '20:00', 35, 'medium', { day: 4 }),
-      task('meeting', 'Подготовка материалов к собранию', 'Собрание', '18:00', 30, 'medium', { day: 6, fixed: true, repeat: 'По воскресеньям' })
+      task('inactive', 'Контроль неактивов и освобождений', 'Кадры', DEFAULT_DUE_TIME, 25, 'medium', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
+      task('performance', 'Проверка недельной успеваемости администрации', 'Успеваемость', DEFAULT_DUE_TIME, 40, 'high', { day: 0 }),
+      task('appeals', 'Проверка обращений администрации', 'Коммуникации', DEFAULT_DUE_TIME, 30, 'normal', { day: 2 }),
+      task('violations', 'Подготовка сводки по нарушениям', 'Аналитика', DEFAULT_DUE_TIME, 35, 'medium', { day: 4 }),
+      task('meeting', 'Подготовка материалов к собранию', 'Собрание', DEFAULT_DUE_TIME, 30, 'medium', { day: 6, fixed: true, repeat: 'По воскресеньям' })
     ],
     support: [
-      task('server', 'Время на сервере', 'Сервер', '22:00', 70, 'high', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
-      task('forum', 'Проверка раздела агентов поддержки', 'Форум', '20:30', 25, 'medium', { day: 0 }),
-      task('logs', 'Проверка ответов агентов через логи', 'Контроль', '21:00', 35, 'medium', { day: 2 }),
-      task('standard', 'Выставление норматива агентам поддержки', 'Норматив', '19:00', 30, 'normal', { day: 4 }),
-      task('complaints', 'Рассмотрение жалоб на агентов поддержки', 'Жалобы', '21:30', 35, 'high', { day: 5 })
+      task('server', 'Время на сервере', 'Сервер', DEFAULT_DUE_TIME, 70, 'high', { days: allDays(), fixed: true, repeat: 'Ежедневно' }),
+      task('forum', 'Проверка раздела агентов поддержки', 'Форум', DEFAULT_DUE_TIME, 25, 'medium', { day: 0 }),
+      task('logs', 'Проверка ответов агентов через логи', 'Контроль', DEFAULT_DUE_TIME, 35, 'medium', { day: 2 }),
+      task('standard', 'Выставление норматива агентам поддержки', 'Норматив', DEFAULT_DUE_TIME, 30, 'normal', { day: 4 }),
+      task('complaints', 'Рассмотрение жалоб на агентов поддержки', 'Жалобы', DEFAULT_DUE_TIME, 35, 'high', { day: 5 })
     ]
   };
 
@@ -911,13 +912,13 @@
             description: document.getElementById('task-description').value.trim(),
             role_id: role,
             date,
-            due_time: document.getElementById('task-due').value || '20:00',
+            due_time: document.getElementById('task-due').value || DEFAULT_DUE_TIME,
             duration_minutes: Math.max(5, Math.min(480, Number(document.getElementById('task-minutes').value) || 30)),
             priority,
             rotation_allowed: allowRotation
           });
           form.reset();
-          document.getElementById('task-due').value = '20:00';
+          document.getElementById('task-due').value = DEFAULT_DUE_TIME;
           document.getElementById('task-minutes').value = '30';
           daySelect.value = String((new Date().getDay() + 6) % 7);
           applyPriorityRule();
@@ -939,7 +940,7 @@
         title,
         description: document.getElementById('task-description').value.trim(),
         category: 'Поручение ГА',
-        due: document.getElementById('task-due').value || '20:00',
+        due: document.getElementById('task-due').value || DEFAULT_DUE_TIME,
         minutes: Math.max(5, Math.min(480, Number(document.getElementById('task-minutes').value) || 30)),
         priority,
         fixed: !allowRotation,
@@ -950,7 +951,7 @@
       });
       saveTasks();
       form.reset();
-      document.getElementById('task-due').value = '20:00';
+      document.getElementById('task-due').value = DEFAULT_DUE_TIME;
       document.getElementById('task-minutes').value = '30';
       daySelect.value = String((new Date().getDay() + 6) % 7);
       applyPriorityRule();
