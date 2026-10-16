@@ -26,8 +26,11 @@ test('report prototype follows the supplied game window controls', () => {
     'Список очереди',
     'Закрыть обращение',
     'Наблюдать',
+    'Телепортироваться к игроку',
+    'Телепортировать игрока к себе',
     'Взять',
     'Что вы сделаете дальше?',
+    'Учебный тренажёр обработки обращений',
   ]) {
     assert.ok(center.includes(label), `missing ${label}`);
   }
@@ -36,11 +39,18 @@ test('report prototype follows the supplied game window controls', () => {
   assert.match(center, /\/dialogue\/start/);
   assert.match(center, /\/dialogue\/step/);
   assert.match(center, /\/dialogue\/close/);
+  assert.match(center, /data-report-choice/);
+  assert.match(center, /practicalState\?\.player/);
+  assert.match(center, /practicalPendingAction/);
 });
 
-test('curator sees the AI suggestion but chooses the final 0-5 score', () => {
+test('curator chooses the final 0-5 score and a helper-facing feedback mode', () => {
   assert.match(curator, /Предварительная оценка ИИ/);
   assert.match(curator, /score-decision/);
   assert.match(curator, /awarded_points:awarded/);
   assert.match(curator, /Комментарий обязателен, если выставлен не максимальный балл/);
+  assert.match(curator, /Отправить обратную связь Агенту Поддержки/);
+  assert.match(curator, /Отправить свою обратную связь/);
+  assert.match(curator, /feedback_mode:feedbackMode/);
+  assert.match(curator, /feedback_text:feedbackMode==='custom'\?feedbackText:''/);
 });
