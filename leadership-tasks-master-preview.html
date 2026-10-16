@@ -6,7 +6,7 @@
   <title>Центр контроля задач</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="webapp-watermark.js" defer></script>
-  <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261003-1">
+  <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261016-1">
 </head>
 <body data-mode="master">
   <main>
@@ -132,13 +132,29 @@
       <div class="modal-note">Перенос даты не меняет закреплённого руководителя.</div>
       <div class="modal-actions master-edit-actions">
         <button class="btn danger" id="delete-task" type="button">Удалить</button>
+        <button class="btn danger" id="revoke-task-completion" type="button" hidden>Отменить выполнение</button>
         <button class="btn" id="duplicate-task" type="button">Создать копию</button>
         <button class="btn primary" id="save-task" type="button">Сохранить</button>
       </div>
     </div>
   </div>
 
+  <div class="modal-backdrop" id="revoke-completion-modal" role="dialog" aria-modal="true" aria-labelledby="revoke-completion-title">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="eyebrow">Контроль результата</div><h3 id="revoke-completion-title">Отменить выполнение</h3></div>
+        <button class="modal-close" data-close="revoke-completion-modal" type="button">×</button>
+      </div>
+      <div class="modal-note" id="revoke-completion-task">Задача будет отмечена невыполненной.</div>
+      <label class="field"><span>Причина отмены</span><textarea id="revoke-completion-reason" maxlength="1000" placeholder="Например: результат отсутствует или задача фактически не выполнена"></textarea></label>
+      <div class="modal-actions">
+        <button class="btn" data-close="revoke-completion-modal" type="button">Назад</button>
+        <button class="btn danger" id="confirm-revoke-completion" type="button">Отменить выполнение</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast" aria-live="polite"></div>
-  <script src="leadership-tasks-preview.js?v=20261009-1"></script>
+  <script src="leadership-tasks-preview.js?v=20261016-1"></script>
 </body>
 </html>

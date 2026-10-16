@@ -261,7 +261,8 @@ h1 { position: relative; z-index: 1; margin: 7px 0 0; font-size: 24px; line-heig
 .field select:focus, .field textarea:focus { border-color: rgba(15,118,110,.55); }
 .modal-note { margin-top: 10px; padding: 10px; border-radius: 10px; color: var(--sub); background: rgba(15,118,110,.06); font-size: 9px; line-height: 1.45; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
-.modal-actions.task-detail-actions, .modal-actions.master-edit-actions { grid-template-columns: repeat(3, 1fr); }
+.modal-actions.task-detail-actions { grid-template-columns: repeat(3, 1fr); }
+.modal-actions.master-edit-actions { grid-template-columns: repeat(2, 1fr); }
 .detail-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
 .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
 .detail-cell { padding: 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); }

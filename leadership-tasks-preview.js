@@ -685,7 +685,62 @@
     rotation.checked = !item.fixed;
     rotation.disabled = item.priority === 'high';
     document.getElementById('edit-task-history').innerHTML = historyMarkup(item);
+    const revokeButton = document.getElementById('revoke-task-completion');
+    if (revokeButton) revokeButton.hidden = item.status !== 'done';
     modal.classList.add('open');
+  }
+
+  function openRevokeCompletion() {
+    const current = state.tasks.find(item => item.id === state.activeTask);
+    if (!current || current.status !== 'done') {
+      showToast('Отменить можно только выполненную задачу');
+      return;
+    }
+    closeModal('master-task-modal');
+    document.getElementById('revoke-completion-task').textContent = `«${current.title}» будет отмечена невыполненной. Причина сохранится в истории и будет видна исполнителю.`;
+    document.getElementById('revoke-completion-reason').value = '';
+    document.getElementById('revoke-completion-modal').classList.add('open');
+  }
+
+  async function confirmRevokeCompletion() {
+    const index = state.tasks.findIndex(item => item.id === state.activeTask);
+    if (index < 0) return;
+    const current = state.tasks[index];
+    const reason = document.getElementById('revoke-completion-reason').value.trim();
+    if (!reason) {
+      showToast('Укажите причину отмены выполнения');
+      return;
+    }
+    const button = document.getElementById('confirm-revoke-completion');
+    button.disabled = true;
+    button.textContent = 'Сохраняю…';
+    try {
+      if (!PREVIEW_MODE) {
+        await apiRequest('revoke_completion', {
+          occurrence_id: current.id,
+          task_id: current.task_id,
+          reason
+        });
+        await loadLiveData({ quiet: true });
+      } else {
+        state.tasks[index] = {
+          ...current,
+          status: 'failed',
+          completedAt: '',
+          comment: `Выполнение отменено ГА: ${reason}`,
+          history: withHistory(current, `Выполнение отменено ГА. Причина: ${reason}`)
+        };
+        saveTasks();
+        renderAll();
+      }
+      closeModal('revoke-completion-modal');
+      showToast('Выполнение отменено. Задача отмечена невыполненной');
+    } catch (error) {
+      showToast(error.message || 'Не удалось отменить выполнение');
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Отменить выполнение';
+    }
   }
 
   async function saveMasterTask() {
@@ -1064,6 +1119,10 @@
   if (duplicateTaskButton) duplicateTaskButton.addEventListener('click', duplicateMasterTask);
   const deleteTaskButton = document.getElementById('delete-task');
   if (deleteTaskButton) deleteTaskButton.addEventListener('click', deleteMasterTask);
+  const revokeTaskCompletionButton = document.getElementById('revoke-task-completion');
+  if (revokeTaskCompletionButton) revokeTaskCompletionButton.addEventListener('click', openRevokeCompletion);
+  const confirmRevokeCompletionButton = document.getElementById('confirm-revoke-completion');
+  if (confirmRevokeCompletionButton) confirmRevokeCompletionButton.addEventListener('click', confirmRevokeCompletion);
   const planCurrent = document.getElementById('plan-current');
   if (planCurrent) planCurrent.addEventListener('click', () => { state.planWeek = 0; renderPlan(); });
   const planNext = document.getElementById('plan-next');
