@@ -18,14 +18,23 @@ test('candidate removal contains the agreed reasons and conditional other text',
   assert.match(html, /Снять с кандидатуры/);
   assert.match(html, /reasonCode==='other'&&!reasonText/);
   assert.match(html, /\$\('reason-text'\)\.required=other/);
-  assert.match(html, /application_id:state\.selected\.application_id/);
+  assert.match(html, /application_id:selected\.application_id/);
 });
 
 test('candidate path stages are automatic and removal keeps an idempotency key', () => {
   assert.match(html, /action:'snapshot'/);
   assert.match(html, /action:'remove'/);
-  assert.match(html, /request_id:requestId\(\)/);
+  assert.match(html, /request_id:requestIdFor\(selected\.application_id\)/);
+  assert.match(html, /localStorage\.setItem\(key,created\)/);
   assert.match(html, /crypto\?\.randomUUID/);
+});
+
+test('candidate removal is accepted into a background queue and rendered optimistically', () => {
+  assert.match(html, /candidate_nick:selected\.candidate_nick/);
+  assert.match(html, /applyQueuedRemoval\(selected,result\.event\|\|\{\}\)/);
+  assert.match(html, /Передаю в очередь/);
+  assert.match(html, /Ожидает записи в таблицу/);
+  assert.match(html, /Запись появится в таблице автоматически/);
 });
 
 test('candidate center requires Telegram initData and protected API', () => {
