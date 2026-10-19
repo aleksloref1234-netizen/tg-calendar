@@ -22,6 +22,12 @@ test('master can edit partial thresholds for every role', () => {
   assert.match(html, /action:'save_rules'/);
 });
 
+test('supervisor and deputy partial thresholds are derived from admin level', () => {
+  assert.match(html, /levelBasedPartialCategories=new Set\(\['supervisor','senior_supervisor','deputy_curator','chief_forum','chief_families'\]\)/);
+  assert.match(html, /key\.startsWith\('partial_'\)/);
+  assert.match(html, /<span class="source">По уровню<\/span>/);
+});
+
 test('master can edit over-norm and extra-event report bonuses', () => {
   assert.match(html, /data-tab="bonus"/);
   assert.match(html, /id="over-reports"/);
