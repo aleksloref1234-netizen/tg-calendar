@@ -29,7 +29,11 @@ function fixture() {
       telegram_id: 1,
       locked: false,
       check: null,
-      norm: {reports: 40, minutes: 90, events: 2, reactions: 15},
+      norm: {
+        reports: 40, minutes: 90, events: 2, reactions: 15,
+        partial_reports_deficit: 30,
+        partial_minutes_deficit: 30,
+      },
     }],
     selected: 1,
     disciplineDecision: null,
@@ -102,6 +106,8 @@ test('partial result fails beyond the fixed deficit or without all secondary met
 test('reduced norm halves both partial deficit limits', () => {
   const {context, nodes} = fixture();
   context.admins[0].norm.dynamic_discount = {applied: true};
+  context.admins[0].norm.partial_reports_deficit = 15;
+  context.admins[0].norm.partial_minutes_deficit = 15;
   const setFacts = values => Object.entries(values).forEach(([id, value]) => { nodes.get(id).value = String(value); });
   setFacts({report: 25, minutes: 75, events: 2, reactions: 15});
   context.evaluate();
@@ -112,10 +118,10 @@ test('reduced norm halves both partial deficit limits', () => {
   assert.equal(nodes.get('result').textContent, 'Норма не выполнена');
 });
 
-test('preview uses the partial deficit values returned by settings', () => {
+test('preview uses the partial deficit values returned for the role', () => {
   const {context, nodes} = fixture();
-  context.partialNorm.reports_deficit = 8;
-  context.partialNorm.minutes_deficit = 12;
+  context.admins[0].norm.partial_reports_deficit = 8;
+  context.admins[0].norm.partial_minutes_deficit = 12;
   const setFacts = values => Object.entries(values).forEach(([id, value]) => { nodes.get(id).value = String(value); });
   setFacts({report: 32, minutes: 78, events: 2, reactions: 15});
   context.evaluate();
@@ -136,6 +142,21 @@ test('each event after the second adds 50 reports to the exported daily value', 
     nodes.get('result-note').textContent,
     'В таблицу будет записано 140 репортов: 40 фактически + 100 за 2 доп. МП.',
   );
+});
+
+test('zero report bonuses are honored instead of falling back to defaults', () => {
+  const {context} = fixture();
+  context.eventBonus.starts_after = 0;
+  context.eventBonus.reports_per_event = 0;
+  context.overNorm.bonus_reports = 0;
+  const exported = context.reportExport(
+    context.admins[0],
+    {reports: 250, minutes: 90, events: 4, reactions: 15},
+    {overcompleted: true},
+  );
+  assert.equal(exported.eventReports, 0);
+  assert.equal(exported.overReports, 0);
+  assert.equal(exported.total, 250);
 });
 
 test('fractional requirements and entered facts are rounded to whole numbers', () => {

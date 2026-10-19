@@ -14,14 +14,22 @@ test('norm settings round every configurable metric before display and save', ()
   assert.match(html, /type="number" min="0" step="1"/);
 });
 
-test('master can edit standard and reduced partial norm thresholds', () => {
-  assert.match(html, /data-tab="partial"/);
-  assert.match(html, /id="partial-reports"/);
-  assert.match(html, /id="partial-minutes"/);
-  assert.match(html, /id="partial-reduced-reports"/);
-  assert.match(html, /id="partial-reduced-minutes"/);
-  assert.match(html, /action:'save_partial_norm'/);
-  assert.match(html, /partial_norm:payload/);
+test('master can edit partial thresholds for every role', () => {
+  assert.match(html, /partial_reports_deficit/);
+  assert.match(html, /partial_minutes_deficit/);
+  assert.match(html, /Натяг<br>репортов/);
+  assert.match(html, /Натяг<br>минут/);
+  assert.match(html, /action:'save_rules'/);
+});
+
+test('master can edit over-norm and extra-event report bonuses', () => {
+  assert.match(html, /data-tab="bonus"/);
+  assert.match(html, /id="over-reports"/);
+  assert.match(html, /id="over-bonus"/);
+  assert.match(html, /id="event-start"/);
+  assert.match(html, /id="event-bonus"/);
+  assert.match(html, /action:'save_bonus_settings'/);
+  assert.match(html, /bonus_settings:payload/);
 });
 
 test('norm settings inline scripts parse', () => {
