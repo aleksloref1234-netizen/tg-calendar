@@ -34,7 +34,13 @@ function fixture() {
     selected: 1,
     disciplineDecision: null,
     overNorm: {threshold_reports: 250, bonus_reports: 200},
-    partialNorm: {reports_deficit: 30, minutes_deficit: 30, reduced_factor: 0.5},
+    partialNorm: {
+      reports_deficit: 30,
+      minutes_deficit: 30,
+      reduced_reports_deficit: 15,
+      reduced_minutes_deficit: 15,
+      reduced_factor: 0.5,
+    },
     eventBonus: {starts_after: 2, reports_per_event: 50},
     $: id => {
       if (!nodes.has(id)) nodes.set(id, makeNode(id));
@@ -102,6 +108,20 @@ test('reduced norm halves both partial deficit limits', () => {
   assert.equal(nodes.get('result').textContent, 'Норма натянута');
   assert.match(nodes.get('result-note').textContent, /до 15 репортов и 15 минут/);
   setFacts({report: 24, minutes: 75, events: 2, reactions: 15});
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Норма не выполнена');
+});
+
+test('preview uses the partial deficit values returned by settings', () => {
+  const {context, nodes} = fixture();
+  context.partialNorm.reports_deficit = 8;
+  context.partialNorm.minutes_deficit = 12;
+  const setFacts = values => Object.entries(values).forEach(([id, value]) => { nodes.get(id).value = String(value); });
+  setFacts({report: 32, minutes: 78, events: 2, reactions: 15});
+  context.evaluate();
+  assert.equal(nodes.get('result').textContent, 'Норма натянута');
+  assert.match(nodes.get('result-note').textContent, /до 8 репортов и 12 минут/);
+  setFacts({report: 31, minutes: 78, events: 2, reactions: 15});
   context.evaluate();
   assert.equal(nodes.get('result').textContent, 'Норма не выполнена');
 });

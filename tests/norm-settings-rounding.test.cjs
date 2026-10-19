@@ -14,6 +14,16 @@ test('norm settings round every configurable metric before display and save', ()
   assert.match(html, /type="number" min="0" step="1"/);
 });
 
+test('master can edit standard and reduced partial norm thresholds', () => {
+  assert.match(html, /data-tab="partial"/);
+  assert.match(html, /id="partial-reports"/);
+  assert.match(html, /id="partial-minutes"/);
+  assert.match(html, /id="partial-reduced-reports"/);
+  assert.match(html, /id="partial-reduced-minutes"/);
+  assert.match(html, /action:'save_partial_norm'/);
+  assert.match(html, /partial_norm:payload/);
+});
+
 test('norm settings inline scripts parse', () => {
   for (const [, script] of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) {
     new vm.Script(script);
