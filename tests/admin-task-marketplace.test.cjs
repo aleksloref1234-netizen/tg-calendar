@@ -6,6 +6,7 @@ const vm = require('node:vm');
 
 const html = fs.readFileSync(path.join(__dirname, '../admin-task-marketplace.html'), 'utf8');
 const script = fs.readFileSync(path.join(__dirname, '../admin-task-marketplace.js'), 'utf8');
+const css = fs.readFileSync(path.join(__dirname, '../admin-task-marketplace.css'), 'utf8');
 
 test('additional assignments page stays behind Telegram and the protected API', () => {
   assert.match(script, /\/api\/admin\/tasks/);
@@ -35,6 +36,13 @@ test('leadership entry retry reuses one idempotency key', () => {
   assert.match(script, /sessionStorage\.getItem\(operationName\)/);
   assert.match(script, /sessionStorage\.removeItem\(operationName\)/);
   assert.match(script, /result\.duplicate/);
+});
+
+test('take confirmation does not show an unnecessary comment field', () => {
+  assert.match(script, /\$\('#reason-wrap'\)\.hidden = !reason/);
+  assert.match(script, /title:'Взять задание\?'[^\n]+confirm:'Взять'/);
+  assert.match(css, /\[hidden\]\{display:none!important\}/);
+  assert.match(html, /admin-task-marketplace\.css\?v=20261019-1/);
 });
 
 test('marketplace script parses', () => {
