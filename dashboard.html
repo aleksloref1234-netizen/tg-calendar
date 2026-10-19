@@ -59,6 +59,39 @@
             background: rgba(56, 189, 248, 0.15);
         }
 
+        .marketplace-entry {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            margin-top: 14px;
+            padding: 10px 12px;
+            border: 1px solid rgba(56, 189, 248, 0.42);
+            border-radius: 11px;
+            color: #e0f2fe;
+            background: rgba(56, 189, 248, 0.09);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .marketplace-entry:active {
+            transform: scale(.98);
+            background: rgba(56, 189, 248, 0.16);
+        }
+
+        .marketplace-entry[hidden] { display: none; }
+
+        .marketplace-entry-icon {
+            display: grid;
+            place-items: center;
+            width: 23px;
+            height: 23px;
+            border-radius: 8px;
+            color: #7dd3fc;
+            background: rgba(56, 189, 248, 0.14);
+        }
+
         .ui-block-disabled { display: none !important; }
 
         .user-title {
@@ -496,6 +529,10 @@
             </button>
             <h1 class="user-title" id="nickname">-</h1>
             <p class="user-role" id="role">-</p>
+            <button class="marketplace-entry" id="admin-task-marketplace-entry" type="button" hidden>
+                <span class="marketplace-entry-icon">✦</span>
+                <span>Дополнительные задания</span>
+            </button>
         </div>
 
         <section class="reduced-norm-card" id="reduced-norm-card" hidden>
@@ -660,7 +697,15 @@
             });
         }
 
+        function applyFeatureAccess(access = {}) {
+            document.getElementById('admin-task-marketplace-entry').hidden =
+                access.admin_task_marketplace !== true;
+        }
+
         document.getElementById('back-to-admin-overview').addEventListener('click', returnToAdminOverview);
+        document.getElementById('admin-task-marketplace-entry').addEventListener('click', () => {
+            window.location.href = 'admin-task-marketplace.html';
+        });
 
         async function loadDashboard() {
             const loadingEl = document.getElementById('loading');
@@ -719,6 +764,7 @@
 
                 const d = result.data;
                 applyUiConfig(d.ui_config || {});
+                applyFeatureAccess(d.feature_access || {});
 
                 // Заполняем ник
                 document.getElementById('nickname').innerText = d.nickname || "Без ника";
