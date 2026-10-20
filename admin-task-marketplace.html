@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#081326">
   <title>Дополнительные задания</title>
-  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261019-1">
+  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261020-1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -40,6 +40,12 @@
           <p class="eyebrow">Личная подборка</p>
           <h1>Задания и награды</h1>
           <p>Берите задания, следите за прогрессом и копите бонусные репорты.</p>
+          <div class="level-card">
+            <div class="level-head"><div><small>Уровень заданий</small><strong id="level-title">Новичок</strong></div><span id="level-multiplier">×1,00</span></div>
+            <div class="level-progress"><i id="level-progress"></i></div>
+            <div class="level-meta"><span id="level-xp">0 XP</span><span id="level-next">До следующего уровня: 100 XP</span></div>
+            <div class="level-foot" id="level-approved">Выполнено заданий: 0</div>
+          </div>
           <div class="wallet-grid">
             <div><small>Доступно к выводу</small><strong><span id="wallet-reports">0</span> <i>реп.</i></strong></div>
             <div><small>Добавлено к индексу</small><strong>+<span id="wallet-index">0</span><i>%</i></strong></div>
@@ -69,11 +75,13 @@
           <button data-tab="review">Без файлов</button>
           <button data-tab="evidence">Со скринами</button>
           <button data-tab="templates">Шаблоны</button>
+          <button data-tab="levels">Уровни</button>
         </nav>
         <section class="list" id="counter-list"></section>
         <section class="list" id="review-list" hidden></section>
         <section class="list" id="evidence-list" hidden></section>
         <section class="list" id="templates-list" hidden></section>
+        <section class="list" id="levels-list" hidden></section>
       </section>
     </div>
   </main>
@@ -100,11 +108,12 @@
       <label>Срок, часов<input id="create-deadline" type="number" min="1" max="744" value="24"></label>
       <label>Репорты<input id="create-reports" type="number" min="0" value="50"></label>
       <label>Индекс, %<input id="create-index" type="number" min="0" max="25" step="0.5" value="1"></label>
+      <label>Опыт, XP<input id="create-xp" type="number" min="1" max="1000" value="10"></label>
       <button class="button primary wide" value="default">Создать шаблон</button>
     </form>
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261017-1"></script>
+  <script src="admin-task-marketplace.js?v=20261020-1"></script>
 </body>
 </html>

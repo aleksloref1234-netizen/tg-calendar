@@ -82,7 +82,9 @@
   }
 
   function reward(item) {
-    return `<div class="reward-row"><span class="reward">+${Number(item.reward_reports || 0)} репортов</span><span class="reward">+${Number(item.reward_index || 0).toLocaleString('ru-RU')}% к индексу</span></div>`;
+    const multiplier = Number(item.reward_multiplier || 1);
+    const multiplierLabel = multiplier > 1 ? ` · ×${multiplier.toLocaleString('ru-RU', {maximumFractionDigits:2})}` : '';
+    return `<div class="reward-row"><span class="reward">+${Number(item.reward_reports || 0)} репортов${multiplierLabel}</span><span class="reward">+${Number(item.reward_index || 0).toLocaleString('ru-RU')}% к индексу</span><span class="reward">+${Number(item.reward_xp || 10)} XP</span></div>`;
   }
 
   function templateCard(item, takenIds) {
@@ -100,10 +102,18 @@
   }
 
   function renderAdmin() {
-    const { templates, wallet, evidence } = state.data;
+    const { templates, wallet, evidence, task_profile: profile } = state.data;
     const assignments = state.data.own_assignments || state.data.assignments;
     $('#wallet-reports').textContent = Number(wallet.report_balance || 0);
     $('#wallet-index').textContent = Number(wallet.index_bonus_total || 0).toLocaleString('ru-RU');
+    $('#level-title').textContent = profile?.title || 'Новичок';
+    $('#level-multiplier').textContent = `×${Number(profile?.reward_multiplier || 1).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+    $('#level-progress').style.width = `${Math.max(0, Math.min(100, Number(profile?.progress_percent || 0)))}%`;
+    $('#level-xp').textContent = `${Number(profile?.xp || 0)} XP`;
+    $('#level-approved').textContent = `Выполнено заданий: ${Number(profile?.approved_tasks || 0)}`;
+    $('#level-next').textContent = profile?.next_level
+      ? `До «${profile.next_level.title}»: ${Number(profile.xp_to_next || 0)} XP`
+      : 'Максимальный уровень достигнут';
     const active = assignments.filter(item => ['in_progress', 'pending_review'].includes(item.status));
     const history = assignments.filter(item => !['in_progress', 'pending_review'].includes(item.status));
     const takenIds = new Set(active.map(item => item.template_id));
@@ -143,7 +153,9 @@
     $('#counter-list').innerHTML = counters.length ? counters.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет активных счётчиков');
     $('#review-list').innerHTML = reviews.length ? reviews.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет отчётов без файлов');
     $('#evidence-list').innerHTML = proofs.length ? proofs.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет отчётов со скриншотами');
-    $('#templates-list').innerHTML = `<div class="actions"><button class="button primary" id="open-create">＋ Создать задание</button></div>${state.data.templates.map(item => `<article class="task-card"><div class="task-top"><span class="task-icon">✦</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${typeLabel(item.verification_mode)} · цель ${item.target_count}</p></div><span class="status ${item.enabled ? 'ok' : 'bad'}">${item.enabled ? 'Активно' : 'Выключено'}</span></div>${reward(item)}</article>`).join('')}`;
+    $('#templates-list').innerHTML = `<div class="actions"><button class="button primary" id="open-create">＋ Создать задание</button></div>${state.data.templates.map(item => `<article class="task-card"><div class="task-top"><span class="task-icon">✦</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${typeLabel(item.verification_mode)} · цель ${item.target_count}</p></div><span class="status ${item.enabled ? 'ok' : 'bad'}">${item.enabled ? 'Активно' : 'Выключено'}</span></div>${reward({...item,reward_reports:item.base_reward_reports ?? item.reward_reports,reward_multiplier:1})}</article>`).join('')}`;
+    const levels = state.data.level_settings || [];
+    $('#levels-list').innerHTML = `<div class="settings-note">Уровень определяется по накопленному XP. Новые коэффициенты применяются только к заданиям, взятым после сохранения.</div>${levels.map(level => `<article class="task-card level-settings" data-level="${esc(level.level_key)}"><div class="level-name"><b>${esc(level.title)}</b><small>${level.level_key === 'novice' ? 'Начальный уровень' : 'Порог повышения'}</small></div><label>Требуется XP<input data-level-xp type="number" min="0" step="1" value="${Number(level.min_xp || 0)}" ${level.level_key === 'novice' ? 'readonly' : ''}></label><label>Коэффициент<input data-level-multiplier type="number" min="1" max="5" step="0.05" value="${Number(level.report_multiplier || 1)}"></label></article>`).join('')}<button class="button primary level-save" id="save-levels">Сохранить уровни</button>`;
   }
 
   function empty(text) { return `<div class="empty">${esc(text)}</div>`; }
@@ -161,7 +173,7 @@
   function switchTab(area, tab) {
     state[area === 'admin' ? 'adminTab' : 'leaderTab'] = tab;
     document.querySelectorAll(`#${area}-tabs button`).forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
-    const ids = area === 'admin' ? ['available','active','history'] : ['counter','review','evidence','templates'];
+    const ids = area === 'admin' ? ['available','active','history'] : ['counter','review','evidence','templates','levels'];
     ids.forEach(id => { $(`#${id}-list`).hidden = id !== tab; });
   }
 
@@ -264,6 +276,23 @@
       try { await api('review',{assignment_id:review.dataset.id,decision,reason}); await reload({quiet:true}); toast('Решение сохранено'); } catch (error) { toast(error.message); }
       return;
     }
+    if (event.target.closest('#save-levels')) {
+      const levels = [...document.querySelectorAll('[data-level]')].map(card => ({
+        level_key: card.dataset.level,
+        min_xp: Number(card.querySelector('[data-level-xp]').value),
+        report_multiplier: Number(card.querySelector('[data-level-multiplier]').value)
+      }));
+      const button = event.target.closest('#save-levels');
+      button.disabled = true;
+      try {
+        await api('save_level_settings', {levels});
+        await reload({quiet:true});
+        state.role = 'leader'; state.leaderTab = 'levels'; render();
+        toast('Уровни и коэффициенты сохранены');
+      } catch (error) { toast(error.message); }
+      finally { button.disabled = false; }
+      return;
+    }
     if (event.target.closest('#open-create')) $('#create-dialog').showModal();
   });
 
@@ -289,7 +318,7 @@
     try {
       await api('create_template', {
         title:$('#create-title').value.trim(),description:$('#create-description').value.trim(),verification_mode:$('#create-mode').value,
-        target_count:Number($('#create-target').value),deadline_hours:Number($('#create-deadline').value),reward_reports:Number($('#create-reports').value),reward_index:Number($('#create-index').value)
+        target_count:Number($('#create-target').value),deadline_hours:Number($('#create-deadline').value),reward_reports:Number($('#create-reports').value),reward_index:Number($('#create-index').value),reward_xp:Number($('#create-xp').value)
       });
       $('#create-dialog').close(); await reload({quiet:true}); toast('Шаблон создан');
     } catch (error) { toast(error.message); }
