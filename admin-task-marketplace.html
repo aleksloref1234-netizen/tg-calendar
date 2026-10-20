@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#081326">
   <title>Дополнительные задания</title>
-  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261020-1">
+  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261020-2">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -100,20 +100,22 @@
   <dialog id="create-dialog">
     <form method="dialog" class="dialog-card form-grid" id="create-form">
       <button class="dialog-close" value="cancel" aria-label="Закрыть">×</button>
-      <p class="eyebrow">Новый шаблон</p><h2>Создать задание</h2>
+      <p class="eyebrow" id="template-dialog-eyebrow">Новый шаблон</p><h2 id="template-dialog-title">Создать задание</h2>
+      <input id="template-id" type="hidden">
       <label class="wide">Название<input id="create-title" required maxlength="160"></label>
-      <label class="wide">Описание<textarea id="create-description" rows="3"></textarea></label>
+      <label class="wide">Краткое описание<textarea id="create-description" rows="2" required maxlength="500" placeholder="Коротко отображается в карточке задания"></textarea></label>
+      <label class="wide">Подробное описание и правила<textarea id="create-instructions" rows="6" required maxlength="4000" placeholder="Что именно нужно сделать, что считается выполнением и как проходит проверка"></textarea></label>
       <label class="wide">Проверка<select id="create-mode"><option value="leadership_counter">Отметки руководства</option><option value="manual_review">Ручная проверка</option><option value="evidence_review">Ручная проверка со скринами</option></select></label>
       <label>Цель<input id="create-target" type="number" min="1" max="100" value="1"></label>
       <label>Срок, часов<input id="create-deadline" type="number" min="1" max="744" value="24"></label>
       <label>Репорты<input id="create-reports" type="number" min="0" value="50"></label>
       <label>Индекс, %<input id="create-index" type="number" min="0" max="25" step="0.5" value="1"></label>
       <label>Опыт, XP<input id="create-xp" type="number" min="1" max="1000" value="10"></label>
-      <button class="button primary wide" value="default">Создать шаблон</button>
+      <button class="button primary wide" id="template-submit" value="default">Создать шаблон</button>
     </form>
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261020-1"></script>
+  <script src="admin-task-marketplace.js?v=20261020-2"></script>
 </body>
 </html>

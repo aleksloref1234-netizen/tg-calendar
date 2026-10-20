@@ -87,9 +87,14 @@
     return `<div class="reward-row"><span class="reward">+${Number(item.reward_reports || 0)} репортов${multiplierLabel}</span><span class="reward">+${Number(item.reward_index || 0).toLocaleString('ru-RU')}% к индексу</span><span class="reward">+${Number(item.reward_xp || 10)} XP</span></div>`;
   }
 
+  function rulesBlock(item) {
+    if (!item.instructions) return '';
+    return `<details class="task-rules"><summary>Подробное описание и правила</summary><p>${esc(item.instructions)}</p></details>`;
+  }
+
   function templateCard(item, takenIds) {
     const taken = takenIds.has(item.template_id);
-    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : item.verification_mode === 'evidence_review' ? '▣' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><span class="type">${typeLabel(item.verification_mode)}</span></div></div>${reward(item)}<div class="meta-row"><span class="meta">Цель: ${item.target_count}</span><span class="meta">Срок: ${item.deadline_hours} ч.</span></div><div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${taken ? 'disabled' : ''}>${taken ? 'Уже в работе' : 'Взять задание'}</button></div></article>`;
+    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : item.verification_mode === 'evidence_review' ? '▣' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><span class="type">${typeLabel(item.verification_mode)}</span></div></div>${rulesBlock(item)}${reward(item)}<div class="meta-row"><span class="meta">Цель: ${item.target_count}</span><span class="meta">Срок: ${item.deadline_hours} ч.</span></div><div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${taken ? 'disabled' : ''}>${taken ? 'Уже в работе' : 'Взять задание'}</button></div></article>`;
   }
 
   function adminAssignmentCard(item, evidenceByAssignment) {
@@ -98,7 +103,7 @@
     const upload = item.status === 'in_progress' && item.verification_mode === 'evidence_review'
       ? `<label class="upload">＋ Добавить скриншоты<input type="file" accept="image/jpeg,image/png,image/webp" multiple data-upload="${esc(item.assignment_id)}"></label>` : '';
     const evidenceList = evidence.length ? `<div class="evidence-grid">${evidence.map(file => `<span class="meta">${esc(file.file_name)}</span>`).join('')}</div>` : '';
-    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${reward(item)}${progressBlock(item)}${evidenceList}${upload}${canSubmit ? `<div class="actions"><button class="button primary" data-submit="${esc(item.assignment_id)}">Задание выполнено</button></div>` : ''}${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
+    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${rulesBlock(item)}${reward(item)}${progressBlock(item)}${evidenceList}${upload}${canSubmit ? `<div class="actions"><button class="button primary" data-submit="${esc(item.assignment_id)}">Задание выполнено</button></div>` : ''}${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
   }
 
   function renderAdmin() {
@@ -135,7 +140,7 @@
       ? `<div class="actions"><button class="button primary" data-mark="${esc(item.assignment_id)}">Засчитать вход</button><button class="button ghost" data-undo="${esc(item.assignment_id)}">Отменить отметку</button></div>`
       : item.status === 'pending_review'
         ? `<div class="actions"><button class="button primary" data-review="approve" data-id="${esc(item.assignment_id)}">Принять</button><button class="button secondary" data-review="return" data-id="${esc(item.assignment_id)}">Вернуть</button><button class="button danger" data-review="reject" data-id="${esc(item.assignment_id)}">Отклонить</button></div>` : '';
-    return `<article class="task-card"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${reward(item)}${progressBlock(item)}${fileHtml}${controls}</article>`;
+    return `<article class="task-card"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${rulesBlock(item)}${reward(item)}${progressBlock(item)}${fileHtml}${controls}</article>`;
   }
 
   function renderLeader() {
@@ -153,7 +158,8 @@
     $('#counter-list').innerHTML = counters.length ? counters.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет активных счётчиков');
     $('#review-list').innerHTML = reviews.length ? reviews.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет отчётов без файлов');
     $('#evidence-list').innerHTML = proofs.length ? proofs.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет отчётов со скриншотами');
-    $('#templates-list').innerHTML = `<div class="actions"><button class="button primary" id="open-create">＋ Создать задание</button></div>${state.data.templates.map(item => `<article class="task-card"><div class="task-top"><span class="task-icon">✦</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${typeLabel(item.verification_mode)} · цель ${item.target_count}</p></div><span class="status ${item.enabled ? 'ok' : 'bad'}">${item.enabled ? 'Активно' : 'Выключено'}</span></div>${reward({...item,reward_reports:item.base_reward_reports ?? item.reward_reports,reward_multiplier:1})}</article>`).join('')}`;
+    const templates = state.data.all_templates || state.data.templates;
+    $('#templates-list').innerHTML = `<div class="actions"><button class="button primary" id="open-create">＋ Создать задание</button></div>${templates.map(item => `<article class="task-card"><div class="task-top"><span class="task-icon">✦</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><span class="type">${typeLabel(item.verification_mode)} · цель ${item.target_count}</span></div><span class="status ${item.enabled ? 'ok' : 'bad'}">${item.enabled ? 'Активно' : 'Выключено'}</span></div>${rulesBlock(item)}${reward({...item,reward_reports:item.base_reward_reports ?? item.reward_reports,reward_multiplier:1})}<div class="actions"><button class="button secondary" data-edit-template="${esc(item.template_id)}">Редактировать</button><button class="button ghost" data-toggle-template="${esc(item.template_id)}" data-enabled="${item.enabled ? '1' : '0'}">${item.enabled ? 'Выключить' : 'Включить'}</button></div></article>`).join('')}`;
     const levels = state.data.level_settings || [];
     $('#levels-list').innerHTML = `<div class="settings-note">Уровень определяется по накопленному XP. Новые коэффициенты применяются только к заданиям, взятым после сохранения.</div>${levels.map(level => `<article class="task-card level-settings" data-level="${esc(level.level_key)}"><div class="level-name"><b>${esc(level.title)}</b><small>${level.level_key === 'novice' ? 'Начальный уровень' : 'Порог повышения'}</small></div><label>Требуется XP<input data-level-xp type="number" min="0" step="1" value="${Number(level.min_xp || 0)}" ${level.level_key === 'novice' ? 'readonly' : ''}></label><label>Коэффициент<input data-level-multiplier type="number" min="1" max="5" step="0.05" value="${Number(level.report_multiplier || 1)}"></label></article>`).join('')}<button class="button primary level-save" id="save-levels">Сохранить уровни</button>`;
   }
@@ -224,6 +230,23 @@
     }
   }
 
+  function openTemplateEditor(item = null) {
+    $('#template-id').value = item?.template_id || '';
+    $('#create-title').value = item?.title || '';
+    $('#create-description').value = item?.description || '';
+    $('#create-instructions').value = item?.instructions || '';
+    $('#create-mode').value = item?.verification_mode || 'leadership_counter';
+    $('#create-target').value = Number(item?.target_count || 1);
+    $('#create-deadline').value = Number(item?.deadline_hours || 24);
+    $('#create-reports').value = Number(item?.reward_reports || 50);
+    $('#create-index').value = Number(item?.reward_index || 1);
+    $('#create-xp').value = Number(item?.reward_xp || 10);
+    $('#template-dialog-eyebrow').textContent = item ? 'Редактирование' : 'Новый шаблон';
+    $('#template-dialog-title').textContent = item ? 'Настроить задание' : 'Создать задание';
+    $('#template-submit').textContent = item ? 'Сохранить изменения' : 'Создать шаблон';
+    $('#create-dialog').showModal();
+  }
+
   document.addEventListener('click', async event => {
     const role = event.target.closest('[data-role]');
     if (role) { state.role = role.dataset.role; render(); return; }
@@ -231,7 +254,11 @@
     if (tab) { switchTab(tab.closest('#leader-tabs') ? 'leader' : 'admin', tab.dataset.tab); return; }
     const take = event.target.closest('[data-take]');
     if (take) {
-      const accepted = await askDecision({ title:'Взять задание?', text:'После подтверждения оно появится во вкладке «В работе».', confirm:'Взять' });
+      const template = state.data.templates.find(item => item.template_id === take.dataset.take);
+      const details = template
+        ? `${template.description}${template.instructions ? `\n\nПравила:\n${template.instructions}` : ''}`
+        : 'После подтверждения оно появится во вкладке «В работе».';
+      const accepted = await askDecision({ title:'Взять задание?', text:details, confirm:'Взять' });
       if (accepted === null) return;
       try { await api('take_task', {template_id:take.dataset.take}); await reload({quiet:true}); toast('Задание взято'); } catch (error) { toast(error.message); }
       return;
@@ -293,7 +320,27 @@
       finally { button.disabled = false; }
       return;
     }
-    if (event.target.closest('#open-create')) $('#create-dialog').showModal();
+    const editTemplate = event.target.closest('[data-edit-template]');
+    if (editTemplate) {
+      const item = (state.data.all_templates || state.data.templates)
+        .find(template => template.template_id === editTemplate.dataset.editTemplate);
+      if (item) openTemplateEditor(item);
+      return;
+    }
+    const toggleTemplate = event.target.closest('[data-toggle-template]');
+    if (toggleTemplate) {
+      const enabled = toggleTemplate.dataset.enabled !== '1';
+      toggleTemplate.disabled = true;
+      try {
+        await api('set_template_enabled', {template_id:toggleTemplate.dataset.toggleTemplate,enabled});
+        await reload({quiet:true});
+        state.role = 'leader'; state.leaderTab = 'templates'; render();
+        toast(enabled ? 'Задание включено' : 'Задание выключено');
+      } catch (error) { toast(error.message); }
+      finally { toggleTemplate.disabled = false; }
+      return;
+    }
+    if (event.target.closest('#open-create')) { openTemplateEditor(); return; }
   });
 
   document.addEventListener('change', async event => {
@@ -316,11 +363,15 @@
   $('#create-form').addEventListener('submit', async event => {
     event.preventDefault();
     try {
-      await api('create_template', {
-        title:$('#create-title').value.trim(),description:$('#create-description').value.trim(),verification_mode:$('#create-mode').value,
+      const templateId = $('#template-id').value;
+      const action = templateId ? 'update_template' : 'create_template';
+      await api(action, {
+        template_id:templateId,title:$('#create-title').value.trim(),description:$('#create-description').value.trim(),instructions:$('#create-instructions').value.trim(),verification_mode:$('#create-mode').value,
         target_count:Number($('#create-target').value),deadline_hours:Number($('#create-deadline').value),reward_reports:Number($('#create-reports').value),reward_index:Number($('#create-index').value),reward_xp:Number($('#create-xp').value)
       });
-      $('#create-dialog').close(); await reload({quiet:true}); toast('Шаблон создан');
+      $('#create-dialog').close(); await reload({quiet:true});
+      state.role = 'leader'; state.leaderTab = 'templates'; render();
+      toast(templateId ? 'Задание обновлено' : 'Шаблон создан');
     } catch (error) { toast(error.message); }
   });
 

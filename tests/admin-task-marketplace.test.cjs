@@ -42,7 +42,7 @@ test('take confirmation does not show an unnecessary comment field', () => {
   assert.match(script, /\$\('#reason-wrap'\)\.hidden = !reason/);
   assert.match(script, /title:'Взять задание\?'[^\n]+confirm:'Взять'/);
   assert.match(css, /\[hidden\]\{display:none!important\}/);
-  assert.match(html, /admin-task-marketplace\.css\?v=20261020-1/);
+  assert.match(html, /admin-task-marketplace\.css\?v=20261020-2/);
 });
 
 test('task levels show XP progress and are configurable by master', () => {
@@ -54,6 +54,17 @@ test('task levels show XP progress and are configurable by master', () => {
   assert.match(script, /data-level-multiplier/);
   assert.match(script, /reward_xp/);
   assert.match(css, /\.level-card/);
+});
+
+test('master can define and edit exact instructions for every task', () => {
+  assert.match(html, /id="create-description"/);
+  assert.match(html, /id="create-instructions"/);
+  assert.match(script, /function rulesBlock/);
+  assert.match(script, /Подробное описание и правила/);
+  assert.match(script, /update_template/);
+  assert.match(script, /data-edit-template/);
+  assert.match(script, /data-toggle-template/);
+  assert.match(css, /\.task-rules/);
 });
 
 test('marketplace script parses', () => {
