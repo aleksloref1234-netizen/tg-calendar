@@ -94,7 +94,7 @@
 
   function templateCard(item, takenIds) {
     const taken = takenIds.has(item.template_id);
-    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : item.verification_mode === 'evidence_review' ? '▣' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><span class="type">${typeLabel(item.verification_mode)}</span></div></div>${rulesBlock(item)}${reward(item)}<div class="meta-row"><span class="meta">Цель: ${item.target_count}</span><span class="meta">Срок: ${item.deadline_hours} ч.</span></div><div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${taken ? 'disabled' : ''}>${taken ? 'Уже в работе' : 'Взять задание'}</button></div></article>`;
+    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : item.verification_mode === 'evidence_review' ? '▣' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div></div>${rulesBlock(item)}${reward(item)}<div class="meta-row"><span class="meta">Цель: ${item.target_count}</span><span class="meta">Срок: ${item.deadline_hours} ч.</span></div><div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${taken ? 'disabled' : ''}>${taken ? 'Уже в работе' : 'Взять задание'}</button></div></article>`;
   }
 
   function adminAssignmentCard(item, evidenceByAssignment) {
