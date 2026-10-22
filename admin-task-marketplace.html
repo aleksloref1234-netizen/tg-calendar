@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#081326">
   <title>Дополнительные задания</title>
-  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261020-2">
+  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261022-1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -115,7 +115,25 @@
     </form>
   </dialog>
 
+  <dialog id="level-up-dialog" class="level-up-dialog">
+    <section class="level-up-card">
+      <div class="level-particles" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="level-emblem" aria-hidden="true">✦</div>
+      <p class="eyebrow">Новый уровень</p>
+      <h2 id="level-up-title">Активный</h2>
+      <p class="level-up-route"><span id="level-up-from">Новичок</span><b>→</b><strong id="level-up-to">Активный</strong></p>
+      <p id="level-up-message">Новые задания теперь приносят больше бонусных репортов.</p>
+      <div class="level-up-rewards">
+        <span><small>Опыт</small><b id="level-up-xp">100 XP</b></span>
+        <span><small>Коэффициент</small><b id="level-up-multiplier">×1,25</b></span>
+      </div>
+      <button class="button primary" id="level-up-confirm" type="button">Продолжить</button>
+    </section>
+  </dialog>
+
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261020-3"></script>
+  <script src="admin-task-marketplace.js?v=20261022-1"></script>
 </body>
 </html>

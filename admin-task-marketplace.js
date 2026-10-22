@@ -3,7 +3,7 @@
 
   const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/admin/tasks';
   const tg = window.Telegram?.WebApp;
-  const state = { data: null, role: 'admin', adminTab: 'available', leaderTab: 'counter' };
+  const state = { data: null, role: 'admin', adminTab: 'available', leaderTab: 'counter', levelUpShowing: '' };
   const $ = selector => document.querySelector(selector);
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 
@@ -36,6 +36,30 @@
     toast.timer = setTimeout(() => { node.hidden = true; }, 3200);
   }
 
+  function showPendingLevelUp() {
+    const event = state.data?.pending_level_up;
+    if (!event || state.levelUpShowing === event.assignment_id) return;
+    const before = event.from_level || {};
+    const after = event.to_level || {};
+    const multiplier = Number(after.reward_multiplier || 1).toLocaleString('ru-RU', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+    $('#level-up-title').textContent = after.title || 'Новый уровень';
+    $('#level-up-from').textContent = before.title || 'Предыдущий уровень';
+    $('#level-up-to').textContent = after.title || 'Новый уровень';
+    $('#level-up-xp').textContent = `${Number(event.xp || 0)} XP`;
+    $('#level-up-multiplier').textContent = `×${multiplier}`;
+    $('#level-up-message').textContent = `Уровень повышен за задание «${event.task_title || 'Дополнительное задание'}». Новые задания теперь приносят больше бонусных репортов.`;
+    state.levelUpShowing = event.assignment_id;
+    const dialog = $('#level-up-dialog');
+    dialog.classList.remove('celebrate');
+    void dialog.offsetWidth;
+    dialog.classList.add('celebrate');
+    dialog.showModal();
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+  }
+
   async function reload({ quiet = false } = {}) {
     try {
       state.data = await api('bootstrap');
@@ -44,6 +68,7 @@
       $('#app').hidden = false;
       $('#role-switch').hidden = !state.data.viewer.is_leader;
       render();
+      showPendingLevelUp();
     } catch (error) {
       $('#loading-gate').hidden = true;
       $('#app').hidden = true;
@@ -200,6 +225,24 @@
       dialog.showModal();
     });
   }
+
+  $('#level-up-dialog').addEventListener('cancel', event => event.preventDefault());
+  $('#level-up-confirm').addEventListener('click', async () => {
+    const event = state.data?.pending_level_up;
+    if (!event) return $('#level-up-dialog').close();
+    const button = $('#level-up-confirm');
+    button.disabled = true;
+    try {
+      await api('ack_level_up', {assignment_id:event.assignment_id});
+      state.data.pending_level_up = null;
+      state.levelUpShowing = '';
+      $('#level-up-dialog').close();
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   async function compressImage(file) {
     if (!file.type.startsWith('image/')) throw new Error('Можно прикрепить только изображение.');
