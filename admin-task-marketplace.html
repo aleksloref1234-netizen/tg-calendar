@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#081326">
   <title>Дополнительные задания</title>
-  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261025-1">
+  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261025-2">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -33,6 +33,7 @@
       <nav class="role-switch" id="role-switch" hidden>
         <button class="active" data-role="admin">Мои задания</button>
         <button data-role="leader">Проверка</button>
+        <button data-role="settings" id="settings-role" hidden>Настройки</button>
       </nav>
 
       <section id="admin-view">
@@ -74,12 +75,22 @@
           <button class="active" data-tab="counter">Отметки</button>
           <button data-tab="review">Без файлов</button>
           <button data-tab="evidence">Со скринами</button>
-          <button data-tab="templates">Шаблоны</button>
-          <button data-tab="levels">Уровни</button>
         </nav>
         <section class="list" id="counter-list"></section>
         <section class="list" id="review-list" hidden></section>
         <section class="list" id="evidence-list" hidden></section>
+      </section>
+
+      <section id="settings-view" hidden>
+        <div class="leader-hero settings-hero">
+          <p class="eyebrow">Только Master ID</p>
+          <h1>Настройки заданий</h1>
+          <p>Создавайте задания, задавайте правила, награды, лимиты выполнений и уровни системы.</p>
+        </div>
+        <nav class="tabs" id="settings-tabs">
+          <button class="active" data-tab="templates">Шаблоны заданий</button>
+          <button data-tab="levels">Уровни и коэффициенты</button>
+        </nav>
         <section class="list" id="templates-list" hidden></section>
         <section class="list" id="levels-list" hidden></section>
       </section>
@@ -106,11 +117,13 @@
       <label class="wide">Краткое описание<textarea id="create-description" rows="2" required maxlength="500" placeholder="Коротко отображается в карточке задания"></textarea></label>
       <label class="wide">Подробное описание и правила<textarea id="create-instructions" rows="6" required maxlength="4000" placeholder="Что именно нужно сделать, что считается выполнением и как проходит проверка"></textarea></label>
       <label class="wide">Проверка<select id="create-mode"><option value="leadership_counter">Отметки руководства</option><option value="manual_review">Ручная проверка</option><option value="evidence_review">Ручная проверка со скринами</option></select></label>
-      <label>Цель<input id="create-target" type="number" min="1" max="100" value="1"></label>
+      <label>Цель внутри задания<input id="create-target" type="number" min="1" max="100" value="1"></label>
       <label>Срок, часов<input id="create-deadline" type="number" min="1" max="744" value="24"></label>
       <label>Репорты<input id="create-reports" type="number" min="0" value="50"></label>
       <label>Индекс, %<input id="create-index" type="number" min="0" max="25" step="0.5" value="1"></label>
       <label>Опыт, XP<input id="create-xp" type="number" min="1" max="1000" value="10"></label>
+      <label>Лимит выполнений<input id="create-limit" type="number" min="0" max="1000" value="0"><small>0 — без ограничений</small></label>
+      <label>Период лимита<select id="create-limit-period"><option value="none">Без периода</option><option value="day">За сутки</option><option value="week">За неделю</option><option value="night">За ночь</option></select></label>
       <button class="button primary wide" id="template-submit" value="default">Создать шаблон</button>
     </form>
   </dialog>
@@ -134,6 +147,6 @@
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261025-1"></script>
+  <script src="admin-task-marketplace.js?v=20261025-2"></script>
 </body>
 </html>

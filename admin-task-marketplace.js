@@ -3,7 +3,7 @@
 
   const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/admin/tasks';
   const tg = window.Telegram?.WebApp;
-  const state = { data: null, role: 'admin', adminTab: 'available', leaderTab: 'counter', levelUpShowing: '' };
+  const state = { data: null, role: 'admin', adminTab: 'available', leaderTab: 'counter', settingsTab: 'templates', levelUpShowing: '' };
   const $ = selector => document.querySelector(selector);
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 
@@ -63,10 +63,12 @@
   async function reload({ quiet = false } = {}) {
     try {
       state.data = await api('bootstrap');
+      if (state.role === 'settings' && !state.data.viewer.is_master) state.role = 'admin';
       $('#loading-gate').hidden = true;
       $('#closed-gate').hidden = true;
       $('#app').hidden = false;
       $('#role-switch').hidden = !state.data.viewer.is_leader;
+      $('#settings-role').hidden = !state.data.viewer.is_master;
       render();
       showPendingLevelUp();
     } catch (error) {
@@ -120,15 +122,22 @@
   function timeRuleBlock(item, assignment = false) {
     if (!item.time_rule_summary) return '';
     let detail = item.time_rule_summary;
-    if (!assignment && Number.isFinite(Number(item.daily_remaining))) {
-      detail += ` · доступно: ${Number(item.daily_remaining)}`;
+    if (!assignment && Number.isFinite(Number(item.limit_remaining))) {
+      detail += ` · доступно: ${Number(item.limit_remaining)}`;
     }
     return `<div class="time-rule"><span>✦</span><b>${esc(detail)}</b></div>`;
   }
 
+  function templateLimitLabel(item) {
+    const limit = Number(item.completion_limit || 0);
+    if (!limit) return 'Без ограничения по количеству';
+    const period = ({day:'за сутки',week:'за неделю',night:'за ночь'})[item.limit_period] || 'за период';
+    return `До ${limit} выполнений ${period}`;
+  }
+
   function templateCard(item, takenIds) {
     const taken = takenIds.has(item.template_id);
-    const limitReached = item.time_rule_key && Number(item.daily_remaining) <= 0;
+    const limitReached = item.time_rule_key && Number(item.limit_remaining) <= 0;
     const disabled = taken || limitReached;
     const buttonLabel = taken ? 'Уже в работе' : limitReached ? 'Лимит исчерпан' : 'Взять задание';
     return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : item.verification_mode === 'evidence_review' ? '▣' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div></div>${timeRuleBlock(item)}${rulesBlock(item)}${reward(item)}<div class="meta-row"><span class="meta">Цель: ${item.target_count}</span>${item.time_rule_key ? '' : `<span class="meta">Срок: ${item.deadline_hours} ч.</span>`}</div>${item.time_rule_message && !limitReached ? `<div class="time-hint">${esc(item.time_rule_message)}</div>` : ''}<div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${disabled ? 'disabled' : ''}>${buttonLabel}</button></div></article>`;
@@ -165,7 +174,8 @@
       const list = evidenceByAssignment.get(file.assignment_id) || [];
       list.push(file); evidenceByAssignment.set(file.assignment_id, list);
     });
-    $('#available-list').innerHTML = templates.length ? templates.map(item => templateCard(item, takenIds)).join('') : empty('Нет доступных заданий');
+    const availableTemplates = templates.filter(item => !item.time_rule_key || Number(item.limit_remaining) > 0);
+    $('#available-list').innerHTML = availableTemplates.length ? availableTemplates.map(item => templateCard(item, takenIds)).join('') : empty('Нет доступных заданий');
     $('#active-list').innerHTML = active.length ? active.map(item => adminAssignmentCard(item, evidenceByAssignment)).join('') : empty('Нет заданий в работе');
     $('#history-list').innerHTML = history.length ? history.map(item => adminAssignmentCard(item, evidenceByAssignment)).join('') : empty('История пока пуста');
   }
@@ -195,8 +205,12 @@
     $('#counter-list').innerHTML = counters.length ? counters.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет активных счётчиков');
     $('#review-list').innerHTML = reviews.length ? reviews.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет отчётов без файлов');
     $('#evidence-list').innerHTML = proofs.length ? proofs.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет отчётов со скриншотами');
+  }
+
+  function renderSettings() {
+    if (!state.data.viewer.is_master) return;
     const templates = state.data.all_templates || state.data.templates;
-    $('#templates-list').innerHTML = `<div class="actions"><button class="button primary" id="open-create">＋ Создать задание</button></div>${templates.map(item => `<article class="task-card"><div class="task-top"><span class="task-icon">✦</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><span class="type">${typeLabel(item.verification_mode)} · цель ${item.target_count}</span></div><span class="status ${item.enabled ? 'ok' : 'bad'}">${item.enabled ? 'Активно' : 'Выключено'}</span></div>${rulesBlock(item)}${reward({...item,reward_reports:item.base_reward_reports ?? item.reward_reports,reward_multiplier:1})}<div class="actions"><button class="button secondary" data-edit-template="${esc(item.template_id)}">Редактировать</button><button class="button ghost" data-toggle-template="${esc(item.template_id)}" data-enabled="${item.enabled ? '1' : '0'}">${item.enabled ? 'Выключить' : 'Включить'}</button></div></article>`).join('')}`;
+    $('#templates-list').innerHTML = `<div class="settings-note">Здесь настраивается полный каталог заданий. Лимит 0 означает, что задание можно выполнять без ограничения по количеству.</div><div class="actions"><button class="button primary" id="open-create">＋ Создать задание</button></div>${templates.map(item => `<article class="task-card"><div class="task-top"><span class="task-icon">✦</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><span class="type">${typeLabel(item.verification_mode)} · цель ${item.target_count}</span><span class="template-limit">${esc(templateLimitLabel(item))}</span></div><span class="status ${item.enabled ? 'ok' : 'bad'}">${item.enabled ? 'Активно' : 'Выключено'}</span></div>${rulesBlock(item)}${reward({...item,reward_reports:item.base_reward_reports ?? item.reward_reports,reward_multiplier:1})}<div class="actions"><button class="button secondary" data-edit-template="${esc(item.template_id)}">Редактировать</button><button class="button ghost" data-toggle-template="${esc(item.template_id)}" data-enabled="${item.enabled ? '1' : '0'}">${item.enabled ? 'Выключить' : 'Включить'}</button></div></article>`).join('')}`;
     const levels = state.data.level_settings || [];
     $('#levels-list').innerHTML = `<div class="settings-note">Уровень определяется по накопленному XP. Новые коэффициенты применяются только к заданиям, взятым после сохранения.</div>${levels.map(level => `<article class="task-card level-settings" data-level="${esc(level.level_key)}"><div class="level-name"><b>${esc(level.title)}</b><small>${level.level_key === 'novice' ? 'Начальный уровень' : 'Порог повышения'}</small></div><label>Требуется XP<input data-level-xp type="number" min="0" step="1" value="${Number(level.min_xp || 0)}" ${level.level_key === 'novice' ? 'readonly' : ''}></label><label>Коэффициент<input data-level-multiplier type="number" min="1" max="5" step="0.05" value="${Number(level.report_multiplier || 1)}"></label></article>`).join('')}<button class="button primary level-save" id="save-levels">Сохранить уровни</button>`;
   }
@@ -206,17 +220,21 @@
   function render() {
     $('#admin-view').hidden = state.role !== 'admin';
     $('#leader-view').hidden = state.role !== 'leader';
+    $('#settings-view').hidden = state.role !== 'settings';
     document.querySelectorAll('#role-switch button').forEach(button => button.classList.toggle('active', button.dataset.role === state.role));
     renderAdmin();
     if (state.data.viewer.is_leader) renderLeader();
+    if (state.data.viewer.is_master) renderSettings();
     switchTab('admin', state.adminTab);
     if (state.data.viewer.is_leader) switchTab('leader', state.leaderTab);
+    if (state.data.viewer.is_master) switchTab('settings', state.settingsTab);
   }
 
   function switchTab(area, tab) {
-    state[area === 'admin' ? 'adminTab' : 'leaderTab'] = tab;
+    const stateKey = area === 'admin' ? 'adminTab' : area === 'leader' ? 'leaderTab' : 'settingsTab';
+    state[stateKey] = tab;
     document.querySelectorAll(`#${area}-tabs button`).forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
-    const ids = area === 'admin' ? ['available','active','history'] : ['counter','review','evidence','templates','levels'];
+    const ids = area === 'admin' ? ['available','active','history'] : area === 'leader' ? ['counter','review','evidence'] : ['templates','levels'];
     ids.forEach(id => { $(`#${id}-list`).hidden = id !== tab; });
   }
 
@@ -296,6 +314,8 @@
     $('#create-reports').value = Number(item?.reward_reports || 50);
     $('#create-index').value = Number(item?.reward_index || 1);
     $('#create-xp').value = Number(item?.reward_xp || 10);
+    $('#create-limit').value = Number(item?.completion_limit || 0);
+    $('#create-limit-period').value = item?.limit_period || 'none';
     $('#template-dialog-eyebrow').textContent = item ? 'Редактирование' : 'Новый шаблон';
     $('#template-dialog-title').textContent = item ? 'Настроить задание' : 'Создать задание';
     $('#template-submit').textContent = item ? 'Сохранить изменения' : 'Создать шаблон';
@@ -304,9 +324,15 @@
 
   document.addEventListener('click', async event => {
     const role = event.target.closest('[data-role]');
-    if (role) { state.role = role.dataset.role; render(); return; }
+    if (role) {
+      if (role.dataset.role === 'settings' && !state.data.viewer.is_master) return;
+      state.role = role.dataset.role; render(); return;
+    }
     const tab = event.target.closest('.tabs [data-tab]');
-    if (tab) { switchTab(tab.closest('#leader-tabs') ? 'leader' : 'admin', tab.dataset.tab); return; }
+    if (tab) {
+      const area = tab.closest('#leader-tabs') ? 'leader' : tab.closest('#settings-tabs') ? 'settings' : 'admin';
+      switchTab(area, tab.dataset.tab); return;
+    }
     const take = event.target.closest('[data-take]');
     if (take) {
       const template = state.data.templates.find(item => item.template_id === take.dataset.take);
@@ -369,7 +395,7 @@
       try {
         await api('save_level_settings', {levels});
         await reload({quiet:true});
-        state.role = 'leader'; state.leaderTab = 'levels'; render();
+        state.role = 'settings'; state.settingsTab = 'levels'; render();
         toast('Уровни и коэффициенты сохранены');
       } catch (error) { toast(error.message); }
       finally { button.disabled = false; }
@@ -389,7 +415,7 @@
       try {
         await api('set_template_enabled', {template_id:toggleTemplate.dataset.toggleTemplate,enabled});
         await reload({quiet:true});
-        state.role = 'leader'; state.leaderTab = 'templates'; render();
+        state.role = 'settings'; state.settingsTab = 'templates'; render();
         toast(enabled ? 'Задание включено' : 'Задание выключено');
       } catch (error) { toast(error.message); }
       finally { toggleTemplate.disabled = false; }
@@ -399,6 +425,17 @@
   });
 
   document.addEventListener('change', async event => {
+    if (event.target.matches('#create-limit')) {
+      const limit = Number(event.target.value || 0);
+      if (limit <= 0) $('#create-limit-period').value = 'none';
+      else if ($('#create-limit-period').value === 'none') $('#create-limit-period').value = 'day';
+      return;
+    }
+    if (event.target.matches('#create-limit-period')) {
+      if (event.target.value === 'none') $('#create-limit').value = 0;
+      else if (Number($('#create-limit').value || 0) <= 0) $('#create-limit').value = 1;
+      return;
+    }
     const input = event.target.closest('[data-upload]');
     if (!input || !input.files?.length) return;
     input.disabled = true;
@@ -422,10 +459,10 @@
       const action = templateId ? 'update_template' : 'create_template';
       await api(action, {
         template_id:templateId,title:$('#create-title').value.trim(),description:$('#create-description').value.trim(),instructions:$('#create-instructions').value.trim(),verification_mode:$('#create-mode').value,
-        target_count:Number($('#create-target').value),deadline_hours:Number($('#create-deadline').value),reward_reports:Number($('#create-reports').value),reward_index:Number($('#create-index').value),reward_xp:Number($('#create-xp').value)
+        target_count:Number($('#create-target').value),deadline_hours:Number($('#create-deadline').value),reward_reports:Number($('#create-reports').value),reward_index:Number($('#create-index').value),reward_xp:Number($('#create-xp').value),completion_limit:Number($('#create-limit').value),limit_period:$('#create-limit-period').value
       });
       $('#create-dialog').close(); await reload({quiet:true});
-      state.role = 'leader'; state.leaderTab = 'templates'; render();
+      state.role = 'settings'; state.settingsTab = 'templates'; render();
       toast(templateId ? 'Задание обновлено' : 'Шаблон создан');
     } catch (error) { toast(error.message); }
   });
