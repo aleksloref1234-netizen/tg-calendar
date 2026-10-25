@@ -117,9 +117,21 @@
     return `<details class="task-rules"><summary>Подробное описание и правила</summary><p>${esc(item.instructions)}</p></details>`;
   }
 
+  function timeRuleBlock(item, assignment = false) {
+    if (!item.time_rule_summary) return '';
+    let detail = item.time_rule_summary;
+    if (!assignment && Number.isFinite(Number(item.daily_remaining))) {
+      detail += ` · доступно: ${Number(item.daily_remaining)}`;
+    }
+    return `<div class="time-rule"><span>✦</span><b>${esc(detail)}</b></div>`;
+  }
+
   function templateCard(item, takenIds) {
     const taken = takenIds.has(item.template_id);
-    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : item.verification_mode === 'evidence_review' ? '▣' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div></div>${rulesBlock(item)}${reward(item)}<div class="meta-row"><span class="meta">Цель: ${item.target_count}</span><span class="meta">Срок: ${item.deadline_hours} ч.</span></div><div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${taken ? 'disabled' : ''}>${taken ? 'Уже в работе' : 'Взять задание'}</button></div></article>`;
+    const limitReached = item.time_rule_key && Number(item.daily_remaining) <= 0;
+    const disabled = taken || limitReached;
+    const buttonLabel = taken ? 'Уже в работе' : limitReached ? 'Лимит исчерпан' : 'Взять задание';
+    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : item.verification_mode === 'evidence_review' ? '▣' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div></div>${timeRuleBlock(item)}${rulesBlock(item)}${reward(item)}<div class="meta-row"><span class="meta">Цель: ${item.target_count}</span>${item.time_rule_key ? '' : `<span class="meta">Срок: ${item.deadline_hours} ч.</span>`}</div>${item.time_rule_message && !limitReached ? `<div class="time-hint">${esc(item.time_rule_message)}</div>` : ''}<div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${disabled ? 'disabled' : ''}>${buttonLabel}</button></div></article>`;
   }
 
   function adminAssignmentCard(item, evidenceByAssignment) {
@@ -128,7 +140,7 @@
     const upload = item.status === 'in_progress' && item.verification_mode === 'evidence_review'
       ? `<label class="upload">＋ Добавить скриншоты<input type="file" accept="image/jpeg,image/png,image/webp" multiple data-upload="${esc(item.assignment_id)}"></label>` : '';
     const evidenceList = evidence.length ? `<div class="evidence-grid">${evidence.map(file => `<span class="meta">${esc(file.file_name)}</span>`).join('')}</div>` : '';
-    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${rulesBlock(item)}${reward(item)}${progressBlock(item)}${evidenceList}${upload}${canSubmit ? `<div class="actions"><button class="button primary" data-submit="${esc(item.assignment_id)}">Задание выполнено</button></div>` : ''}${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
+    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${evidenceList}${upload}${canSubmit ? `<div class="actions"><button class="button primary" data-submit="${esc(item.assignment_id)}">Задание выполнено</button></div>` : ''}${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
   }
 
   function renderAdmin() {
@@ -165,7 +177,7 @@
       ? `<div class="actions"><button class="button primary" data-mark="${esc(item.assignment_id)}">Засчитать вход</button><button class="button ghost" data-undo="${esc(item.assignment_id)}">Отменить отметку</button></div>`
       : item.status === 'pending_review'
         ? `<div class="actions"><button class="button primary" data-review="approve" data-id="${esc(item.assignment_id)}">Принять</button><button class="button secondary" data-review="return" data-id="${esc(item.assignment_id)}">Вернуть</button><button class="button danger" data-review="reject" data-id="${esc(item.assignment_id)}">Отклонить</button></div>` : '';
-    return `<article class="task-card"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${rulesBlock(item)}${reward(item)}${progressBlock(item)}${fileHtml}${controls}</article>`;
+    return `<article class="task-card"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${fileHtml}${controls}</article>`;
   }
 
   function renderLeader() {

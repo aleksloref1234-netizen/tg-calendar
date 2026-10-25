@@ -42,7 +42,7 @@ test('take confirmation does not show an unnecessary comment field', () => {
   assert.match(script, /\$\('#reason-wrap'\)\.hidden = !reason/);
   assert.match(script, /title:'Взять задание\?'[^\n]+confirm:'Взять'/);
   assert.match(css, /\[hidden\]\{display:none!important\}/);
-  assert.match(html, /admin-task-marketplace\.css\?v=20261022-1/);
+  assert.match(html, /admin-task-marketplace\.css\?v=20261025-1/);
 });
 
 test('task levels show XP progress and are configurable by master', () => {
@@ -70,7 +70,16 @@ test('master can define and edit exact instructions for every task', () => {
 test('admin task cards do not expose internal verification mode labels', () => {
   const source = script.match(/function templateCard[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(source, /typeLabel\(/);
-  assert.match(html, /admin-task-marketplace\.js\?v=20261022-1/);
+  assert.match(html, /admin-task-marketplace\.js\?v=20261025-1/);
+});
+
+test('limited assignments show reward caps without an automatic timer', () => {
+  assert.match(script, /function timeRuleBlock/);
+  assert.match(script, /daily_remaining/);
+  assert.doesNotMatch(script, /submit_available_at/);
+  assert.doesNotMatch(script, /timedSubmitState/);
+  assert.match(css, /\.time-rule/);
+  assert.match(css, /\.time-hint/);
 });
 
 test('pending level-up is celebrated once and acknowledged through the API', () => {
