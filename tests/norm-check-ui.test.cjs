@@ -196,8 +196,10 @@ test('failed result asks about a warning and sends the explicit API field', () =
 });
 
 test('submit retries transient failures with one stable operation id', () => {
-  assert.match(html, /const delays=\[0,700,1600,3000\]/);
-  assert.match(html, /\[429,502,503,504\]\.includes\(response\.status\)/);
+  const lifecycle=fs.readFileSync(path.join(__dirname, '../norm-check-lifecycle.js'), 'utf8');
+  assert.match(html, /NormLifecycle\.request\(API,payload\)/);
+  assert.match(lifecycle, /const delays=\[0,700,1600,3000\]/);
+  assert.match(lifecycle, /\[429,502,503,504\]\.includes\(response\.status\)/);
   assert.match(html, /const operationId=makeOperationId\(\)/);
   assert.match(html, /operation_id:operationId/);
   assert.match(html, /randomUUID/);

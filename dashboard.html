@@ -6,6 +6,9 @@
     <title>Дашборд Администратора</title>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="admin-app-bridge.js?v=20261026-1"></script>
+    <script src="admin-stats-runtime.js?v=20261026-1"></script>
+    <link rel="stylesheet" href="admin-stats.css?v=20261026-1">
     <script src="webapp-watermark.js" defer></script>
     <!-- Chart.js для графика -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -685,7 +688,7 @@
         let myChartInstance = null;
 
         function returnToAdminOverview() {
-            window.location.href = 'admin-overview.html';
+            AdminStats.navigate('admin-overview.html');
         }
 
         function applyUiConfig(config = {}) {
@@ -704,18 +707,19 @@
 
         document.getElementById('back-to-admin-overview').addEventListener('click', returnToAdminOverview);
         document.getElementById('admin-task-marketplace-entry').addEventListener('click', () => {
-            window.location.href = 'admin-task-marketplace.html';
+            AdminStats.navigate('admin-task-marketplace.html');
         });
 
         async function loadDashboard() {
             const loadingEl = document.getElementById('loading');
+            loadingEl.style.display = 'block';
+            loadingEl.textContent = 'Загружаю статистику…';
             try {
                 const params = new URLSearchParams(window.location.search);
                 const selectedAdminId = params.get('admin_id');
                 const isAdminView = /^\d+$/.test(selectedAdminId || '');
                 document.getElementById('back-to-admin-overview').hidden = !isAdminView;
                 let targetUrl;
-                let fetchOptions = {};
 
                 if (isAdminView) {
                     if (!tg.initData) {
@@ -723,10 +727,6 @@
                         return;
                     }
                     targetUrl = `${BACKEND_URL}/api/admin/dashboard/${selectedAdminId}`;
-                    fetchOptions = {
-                        method: 'POST',
-                        headers: { 'X-Telegram-Init-Data': tg.initData }
-                    };
                 } else {
                     const userId = tg.initDataUnsafe?.user?.id;
                     if (!userId || !tg.initData) {
@@ -734,35 +734,9 @@
                         return;
                     }
                     targetUrl = `${BACKEND_URL}/api/dashboard/${userId}`;
-                    fetchOptions = {
-                        headers: { 'X-Telegram-Init-Data': tg.initData }
-                    };
                 }
 
-                console.log("Запрос к API:", targetUrl);
-
-                const response = await fetch(targetUrl, fetchOptions);
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    let errorMsg = `HTTP Error ${response.status}`;
-                    try {
-                        const errJson = JSON.parse(errorText);
-                        if (errJson.message) errorMsg += `: ${errJson.message}`;
-                    } catch(e) {}
-
-                    showError("Ошибка ответа сервера", errorMsg);
-                    return;
-                }
-
-                const result = await response.json();
-
-                if (result.status !== "success") {
-                    showError("Ошибка данных", result.message || "Пользователь не найден");
-                    return;
-                }
-
-                const d = result.data;
+                const d = await AdminStats.request(targetUrl, {method: isAdminView ? 'POST' : 'GET'});
                 applyUiConfig(d.ui_config || {});
                 applyFeatureAccess(d.feature_access || {});
 
@@ -774,7 +748,12 @@
                 const roleName = d.role || "Без должности";
                 const roleElement = document.getElementById('role');
                 if (roleElement) {
-                    roleElement.innerHTML = `<span style="font-size: 15px; font-weight: 600; color: #e2e8f0;">${categoryName}</span><br><span style="font-size: 13px; color: #94a3b8;">${roleName}</span>`;
+                    const category = document.createElement('span');
+                    category.className = 'user-category';
+                    category.textContent = categoryName;
+                    const role = document.createElement('span');
+                    role.textContent = roleName;
+                    roleElement.replaceChildren(category, document.createElement('br'), role);
                 }
 
                 document.getElementById('reports-week').innerText = d.reports_week ?? 0;
@@ -830,10 +809,7 @@
 
         function showError(title, detail) {
             const loadingEl = document.getElementById('loading');
-            loadingEl.innerHTML = `
-                <div class="error-title">❌ ${title}</div>
-                <div>${detail}</div>
-            `;
+            AdminStats.showError(loadingEl, title, detail, loadDashboard);
         }
 
         function formatTestPercent(value) {
@@ -1018,6 +994,13 @@
         }
 
         function renderChart(dailyData) {
+            if (typeof Chart !== 'function') {
+                const fallback = document.createElement('p');
+                fallback.className = 'card-label';
+                fallback.textContent = 'График временно недоступен. Остальные показатели загружены.';
+                document.getElementById('reportsChart').replaceWith(fallback);
+                return;
+            }
             const ctx = document.getElementById('reportsChart').getContext('2d');
 
             if (myChartInstance) {
@@ -1052,6 +1035,7 @@
                     }]
                 },
                 options: {
+                    animation: document.documentElement.classList.contains('admin-app-reduce-motion') || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? false : undefined,
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
@@ -1082,6 +1066,7 @@
             });
         }
 
+        window.addEventListener('pagehide', () => { myChartInstance?.destroy(); myChartInstance = null; }, {once: true});
         loadDashboard();
     </script>
 </body>

@@ -25,7 +25,7 @@ test('additional tasks entry opens the marketplace page', () => {
   assert.match(html, />Дополнительные задания</);
   assert.match(
     html,
-    /window\.location\.href='admin-task-marketplace\.html'/,
+    /AdminStats\.navigate\('admin-task-marketplace\.html'\)/,
   );
 });
 

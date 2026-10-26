@@ -110,6 +110,8 @@
   }
 
   async function refresh() {
+    const embeddedIdentity = window.AdminControlEmbed?.viewer;
+    if (embeddedIdentity?.telegram_id) return render(embeddedIdentity);
     const telegram = window.Telegram?.WebApp;
     const telegramId = String(telegram?.initDataUnsafe?.user?.id || "").trim();
     const cachedIdentity = readCachedIdentity(telegramId);

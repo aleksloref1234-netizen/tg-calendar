@@ -1,0 +1,54 @@
+/* Embedded pages only. Additional tasks and standalone legacy pages retain
+   their own design. Status colours and hidden-block rules stay authoritative. */
+html.admin-app-embedded{color-scheme:dark;scroll-behavior:smooth}
+html.admin-app-embedded body{min-height:100%;overscroll-behavior:contain}
+html.admin-app-embedded .screen-watermark{z-index:10}
+html.admin-app-embedded[data-admin-page="norm-check"]{--bg:#0b1528;--card:#15253d;--ink:#eff5ff;--sub:#9cafc9;--line:#2a405c;--dark:#162c45;--green:#79dfbd;--mint:#1b3e43;--amber:#efbc74;--red:#ff9fb1;--cyan:#79d5ff;--status-done-text:#79dfbd;--status-partial-text:#efbc74;--status-failed-text:#ff9fb1;--status-over-text:#eab1f2}
+html.admin-app-embedded[data-admin-page="norm-check"] body{background:radial-gradient(ellipse at 95% 0,#16375966,transparent 470px),#0b1528;font-size:14px;line-height:1.5}
+html.admin-app-embedded[data-admin-page="norm-check"] main{padding:18px 20px 30px}
+html.admin-app-embedded[data-admin-page="norm-check"] .hero{background:linear-gradient(125deg,#1b3550,#15253d 72%);border:1px solid #2a405c;border-radius:22px;padding:22px}
+html.admin-app-embedded[data-admin-page="norm-check"] :is(.hero p,.eyebrow){color:#a9d9f3}
+html.admin-app-embedded[data-admin-page="norm-check"] :is(.card,.metric){background:#15253d;border-color:#2a405c;border-radius:20px;box-shadow:none}
+html.admin-app-embedded[data-admin-page="norm-check"] :is(.date,.search,.field input){background:#101f34;color:#eff5ff;border-color:#344d6b;border-radius:12px}
+html.admin-app-embedded[data-admin-page="norm-check"] .person{background:#122137;border-color:#293e58;border-radius:14px;transition:background .18s,border-color .18s}
+html.admin-app-embedded[data-admin-page="norm-check"] .person.active{background:#203d56;border-color:#609cbd;box-shadow:0 0 0 2px #79d5ff0c}
+html.admin-app-embedded[data-admin-page="norm-check"] .person b{overflow-wrap:anywhere}
+html.admin-app-embedded[data-admin-page="norm-check"] .index{color:#a6e0fc;background:#21405a}
+html.admin-app-embedded[data-admin-page="norm-check"] .state:not(.completed):not(.partial):not(.failed):not(.overcompleted){background:#23374c;color:#b1c6da}
+html.admin-app-embedded[data-admin-page="norm-check"] :is(.role,.source){background:#1c3e48;border-color:#34656d;color:#a2ead5}
+html.admin-app-embedded[data-admin-page="norm-check"] .norm{background:#1b2d44;border-color:#344d6b;color:#b5cae0}
+html.admin-app-embedded[data-admin-page="norm-check"] .source{align-self:flex-start}
+html.admin-app-embedded[data-admin-page="norm-check"] .field{background:#101f34;border-color:#344d6b}
+html.admin-app-embedded[data-admin-page="norm-check"] .field input{background:transparent;border-radius:0}
+html.admin-app-embedded[data-admin-page="norm-check"] :is(.evaluation,.lock){background:#101f34;border-color:#344d6b;color:#c8d8eb}
+html.admin-app-embedded[data-admin-page="norm-check"] .discount{background:#173346;color:#b2d0e1;border-color:#2d5c74}
+html.admin-app-embedded[data-admin-page="norm-check"] .discount b{color:#8fd7f5}
+html.admin-app-embedded[data-admin-page="norm-check"] .discount.locked{background:#3b302c;color:#e6c3a4;border-color:#6a5342}
+html.admin-app-embedded[data-admin-page="norm-check"] .discipline{background:#392637;border-color:#694054;color:#ffd7df}
+html.admin-app-embedded[data-admin-page="norm-check"] :is(.choice,.btn.reset){background:#1c304b;border-color:#3b5573;color:#d9e9fa}
+html.admin-app-embedded[data-admin-page="norm-check"] .choice.active{background:#375471;border-color:#78b4da;color:#f3faff}
+html.admin-app-embedded[data-admin-page="norm-check"] .btn.primary{background:linear-gradient(105deg,#309bd3,#347dca);border-color:#6ab2dc;color:#f1f9ff}
+html.admin-app-embedded[data-admin-page="norm-check"] :is(button,input):focus-visible{outline:2px solid #79d5ff;outline-offset:3px}
+html.admin-app-embedded[data-admin-page="norm-check"] :is(button,input):disabled{opacity:.55;cursor:default}
+@media(max-width:550px){html.admin-app-embedded[data-admin-page="norm-check"] main{padding:14px 12px 26px}html.admin-app-embedded[data-admin-page="norm-check"] .hero{padding:18px}html.admin-app-embedded[data-admin-page="norm-check"] .source{max-width:110px;white-space:normal}html.admin-app-embedded[data-admin-page="norm-check"] .list{max-height:280px}}
+html.admin-app-embedded:is([data-admin-page="dashboard"],[data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]){--bg:#0b1528;--bg-color:#0b1528;--surface:#15253d;--surface2:#1c304b;--card-bg:#15253d;--line:#2a405c;--text:#eff5ff;--text-main:#eff5ff;--sub:#9cafc9;--text-sub:#9cafc9;--blue:#79d5ff;--accent-color:#79d5ff;background:#0b1528}
+html.admin-app-embedded:is([data-admin-page="dashboard"],[data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) body{background:radial-gradient(ellipse at 95% 0,#16375966,transparent 470px),#0b1528;background-attachment:scroll;font-size:14px;line-height:1.5}
+html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) main{max-width:1040px;padding:18px 20px 30px}
+html.admin-app-embedded[data-admin-page="dashboard"] body{max-width:980px;margin:auto;padding:18px 20px 30px}
+html.admin-app-embedded:is([data-admin-page="dashboard"],[data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) :is(.hero,.header){padding:22px;border-radius:22px;border:1px solid #2a405c;background:linear-gradient(125deg,#1b3550,#15253d 72%);position:relative;isolation:isolate;overflow:hidden}
+html.admin-app-embedded[data-admin-page="dashboard"] .header:after{content:"";position:absolute;z-index:-1;right:-25px;top:-65px;width:190px;height:190px;border:1px solid #74aeef20;box-shadow:0 0 0 25px #74aeef06,0 0 0 50px #74aeef04;border-radius:50%;pointer-events:none}
+html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) :is(.panel,.kpi,.person){border-radius:20px;background:#15253d}
+html.admin-app-embedded[data-admin-page="dashboard"] :is(.card:not(.performance-card),.chart-container){border-radius:20px;border-color:#2a405c;background:#15253d}
+html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) :is(h1,.kpi-value,.person-name){font-weight:650;letter-spacing:-.025em}
+html.admin-app-embedded[data-admin-page="dashboard"] .user-title{font-size:25px;font-weight:650;letter-spacing:-.035em;overflow-wrap:anywhere;margin-bottom:7px}
+html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) :is(.tabs,.filters){gap:7px;padding-top:4px}
+html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) :is(.tab,.filter){border-radius:99px;padding:9px 14px;transition:background .18s,border-color .18s}
+html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) .search{border-radius:15px;padding:14px;background:#101f34}
+html.admin-app-embedded:is([data-admin-page="dashboard"],[data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) :is(button,[role="button"]):focus-visible{outline:2px solid #79d5ff;outline-offset:3px}
+html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) .view.active{animation:stats-enter .2s ease-out}
+html.admin-app-embedded[data-admin-page="dashboard"] .performance-value{font-size:38px;letter-spacing:-.04em}
+html.admin-app-embedded[data-admin-page="inactive-overview"] .drawer-card{border-radius:24px 24px 18px 18px;background:#15253d}
+@keyframes stats-enter{from{opacity:.4;translate:0 5px}to{opacity:1;translate:0 0}}
+@media(max-width:550px){html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) main,html.admin-app-embedded[data-admin-page="dashboard"] body{padding:14px 12px 26px}html.admin-app-embedded:is([data-admin-page="dashboard"],[data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) :is(.hero,.header){padding:18px}html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) .person-top{gap:9px}html.admin-app-embedded:is([data-admin-page="admin-overview"],[data-admin-page="inactive-overview"]) .person-name{overflow-wrap:anywhere}html.admin-app-embedded[data-admin-page="admin-overview"] .person-score{font-size:18px;min-width:80px}html.admin-app-embedded[data-admin-page="dashboard"] .grid-2{gap:9px}}
+html.admin-app-reduce-motion *,html.admin-app-reduce-motion *:before,html.admin-app-reduce-motion *:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+@media(prefers-reduced-motion:reduce){html.admin-app-embedded *,html.admin-app-embedded *:before,html.admin-app-embedded *:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}

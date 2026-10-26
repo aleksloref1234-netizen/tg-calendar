@@ -22,7 +22,7 @@ test('personal statistics button opens the additional tasks page', () => {
   assert.match(html, />Дополнительные задания</);
   assert.match(
     html,
-    /window\.location\.href = 'admin-task-marketplace\.html'/,
+    /AdminStats\.navigate\('admin-task-marketplace\.html'\)/,
   );
 });
 
