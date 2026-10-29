@@ -332,6 +332,10 @@
       </header>
 
       <nav class="periods" aria-label="Период статистики">
+        <button class="period" id="report-day" data-period="report_day" type="button" hidden>Дата отчёта</button>
+        <button class="period" data-period="today" type="button">Сегодня</button>
+        <button class="period" data-period="yesterday" type="button">Вчера</button>
+        <button class="period" data-period="before_yesterday" type="button">Позавчера</button>
         <button class="period" data-period="7" type="button">7 дней</button>
         <button class="period" data-period="30" type="button">30 дней</button>
         <button class="period active" data-period="month" type="button">Этот месяц</button>
@@ -419,7 +423,8 @@
     const $ = id => document.getElementById(id);
 
     let data = { periods: {} };
-    let activePeriod = 'month';
+    const requestedDay = new URLSearchParams(location.search).get('day');
+    let activePeriod = requestedDay ? 'report_day' : 'month';
     let activeSourceRole = 'all';
     const filters = { role: 'all', platform: 'all', status: 'all', attendance: 'all' };
     const sourceColors = ['#38bdf8', '#818cf8', '#34d399', '#fbbf24', '#fb7185', '#a78bfa'];
@@ -452,6 +457,15 @@
 
     function getPeriodData() {
       const periods = data.periods || {};
+      if (activePeriod === 'report_day') {
+        if (periods.report_day) return periods.report_day;
+        const match = Object.entries(periods).find(([, item]) => {
+          const [day, month, year] = String(item.date_from || '').split('.');
+          return item.days === 1 && `${year}-${month}-${day}` === requestedDay;
+        });
+        if (match) return match[1];
+        return periods.month || {};
+      }
       if (Array.isArray(periods)) {
         return periods.find(item => String(item.period_days ?? item.days ?? item.period) === activePeriod) || {};
       }
@@ -542,7 +556,9 @@
         : (eligible ? passed / eligible * 100 : 0);
 
       $('total').textContent = total;
-      $('total-note').textContent = cancelled ? `${cancelled} отменено` : 'за выбранный период';
+      $('total-note').textContent = summary.date_from && summary.date_to
+        ? (summary.date_from === summary.date_to ? summary.date_from : `${summary.date_from} — ${summary.date_to}`)
+        : (cancelled ? `${cancelled} отменено` : 'за выбранный период');
       $('confirmed').textContent = confirmed;
       $('confirmed-note').textContent = `${pending} ожидают подтверждения`;
       $('pass-rate').textContent = formatPercent(passRate);
@@ -734,7 +750,7 @@
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(API_URL + (requestedDay ? `?day=${encodeURIComponent(requestedDay)}` : ''), {
           method: 'POST',
           headers: { 'X-Telegram-Init-Data': tg.initData },
           signal: controller.signal
@@ -744,6 +760,13 @@
           throw new Error(result.message || `HTTP ${response.status}`);
         }
         data = result.data || { periods: {} };
+        if (requestedDay && data.periods?.report_day) {
+          $('report-day').hidden = false;
+          $('report-day').textContent = data.periods.report_day.date_from;
+        }
+        document.querySelectorAll('.period').forEach(button => {
+          button.classList.toggle('active', button.dataset.period === activePeriod);
+        });
         $('updated').textContent = data.updated_at ? `Данные обновлены: ${data.updated_at} МСК` : '';
         applyUiConfig(data.ui_config || {});
         $('loading').hidden = true;
