@@ -178,6 +178,7 @@
     $('#available-list').innerHTML = availableTemplates.length ? availableTemplates.map(item => templateCard(item, takenIds)).join('') : empty('Нет доступных заданий');
     $('#active-list').innerHTML = active.length ? active.map(item => adminAssignmentCard(item, evidenceByAssignment)).join('') : empty('Нет заданий в работе');
     $('#history-list').innerHTML = history.length ? history.map(item => adminAssignmentCard(item, evidenceByAssignment)).join('') : empty('История пока пуста');
+    if (state.data.history_next_cursor) $('#history-list').innerHTML += '<button class="button secondary" data-history-more>Показать ещё</button>';
   }
 
   function leaderCard(item, evidenceByAssignment) {
@@ -332,6 +333,18 @@
     if (tab) {
       const area = tab.closest('#leader-tabs') ? 'leader' : tab.closest('#settings-tabs') ? 'settings' : 'admin';
       switchTab(area, tab.dataset.tab); return;
+    }
+    const historyMore = event.target.closest('[data-history-more]');
+    if (historyMore) {
+      historyMore.disabled = true;
+      try {
+        const page = await api('history', {before:state.data.history_next_cursor});
+        const known = new Set(state.data.own_assignments.map(item => item.assignment_id));
+        state.data.own_assignments.push(...page.assignments.filter(item => !known.has(item.assignment_id)));
+        state.data.history_next_cursor = page.next_cursor;
+        render();
+      } catch (error) { historyMore.disabled = false; toast(error.message); }
+      return;
     }
     const take = event.target.closest('[data-take]');
     if (take) {
