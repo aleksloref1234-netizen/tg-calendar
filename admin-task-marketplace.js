@@ -3,7 +3,7 @@
 
   const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/admin/tasks';
   const tg = window.Telegram?.WebApp;
-  const state = { data: null, role: 'admin', adminTab: 'available', settingsTab: 'templates', levelUpShowing: '' };
+  const state = { data: null, role: 'admin', adminTab: 'available', settingsTab: 'templates', levelUpShowing: '', withdrawing: false };
   const $ = selector => document.querySelector(selector);
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   const dateText = value => value ? new Intl.DateTimeFormat('ru-RU', {timeZone:'Europe/Moscow',dateStyle:'short',timeStyle:'short'}).format(new Date(value)) + ' МСК' : 'Без ограничения';
@@ -27,14 +27,15 @@
   tg?.ready();
   tg?.expand();
 
-  async function api(action, payload = {}) {
+  async function api(action, payload = {}, {signal} = {}) {
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Telegram-Init-Data': tg?.initData || ''
       },
-      body: JSON.stringify({ action, ...payload })
+      body: JSON.stringify({ action, ...payload }),
+      signal
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok || body.status !== 'success') {
@@ -198,7 +199,7 @@
     $('#wallet-week-reset').textContent = wallet.weekly_reset_at ? `Новый лимит: ${dateText(wallet.weekly_reset_at)}` : '';
     $('#wallet-debt').hidden = !Number(wallet.report_debt || 0);
     $('#wallet-debt').textContent = `Корректировка: ${Number(wallet.report_debt || 0)} репортов погасится будущими начислениями.`;
-    $('#withdraw-button').disabled = available <= 0;
+    $('#withdraw-button').disabled = state.withdrawing || available <= 0;
     $('#level-title').textContent = profile?.title || 'Новичок';
     $('#level-multiplier').textContent = `×${Number(profile?.reward_multiplier || 1).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
     $('#level-progress').style.width = `${Math.max(0, Math.min(100, Number(profile?.progress_percent || 0)))}%`;
@@ -604,19 +605,72 @@
     try { await uploadEvidence(input.dataset.upload, input.files); await reload({quiet:true}); toast('Скриншоты добавлены'); } catch (error) { toast(error.message); } finally { input.disabled = false; input.value = ''; }
   });
 
-  $('#withdraw-button').addEventListener('click', async () => {
-    const available = Math.min(Number(state.data.wallet.report_balance || 0),Number(state.data.wallet.weekly_remaining ?? state.data.wallet.report_balance ?? 0));
-    if (!available) return toast('На балансе пока нет бонусных репортов');
-    const raw = window.prompt(`Сколько репортов вывести? Доступно: ${available}`, String(available));
-    if (raw === null) return;
+  function withdrawableAmount() {
+    const wallet = state.data?.wallet || {};
+    return Math.max(0, Math.min(Number(wallet.report_balance || 0),Number(wallet.weekly_remaining ?? wallet.report_balance ?? 0)));
+  }
+
+  function openWithdrawDialog() {
+    if (state.withdrawing || $('#withdraw-dialog').open) return;
+    const available = withdrawableAmount();
+    if (!available) return toast(Number(state.data?.wallet?.report_balance || 0) ? 'Недельный лимит вывода исчерпан. Остаток сохранён в банке.' : 'В банке пока нет бонусных репортов');
+    $('#withdraw-available').textContent = `Сейчас доступно к выводу: ${available} репортов.`;
+    $('#withdraw-amount').max = String(available);
+    $('#withdraw-amount').value = String(available);
+    $('#withdraw-error').hidden = true;
+    $('#withdraw-error').textContent = '';
+    $('#withdraw-dialog').showModal();
+    $('#withdraw-amount').focus();
+    $('#withdraw-amount').select();
+  }
+
+  function setWithdrawalBusy(busy) {
+    state.withdrawing = busy;
+    ['#withdraw-amount','#withdraw-confirm','#withdraw-close','#withdraw-cancel'].forEach(id => { $(id).disabled = busy; });
+    $('#withdraw-button').disabled = busy || withdrawableAmount() <= 0;
+    $('#withdraw-confirm').textContent = busy ? 'Отправляем…' : 'Вывести';
+  }
+
+  async function submitWithdrawal(event) {
+    event.preventDefault();
+    if (state.withdrawing) return;
+    const available = withdrawableAmount();
+    $('#withdraw-amount').max = String(available);
+    $('#withdraw-available').textContent = `Сейчас доступно к выводу: ${available} репортов.`;
+    const raw = $('#withdraw-amount').value.trim();
     const amount = Number(raw);
-    if (!Number.isInteger(amount) || amount < 1 || amount > available) return toast('Укажите корректное количество');
+    $('#withdraw-error').hidden = true;
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(amount) || amount < 1 || amount > available) {
+      $('#withdraw-error').textContent = available > 0 ? `Укажите целое число от 1 до ${available}.` : 'Недельный лимит вывода исчерпан. Остаток сохранён в банке.';
+      $('#withdraw-error').hidden = false;
+      $('#withdraw-amount').focus();
+      return;
+    }
     const opName = `admin-task-withdraw:${state.data.viewer.user_id}:${amount}`;
     const operationId = sessionStorage.getItem(opName) || `withdraw:${state.data.viewer.user_id}:${crypto.randomUUID()}`;
     sessionStorage.setItem(opName,operationId);
-    $('#withdraw-button').disabled = true;
-    try { await api('withdraw',{amount,operation_id:operationId}); sessionStorage.removeItem(opName); await reload({quiet:true}); toast('Репорты поставлены в очередь на вывод'); } catch (error) { $('#withdraw-button').disabled = false; toast(error.message); }
-  });
+    setWithdrawalBusy(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+    try {
+      await api('withdraw',{amount,operation_id:operationId},{signal:controller.signal});
+      sessionStorage.removeItem(opName);
+      $('#withdraw-dialog').close();
+      await reload({quiet:true});
+      toast('Репорты поставлены в очередь на вывод');
+    } catch (error) {
+      $('#withdraw-error').textContent = error.name === 'AbortError'
+        ? 'Подтверждение вывода задержалось. Повторите попытку — повторный запрос не спишет репорты ещё раз.' : error.message;
+      $('#withdraw-error').hidden = false;
+    } finally { clearTimeout(timeout); setWithdrawalBusy(false); }
+  }
+
+  $('#withdraw-button').addEventListener('click', openWithdrawDialog);
+  $('#withdraw-form').addEventListener('submit', submitWithdrawal);
+  ['#withdraw-close','#withdraw-cancel'].forEach(id => $(id).addEventListener('click', () => {
+    if (!state.withdrawing) $('#withdraw-dialog').close();
+  }));
+  $('#withdraw-dialog').addEventListener('cancel', event => { if (state.withdrawing) event.preventDefault(); });
 
   $('#member-select').addEventListener('change', () => { if ($('#member-select').value) $('#member-id').value = $('#member-select').value; });
   $('#create-stepped').addEventListener('change', () => {

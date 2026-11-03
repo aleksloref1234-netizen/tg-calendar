@@ -14,13 +14,13 @@ function fixture() {
 function app(fetcher = async action => action === 'bootstrap' ? fixture() : {}) {
   const nodes = new Map(), stored = new Map(), calls = [], dialogs = [];
   function node(selector) {
-    if (!nodes.has(selector)) nodes.set(selector,{value:'',hidden:false,innerHTML:'',textContent:'',style:{},dataset:{},listeners:{},classList:{add(){},remove(){},toggle(){}},addEventListener(type,fn){(this.listeners[type] ||= new Set()).add(fn);},removeEventListener(type,fn){this.listeners[type]?.delete(fn);},showModal(){if(selector === '#decision-dialog'){dialogs.push(nodes.get('#dialog-title').textContent);queueMicrotask(()=>{node('#dialog-reason').value='Обоснованная причина';this.returnValue='default';for(const fn of [...(this.listeners.close || [])])fn();});}},close(){for(const fn of [...(this.listeners.close || [])])fn();}});
+    if (!nodes.has(selector)) nodes.set(selector,{value:'',hidden:false,open:false,innerHTML:'',textContent:'',style:{},dataset:{},listeners:{},classList:{add(){},remove(){},toggle(){}},focus(){this.focused=true;},select(){this.selected=true;},addEventListener(type,fn){(this.listeners[type] ||= new Set()).add(fn);},removeEventListener(type,fn){this.listeners[type]?.delete(fn);},showModal(){this.open=true;if(selector === '#decision-dialog'){dialogs.push(nodes.get('#dialog-title').textContent);queueMicrotask(()=>{node('#dialog-reason').value='Обоснованная причина';this.returnValue='default';for(const fn of [...(this.listeners.close || [])])fn();});}},close(){this.open=false;for(const fn of [...(this.listeners.close || [])])fn();}});
     return nodes.get(selector);
   }
   const document = {querySelector:node,querySelectorAll:()=>[],addEventListener(){}};
   const window = {Telegram:{WebApp:{initData:'signed-telegram-data',ready(){},expand(){}}}};
-  const context = {window,document,Intl,Date,CSS:{escape:s=>s},queueMicrotask,crypto:{randomUUID:()=>`uuid-${calls.length}`},sessionStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)},setTimeout:()=>0,clearTimeout(){},fetch:async(_url, options)=>{const body=JSON.parse(options.body);calls.push({body,headers:options.headers});return {ok:true,json:async()=>({status:'success',data:await fetcher(body.action,body)})};}};
-  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,render,renderAdmin,renderLeader,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision};\n})();');
+  const context = {window,document,Intl,Date,AbortController,CSS:{escape:s=>s},queueMicrotask,crypto:{randomUUID:()=>`uuid-${calls.length}`},sessionStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)},setTimeout:()=>0,clearTimeout(){},fetch:async(_url, options)=>{const body=JSON.parse(options.body);calls.push({body,headers:options.headers});const data=await fetcher(body.action,body);return {ok:true,json:async()=>({status:'success',data})};}};
+  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,render,renderAdmin,renderLeader,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision,openWithdrawDialog,submitWithdrawal};\n})();');
   vm.runInNewContext(testSource,context);
   window.testApp.state.data=fixture();
   return {...window.testApp,node,calls,stored,dialogs};
@@ -44,7 +44,7 @@ test('confirmation keeps paragraphs, list indentation and untrusted text as lite
 test('long confirmation rules scroll inside the viewport and load the updated style',()=>{
   assert.match(policyCss,/#decision-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 24px\)/);
   assert.match(policyCss,/#decision-dialog\s*\{[^}]*overflow:\s*auto/);
-  assert.match(html,/admin-task-marketplace-policy\.css\?v=20261103-3/);
+  assert.match(html,/admin-task-marketplace-policy\.css\?v=20261103-4/);
 });
 
 test('wallet renders stored bank separately from this week available amount',()=>{
@@ -145,4 +145,87 @@ test('non-master cannot initiate owner resets in the interface',async()=>{
   const page=app();page.state.data.viewer.is_master=false;
   await page.memberAction({dataset:{memberAction:'reset_bank'}});
   assert.equal(page.calls.length,0);assert.equal(page.dialogs.length,0);
+});
+
+test('withdrawal opens an in-app dialog without a browser prompt or site heading',()=>{
+  const page=app();page.openWithdrawDialog();
+  assert.equal(page.node('#withdraw-dialog').open,true);
+  assert.equal(page.node('#withdraw-amount').value,'200');
+  assert.equal(page.node('#withdraw-amount').max,'200');
+  assert.match(page.node('#withdraw-available').textContent,/200 репортов/);
+  assert.equal(page.node('#withdraw-amount').focused,true);
+  assert.doesNotMatch(source,/window\.prompt\s*\(/);
+  const dialog=html.match(/<dialog id="withdraw-dialog"[\s\S]*?<\/dialog>/)[0];
+  assert.doesNotMatch(dialog,/github\.io/);
+  assert.match(dialog,/aria-labelledby="withdraw-title"/);
+  assert.match(dialog,/>Отмена<|>Вывести</);
+  assert.equal(page.calls.length,0);
+});
+
+test('withdrawal validates whole quantities and current weekly allowance before sending',async()=>{
+  const page=app();page.openWithdrawDialog();
+  for(const value of ['', '0', '-1', '2.5', '201', '2e2']){
+    page.node('#withdraw-amount').value=value;
+    await page.submitWithdrawal({preventDefault(){}});
+    assert.equal(page.calls.length,0,value);
+    assert.equal(page.node('#withdraw-error').hidden,false);
+    assert.equal(page.node('#withdraw-dialog').open,true);
+  }
+  page.state.data.wallet.weekly_remaining=50;
+  page.node('#withdraw-amount').value='100';
+  await page.submitWithdrawal({preventDefault(){}});
+  assert.match(page.node('#withdraw-error').textContent,/от 1 до 50/);
+  assert.equal(page.node('#withdraw-amount').max,'50');
+  assert.equal(page.calls.length,0);
+  page.node('#withdraw-amount').value='50';
+  await page.submitWithdrawal({preventDefault(){}});
+  const request=page.calls.find(call=>call.body.action==='withdraw');
+  assert.equal(request.body.amount,50);
+  assert.equal(request.headers['X-Telegram-Init-Data'],'signed-telegram-data');
+  assert.equal(page.node('#withdraw-dialog').open,false);
+});
+
+test('withdrawal cancellation never sends an operation',()=>{
+  const page=app();page.openWithdrawDialog();
+  for(const listener of page.node('#withdraw-cancel').listeners.click)listener();
+  assert.equal(page.node('#withdraw-dialog').open,false);
+  assert.equal(page.calls.length,0);
+});
+
+test('withdrawal timeout keeps the form and retries the same operation key',async()=>{
+  let fail=true;
+  const page=app(async action=>{
+    if(action==='withdraw' && fail){fail=false;throw Object.assign(new Error('timeout'),{name:'AbortError'});}
+    return action==='bootstrap'?fixture():{};
+  });
+  page.openWithdrawDialog();
+  await page.submitWithdrawal({preventDefault(){}});
+  assert.equal(page.node('#withdraw-dialog').open,true);
+  assert.equal(page.node('#withdraw-confirm').disabled,false);
+  assert.match(page.node('#withdraw-error').textContent,/не спишет репорты ещё раз/);
+  await page.submitWithdrawal({preventDefault(){}});
+  const withdrawals=page.calls.filter(call=>call.body.action==='withdraw');
+  assert.equal(withdrawals.length,2);
+  assert.equal(withdrawals[0].body.operation_id,withdrawals[1].body.operation_id);
+  assert.equal(page.node('#withdraw-dialog').open,false);
+  assert.equal(page.stored.size,0);
+});
+
+test('withdrawal blocks repeated submission and accidental closing while pending',async()=>{
+  let resolveRequest;
+  const page=app(async action=>action==='withdraw'?new Promise(resolve=>{resolveRequest=resolve;}):fixture());
+  page.openWithdrawDialog();
+  const first=page.submitWithdrawal({preventDefault(){}});
+  assert.equal(page.state.withdrawing,true);
+  assert.equal(page.node('#withdraw-confirm').disabled,true);
+  await page.submitWithdrawal({preventDefault(){}});
+  assert.equal(page.calls.filter(call=>call.body.action==='withdraw').length,1);
+  for(const listener of page.node('#withdraw-cancel').listeners.click)listener();
+  assert.equal(page.node('#withdraw-dialog').open,true);
+  let prevented=false;
+  for(const listener of page.node('#withdraw-dialog').listeners.cancel)listener({preventDefault(){prevented=true;}});
+  assert.equal(prevented,true);
+  resolveRequest({});await first;
+  assert.equal(page.state.withdrawing,false);
+  assert.equal(page.node('#withdraw-dialog').open,false);
 });

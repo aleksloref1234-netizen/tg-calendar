@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#081326">
   <title>Дополнительные задания</title>
   <link rel="stylesheet" href="admin-task-marketplace.css?v=20261103-1">
-  <link rel="stylesheet" href="admin-task-marketplace-policy.css?v=20261103-3">
+  <link rel="stylesheet" href="admin-task-marketplace-policy.css?v=20261103-4">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="admin-app-bridge.js?v=20261026-1"></script>
 </head>
@@ -138,6 +138,20 @@
     </form>
   </dialog>
 
+  <dialog id="withdraw-dialog" aria-labelledby="withdraw-title">
+    <form method="dialog" class="dialog-card" id="withdraw-form" novalidate>
+      <button class="dialog-close" id="withdraw-close" type="button" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Бонусный банк</p>
+      <h2 id="withdraw-title">Вывести репорты</h2>
+      <p id="withdraw-available"></p>
+      <label for="withdraw-amount">Количество репортов</label>
+      <input id="withdraw-amount" name="amount" type="number" inputmode="numeric" min="1" step="1" autocomplete="off" required aria-describedby="withdraw-error">
+      <p class="withdraw-hint">Репорты будут поставлены в очередь на вывод в таблицу. Остаток банка сохранится.</p>
+      <p id="withdraw-error" class="withdraw-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button class="button secondary" id="withdraw-cancel" type="button">Отмена</button><button class="button primary" id="withdraw-confirm" type="submit">Вывести</button></div>
+    </form>
+  </dialog>
+
   <dialog id="create-dialog">
     <form method="dialog" class="dialog-card form-grid" id="create-form">
       <button class="dialog-close" value="cancel" aria-label="Закрыть">×</button>
@@ -188,6 +202,6 @@
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261103-3"></script>
+  <script src="admin-task-marketplace.js?v=20261103-4"></script>
 </body>
 </html>

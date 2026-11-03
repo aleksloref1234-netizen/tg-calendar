@@ -71,7 +71,7 @@ test('master can define and edit exact instructions for every task', () => {
 test('admin task cards do not expose internal verification mode labels', () => {
   const source = script.match(/function templateCard[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(source, /typeLabel\(/);
-  assert.match(html, /admin-task-marketplace\.js\?v=20261103-3/);
+  assert.match(html, /admin-task-marketplace\.js\?v=20261103-4/);
 });
 
 test('limited assignments show reward caps without an automatic timer', () => {
