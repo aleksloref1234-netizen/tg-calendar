@@ -540,7 +540,7 @@
     if (review) {
       const decision = review.dataset.review;
       const requiresReason = decision !== 'approve';
-      const reason = await askDecision({eyebrow:'Модерация',title:decision === 'approve' ? 'Принять выполнение?' : decision === 'return' ? 'Вернуть на доработку?' : 'Отклонить отчёт?',text:decision === 'approve' ? 'Репорты поступят в кошелёк, а процент применится к индексу.' : 'Администратор увидит указанную причину.',reason:requiresReason,confirm:decision === 'approve' ? 'Принять' : 'Сохранить решение'});
+      const reason = await askDecision({eyebrow:'Модерация',title:decision === 'approve' ? 'Принять выполнение?' : decision === 'return' ? 'Вернуть на доработку?' : 'Отклонить отчёт?',text:decision === 'approve' ? 'Репорты поступят в банк, а процент применится к индексу.' : 'Администратор увидит указанную причину.',reason:requiresReason,confirm:decision === 'approve' ? 'Принять' : 'Сохранить решение'});
       if (reason === null || (requiresReason && !reason)) return;
       review.disabled = true;
       try { await api('review',{assignment_id:review.dataset.id,decision,reason,...(decision === 'approve' ? effortPayload(review.dataset.id) : {})}); await reload({quiet:true}); toast('Решение сохранено'); } catch (error) { review.disabled = false; toast(error.message); }

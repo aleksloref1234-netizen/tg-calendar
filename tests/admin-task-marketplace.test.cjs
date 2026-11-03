@@ -71,7 +71,7 @@ test('master can define and edit exact instructions for every task', () => {
 test('admin task cards do not expose internal verification mode labels', () => {
   const source = script.match(/function templateCard[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(source, /typeLabel\(/);
-  assert.match(html, /admin-task-marketplace\.js\?v=20261103-2/);
+  assert.match(html, /admin-task-marketplace\.js\?v=20261103-3/);
 });
 
 test('limited assignments show reward caps without an automatic timer', () => {
@@ -118,4 +118,9 @@ test('old task history is loaded in pages without hiding earlier records', () =>
   assert.match(script, /data-history-more/);
   assert.match(script, /api\('history', \{before:/);
   assert.match(script, /known\.has\(item\.assignment_id\)/);
+});
+
+test('approval confirmation calls the reward destination a bank', () => {
+  assert.match(script, /Репорты поступят в банк, а процент применится к индексу\./);
+  assert.doesNotMatch(script, /Репорты поступят в кошелёк/);
 });
