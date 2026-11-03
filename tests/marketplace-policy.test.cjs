@@ -5,6 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const html = fs.readFileSync(path.join(__dirname,'../admin-task-marketplace.html'),'utf8');
 const source = fs.readFileSync(path.join(__dirname,'../admin-task-marketplace.js'),'utf8');
+const policyCss = fs.readFileSync(path.join(__dirname,'../admin-task-marketplace-policy.css'),'utf8');
 
 function fixture() {
   return {viewer:{user_id:900,is_master:true,is_leader:true},wallet:{report_balance:1400,index_bonus_total:4,weekly_limit:1000,weekly_used:800,weekly_remaining:200,weekly_reset_at:'2026-11-08T21:00:00+00:00'},task_profile:{title:'Новичок',xp:80,next_level:{title:'Активный'},xp_to_next:20},templates:[],all_templates:[],assignments:[],own_assignments:[],evidence:[],level_settings:[],review_history:[],progress_events:[]};
@@ -19,7 +20,7 @@ function app(fetcher = async action => action === 'bootstrap' ? fixture() : {}) 
   const document = {querySelector:node,querySelectorAll:()=>[],addEventListener(){}};
   const window = {Telegram:{WebApp:{initData:'signed-telegram-data',ready(){},expand(){}}}};
   const context = {window,document,Intl,Date,CSS:{escape:s=>s},queueMicrotask,crypto:{randomUUID:()=>`uuid-${calls.length}`},sessionStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)},setTimeout:()=>0,clearTimeout(){},fetch:async(_url, options)=>{const body=JSON.parse(options.body);calls.push({body,headers:options.headers});return {ok:true,json:async()=>({status:'success',data:await fetcher(body.action,body)})};}};
-  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,render,renderAdmin,renderLeader,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput};\n})();');
+  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,render,renderAdmin,renderLeader,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision};\n})();');
   vm.runInNewContext(testSource,context);
   window.testApp.state.data=fixture();
   return {...window.testApp,node,calls,stored,dialogs};
@@ -28,6 +29,22 @@ function app(fetcher = async action => action === 'bootstrap' ? fixture() : {}) 
 test('all static element bindings exist in the page',()=>{
   const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]));
   for(const match of source.matchAll(/\$\('#([a-z0-9-]+)'\)/g)) assert.ok(ids.has(match[1]),`Missing #${match[1]}`);
+});
+
+test('confirmation keeps paragraphs, list indentation and untrusted text as literal text',async()=>{
+  const page=app();
+  const text='Описание задания\n\nПравила:\n1. Первый пункт\n   Подпункт с отступом\n2. Второй пункт\n\nПримечание: <img src=x onerror=alert(1)>';
+  await page.askDecision({title:'Взять задание?',text});
+  assert.equal(page.node('#dialog-text').textContent,text);
+  assert.equal(page.node('#dialog-text').innerHTML,'');
+  assert.match(policyCss,/#dialog-text\s*\{[^}]*white-space:\s*pre-wrap/);
+  assert.match(policyCss,/#dialog-text\s*\{[^}]*overflow-wrap:\s*anywhere/);
+});
+
+test('long confirmation rules scroll inside the viewport and load the updated style',()=>{
+  assert.match(policyCss,/#decision-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 24px\)/);
+  assert.match(policyCss,/#decision-dialog\s*\{[^}]*overflow:\s*auto/);
+  assert.match(html,/admin-task-marketplace-policy\.css\?v=20261103-3/);
 });
 
 test('wallet renders stored bank separately from this week available amount',()=>{
