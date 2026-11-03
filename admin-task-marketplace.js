@@ -3,9 +3,26 @@
 
   const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/admin/tasks';
   const tg = window.Telegram?.WebApp;
-  const state = { data: null, role: 'admin', adminTab: 'available', leaderTab: 'counter', settingsTab: 'templates', levelUpShowing: '' };
+  const state = { data: null, role: 'admin', adminTab: 'available', settingsTab: 'templates', levelUpShowing: '' };
   const $ = selector => document.querySelector(selector);
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+  const dateText = value => value ? new Intl.DateTimeFormat('ru-RU', {timeZone:'Europe/Moscow',dateStyle:'short',timeStyle:'short'}).format(new Date(value)) + ' МСК' : 'Без ограничения';
+  function moscowInput(value) {
+    if (!value) return '';
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('sv-SE', {timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)).map(part => [part.type,part.value]));
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+  }
+  function nightFields(item, review = false) {
+    if (!item.reward_steps?.length || (!review && item.status !== 'in_progress')) return '';
+    return `<div class="effort-fields"><label>${review ? 'Подтверждённые' : 'Выполненные'} полные часы<select data-effort="${esc(item.assignment_id)}">${item.reward_steps.map((_,index) => `<option value="${index+1}" ${Number(item.reward_units || 1) === index+1 ? 'selected' : ''}>${index+1} ч.</option>`).join('')}</select></label><label>Дата начала ночи<input type="date" data-work-period="${esc(item.assignment_id)}" value="${esc(item.work_period || '')}"></label><small>Ночь: 22:00–06:00 МСК. Сумма рассчитывается по уже оплаченным часам этой ночи. Время и условия проверяет куратор по скриншотам.</small></div>`;
+  }
+  function effortPayload(id) {
+    const hours = document.querySelector(`[data-effort="${CSS.escape(id)}"]`);
+    const day = document.querySelector(`[data-work-period="${CSS.escape(id)}"]`);
+    if (!hours) return {};
+    if (!day?.value) throw new Error('Укажите дату начала ночного дежурства.');
+    return {reward_units:Number(hours.value),work_period:day.value};
+  }
 
   tg?.ready();
   tg?.expand();
@@ -50,7 +67,7 @@
     $('#level-up-to').textContent = after.title || 'Новый уровень';
     $('#level-up-xp').textContent = `${Number(event.xp || 0)} XP`;
     $('#level-up-multiplier').textContent = `×${multiplier}`;
-    $('#level-up-message').textContent = `Уровень повышен за задание «${event.task_title || 'Дополнительное задание'}». Новые задания теперь приносят больше бонусных репортов.`;
+    $('#level-up-message').textContent = event.manual ? 'Master ID повысил ваш уровень. Новые задания будут учитывать новый коэффициент.' : `Уровень повышен за задание «${event.task_title || 'Дополнительное задание'}». Новые задания теперь приносят больше бонусных репортов.`;
     state.levelUpShowing = event.assignment_id;
     const dialog = $('#level-up-dialog');
     dialog.classList.remove('celebrate');
@@ -91,14 +108,14 @@
   function statusLabel(status) {
     return ({
       in_progress: 'В работе', pending_review: 'На проверке', approved: 'Выполнено',
-      rejected: 'Отклонено', expired: 'Истёк срок'
+      rejected: 'Отклонено', expired: 'Истёк срок', cancelled:'Отменено', revoked:'Одобрение отменено'
     })[status] || status;
   }
 
   function statusClass(status) {
     if (status === 'approved') return 'ok';
     if (status === 'pending_review') return 'wait';
-    if (['rejected', 'expired'].includes(status)) return 'bad';
+    if (['rejected', 'expired', 'cancelled', 'revoked'].includes(status)) return 'bad';
     return '';
   }
 
@@ -111,12 +128,23 @@
   function reward(item) {
     const multiplier = Number(item.reward_multiplier || 1);
     const multiplierLabel = multiplier > 1 ? ` · ×${multiplier.toLocaleString('ru-RU', {maximumFractionDigits:2})}` : '';
-    return `<div class="reward-row"><span class="reward">+${Number(item.reward_reports || 0)} репортов${multiplierLabel}</span><span class="reward">+${Number(item.reward_index || 0).toLocaleString('ru-RU')}% к индексу</span><span class="reward">+${Number(item.reward_xp || 10)} XP</span></div>`;
+    const reportLabel = item.reward_steps?.length && !['pending_review','approved','revoked'].includes(item.status)
+      ? 'Репорты по подтверждённым часам' : `+${Number(item.reward_reports || 0)} репортов${multiplierLabel}`;
+    return `<div class="reward-row"><span class="reward">${reportLabel}</span><span class="reward">+${Number(item.reward_index || 0).toLocaleString('ru-RU')}% к индексу</span><span class="reward">+${Number(item.reward_xp || 10)} XP</span></div>`;
   }
 
   function rulesBlock(item) {
-    if (!item.instructions) return '';
-    return `<details class="task-rules"><summary>Подробное описание и правила</summary><p>${esc(item.instructions)}</p></details>`;
+    return policyBlock(item) + (item.instructions ? `<details class="task-rules"><summary>Подробное описание и правила</summary><p>${esc(item.instructions)}</p></details>` : '');
+  }
+
+  function policyBlock(item) {
+    const pieces = [];
+    if (item.global_remaining != null) pieces.push(`Свободно мест: ${item.global_remaining} из ${item.global_limit}`);
+    if (item.min_level_key && item.min_level_key !== 'novice') pieces.push(`С уровня «${item.min_level_title}»`);
+    if (item.publish_until) pieces.push(`Публикация до ${dateText(item.publish_until)}`);
+    if (item.reward_steps?.length) pieces.push(`Тарифы за ночь: ${item.reward_steps.map((amount,index) => `${index+1}-й час — ${amount}`).join('; ')} реп.`);
+    if (item.publication_message && state.role === 'settings') pieces.push(item.publication_message);
+    return pieces.length ? `<div class="time-rule"><b>${pieces.map(esc).join('<br>')}</b></div>` : '';
   }
 
   function timeRuleBlock(item, assignment = false) {
@@ -132,7 +160,7 @@
     const limit = Number(item.completion_limit || 0);
     if (!limit) return 'Без ограничения по количеству';
     const period = ({day:'за сутки',week:'за неделю',night:'за ночь'})[item.limit_period] || 'за период';
-    return `До ${limit} выполнений ${period}`;
+    return `До ${limit} ${item.reward_steps?.length ? 'оплачиваемых часов' : 'выполнений'} ${period}`;
   }
 
   function templateCard(item, takenIds) {
@@ -149,7 +177,11 @@
     const upload = item.status === 'in_progress' && item.verification_mode === 'evidence_review'
       ? `<label class="upload">＋ Добавить скриншоты<input type="file" accept="image/jpeg,image/png,image/webp" multiple data-upload="${esc(item.assignment_id)}"></label>` : '';
     const evidenceList = evidence.length ? `<div class="evidence-grid">${evidence.map(file => `<span class="meta">${esc(file.file_name)}</span>`).join('')}</div>` : '';
-    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${evidenceList}${upload}${canSubmit ? `<div class="actions"><button class="button primary" data-submit="${esc(item.assignment_id)}">Задание выполнено</button></div>` : ''}${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
+    const canCancel = ['in_progress','pending_review'].includes(item.status);
+    const deadline = item.status === 'pending_review'
+      ? `Ожидание проверки не расходует срок выполнения. Проверка до ${dateText(item.review_due_at)}.`
+      : item.status === 'in_progress' ? `${item.revision_count ? 'Доработать' : 'Выполнить'} до ${dateText(item.deadline_at)}.` : '';
+    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${deadline ? `<p class="decision-details">${esc(deadline)}</p>` : ''}${evidenceList}${upload}${nightFields(item)}<div class="actions">${canSubmit ? `<button class="button primary" data-submit="${esc(item.assignment_id)}">Задание выполнено</button>` : ''}${canCancel ? `<button class="button ghost" data-cancel-assignment="${esc(item.assignment_id)}">Отказаться от задания</button>` : ''}</div>${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
   }
 
   function renderAdmin() {
@@ -157,6 +189,16 @@
     const assignments = state.data.own_assignments || state.data.assignments;
     $('#wallet-reports').textContent = Number(wallet.report_balance || 0);
     $('#wallet-index').textContent = Number(wallet.index_bonus_total || 0).toLocaleString('ru-RU');
+    const weeklyLimit = Number(wallet.weekly_limit ?? 1000);
+    const weeklyUsed = Number(wallet.weekly_used || 0);
+    const available = Math.min(Number(wallet.report_balance || 0),Number(wallet.weekly_remaining ?? weeklyLimit));
+    $('#wallet-week-label').textContent = `${weeklyUsed} / ${weeklyLimit} реп.`;
+    $('#wallet-week-progress').style.width = `${Math.min(100,weeklyUsed / Math.max(1,weeklyLimit) * 100)}%`;
+    $('#wallet-week-remaining').textContent = `Сейчас можно вывести: ${available} репортов. Остаток банка не сгорает. Выплаты в очереди сохраняют резерв лимита до исполнения.`;
+    $('#wallet-week-reset').textContent = wallet.weekly_reset_at ? `Новый лимит: ${dateText(wallet.weekly_reset_at)}` : '';
+    $('#wallet-debt').hidden = !Number(wallet.report_debt || 0);
+    $('#wallet-debt').textContent = `Корректировка: ${Number(wallet.report_debt || 0)} репортов погасится будущими начислениями.`;
+    $('#withdraw-button').disabled = available <= 0;
     $('#level-title').textContent = profile?.title || 'Новичок';
     $('#level-multiplier').textContent = `×${Number(profile?.reward_multiplier || 1).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
     $('#level-progress').style.width = `${Math.max(0, Math.min(100, Number(profile?.progress_percent || 0)))}%`;
@@ -165,6 +207,7 @@
     $('#level-next').textContent = profile?.next_level
       ? `До «${profile.next_level.title}»: ${Number(profile.xp_to_next || 0)} XP`
       : 'Максимальный уровень достигнут';
+    if (profile?.manual_level) $('#level-next').textContent = 'Уровень назначен Master ID · автоматический рост приостановлен';
     const active = assignments.filter(item => ['in_progress', 'pending_review'].includes(item.status));
     const history = assignments.filter(item => !['in_progress', 'pending_review'].includes(item.status));
     const takenIds = new Set(active.map(item => item.template_id));
@@ -188,7 +231,7 @@
       ? `<div class="actions"><button class="button primary" data-mark="${esc(item.assignment_id)}">Засчитать вход</button><button class="button ghost" data-undo="${esc(item.assignment_id)}">Отменить отметку</button></div>`
       : item.status === 'pending_review'
         ? `<div class="actions"><button class="button primary" data-review="approve" data-id="${esc(item.assignment_id)}">Принять</button><button class="button secondary" data-review="return" data-id="${esc(item.assignment_id)}">Вернуть</button><button class="button danger" data-review="reject" data-id="${esc(item.assignment_id)}">Отклонить</button></div>` : '';
-    return `<article class="task-card"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${fileHtml}${controls}</article>`;
+    return `<article class="task-card ${item.review_overdue ? 'review-overdue' : ''}"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${item.submitted_at ? `<p class="decision-details">Отправлено: ${esc(dateText(item.submitted_at))}<br>Проверить до: ${esc(dateText(item.review_due_at))}${item.review_overdue ? ' · проверка просрочена' : ''}</p>` : ''}${fileHtml}${item.status === 'pending_review' ? nightFields(item,true) : ''}${controls}</article>`;
   }
 
   function renderLeader() {
@@ -198,14 +241,24 @@
       const list = evidenceByAssignment.get(file.assignment_id) || [];
       list.push(file); evidenceByAssignment.set(file.assignment_id, list);
     });
-    const counters = assignments.filter(item => item.verification_mode === 'leadership_counter' && item.status === 'in_progress');
-    const reviews = assignments.filter(item => item.verification_mode === 'manual_review' && item.status === 'pending_review');
-    const proofs = assignments.filter(item => item.verification_mode === 'evidence_review' && item.status === 'pending_review');
-    $('#counter-count').textContent = counters.length;
-    $('#review-count').textContent = reviews.length + proofs.length;
-    $('#counter-list').innerHTML = counters.length ? counters.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет активных счётчиков');
-    $('#review-list').innerHTML = reviews.length ? reviews.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет отчётов без файлов');
-    $('#evidence-list').innerHTML = proofs.length ? proofs.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Нет отчётов со скриншотами');
+    const priority = item => item.status === 'pending_review' ? (item.review_overdue ? 0 : 1) : 2;
+    const queue = assignments.filter(item => item.status === 'pending_review' ||
+      (item.verification_mode === 'leadership_counter' && item.status === 'in_progress'))
+      .sort((a,b) => priority(a) - priority(b) ||
+        (Date.parse(a.submitted_at || a.taken_at || a.updated_at) || 0) - (Date.parse(b.submitted_at || b.taken_at || b.updated_at) || 0) ||
+        String(a.assignment_id).localeCompare(String(b.assignment_id)));
+    $('#queue-count').textContent = queue.length;
+    $('#review-count').textContent = queue.filter(item => item.status === 'pending_review').length;
+    $('#review-queue-list').innerHTML = queue.length ? queue.map(item => leaderCard(item, evidenceByAssignment)).join('') : empty('Очередь пуста: новых заданий для проверки нет');
+    const overdue = Number(state.data.review_summary?.overdue_count || 0);
+    $('#overdue-summary').hidden = !overdue;
+    $('#overdue-summary').textContent = `Просрочено проверок: ${overdue}. Задания администраторов остаются в очереди.`;
+    $('#review-history').hidden = !state.data.viewer.is_master;
+    if (state.data.viewer.is_master) {
+      const decisions = state.data.review_history || [];
+      $('#decisions-list').innerHTML = decisions.length ? decisions.map(item => `<article class="task-card"><div class="task-top"><div class="task-copy"><h3>${esc(item.admin_nickname || item.admin_id)}</h3><p>${esc(item.title)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${reward(item)}<p class="decision-details">Проверено: ${esc(dateText(item.reviewed_at))}${item.decision_reason ? `<br>${esc(item.decision_reason)}` : ''}</p>${item.status === 'approved' ? `<div class="actions"><button class="button danger" data-revoke-approval="${esc(item.assignment_id)}">Отменить одобрение</button></div>` : ''}</article>`).join('') : empty('Подтверждённых выполнений пока нет');
+      if (state.data.review_history_next_cursor) $('#decisions-list').innerHTML += '<button class="button secondary" data-decisions-more>Показать ещё</button>';
+    }
   }
 
   function renderSettings() {
@@ -218,6 +271,50 @@
 
   function empty(text) { return `<div class="empty">${esc(text)}</div>`; }
 
+  async function loadMemberList() {
+    const result = await api('members',{query:$('#member-query').value.trim()});
+    $('#member-select').innerHTML = '<option value="">Выберите участника или введите ID ниже</option>' + result.members.map(member => `<option value="${Number(member.admin_id)}">${esc(member.nickname || 'Telegram ID')} · ${Number(member.admin_id)}</option>`).join('');
+  }
+
+  async function loadMember() {
+    const id = $('#member-id').value.trim();
+    if (!/^[1-9]\d{0,12}$/.test(id)) throw new Error('Укажите корректный Telegram ID администратора.');
+    state.member = await api('member_profile',{admin_id:id});
+    const {task_profile:profile,wallet} = state.member;
+    $('#member-profile').hidden = false;
+    $('#member-name').textContent = `${state.member.admin_nickname} · ${state.member.admin_id}`;
+    $('#member-stats').textContent = `${profile.title} · ${profile.xp} XP · банк ${wallet.report_balance} реп. · бонус индекса +${wallet.index_bonus_total}%${Number(wallet.report_debt || 0) ? ` · корректировка к погашению ${wallet.report_debt} реп.` : ''}`;
+    $('#member-level').value = profile.manual_level ? profile.level_key : '';
+  }
+
+  async function memberAction(button) {
+    if (!state.data.viewer.is_master || !state.member) return;
+    const action = button.dataset.memberAction;
+    const labels = {set_level:'Изменить уровень?',reset_bank:'Обнулить банк и бонус индекса?',reset_progress:'Сбросить прогресс администратора?'};
+    const details = {set_level:'XP сохраняется. Ручной уровень действует до возврата автоматического режима. Уже взятые награды не меняются.',reset_bank:'Обнулятся доступные бонусные репорты и бонус индекса. Уже выведенные репорты, поручения в очереди и существующий корректировочный долг сохранятся. Прежние награды не будут списаны повторно после этого расчётного обнуления.',reset_progress:'XP и уровень сбросятся, незавершённые задания отменятся. Банк, бонус индекса и вся история останутся.'};
+    const reason = await askDecision({eyebrow:'Только Master ID',title:labels[action],text:`${state.member.admin_nickname} · ID ${state.member.admin_id}\n\n${details[action]}`,reason:true,confirm:'Продолжить'});
+    if (!reason) return;
+    if (action !== 'set_level') {
+      const confirmed = await askDecision({eyebrow:'Окончательное подтверждение',title:labels[action],text:`Администратор: ${state.member.admin_nickname} · ID ${state.member.admin_id}\nПричина: ${reason}\n\nИстория сохранится, но операция изменит текущие показатели.`,confirm:'Подтвердить сброс'});
+      if (confirmed === null) return;
+    }
+    const payload = {admin_id:state.member.admin_id,reason,level_key:$('#member-level').value};
+    const opName = `admin-task-owner:${action}:${state.member.admin_id}`;
+    const fingerprint = JSON.stringify(payload);
+    let operation = null;
+    try { operation = JSON.parse(sessionStorage.getItem(opName) || 'null'); } catch {}
+    if (!operation || operation.fingerprint !== fingerprint) operation = {fingerprint,id:`owner:${crypto.randomUUID()}`};
+    sessionStorage.setItem(opName,JSON.stringify(operation));
+    button.disabled = true;
+    try {
+      await api(action,{...payload,operation_id:operation.id});
+      sessionStorage.removeItem(opName);
+      await reload({quiet:true}); await loadMember();
+      toast('Изменение сохранено в истории');
+    } catch(error) { toast(error.message); }
+    finally { button.disabled = false; }
+  }
+
   function render() {
     $('#admin-view').hidden = state.role !== 'admin';
     $('#leader-view').hidden = state.role !== 'leader';
@@ -227,15 +324,14 @@
     if (state.data.viewer.is_leader) renderLeader();
     if (state.data.viewer.is_master) renderSettings();
     switchTab('admin', state.adminTab);
-    if (state.data.viewer.is_leader) switchTab('leader', state.leaderTab);
     if (state.data.viewer.is_master) switchTab('settings', state.settingsTab);
   }
 
   function switchTab(area, tab) {
-    const stateKey = area === 'admin' ? 'adminTab' : area === 'leader' ? 'leaderTab' : 'settingsTab';
+    const stateKey = area === 'admin' ? 'adminTab' : 'settingsTab';
     state[stateKey] = tab;
     document.querySelectorAll(`#${area}-tabs button`).forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
-    const ids = area === 'admin' ? ['available','active','history'] : area === 'leader' ? ['counter','review','evidence'] : ['templates','levels'];
+    const ids = area === 'admin' ? ['available','active','history'] : ['templates','levels','members','wallet-settings'];
     ids.forEach(id => { $(`#${id}-list`).hidden = id !== tab; });
   }
 
@@ -317,6 +413,14 @@
     $('#create-xp').value = Number(item?.reward_xp || 10);
     $('#create-limit').value = Number(item?.completion_limit || 0);
     $('#create-limit-period').value = item?.limit_period || 'none';
+    $('#create-global-limit').value = Number(item?.global_limit || 0);
+    $('#create-min-level').value = item?.min_level_key || 'novice';
+    $('#create-publish-from').value = moscowInput(item?.publish_from);
+    $('#create-publish-until').value = moscowInput(item?.publish_until);
+    $('#create-review-hours').value = Number(item?.review_hours || 24);
+    $('#create-revision-hours').value = Number(item?.revision_hours || 24);
+    $('#create-stepped').checked = !!item?.reward_steps?.length;
+    [150,250,350].forEach((amount,index) => { $(`#create-hour-${index+1}`).value = Number(item?.reward_steps?.[index] || amount); });
     $('#template-dialog-eyebrow').textContent = item ? 'Редактирование' : 'Новый шаблон';
     $('#template-dialog-title').textContent = item ? 'Настроить задание' : 'Создать задание';
     $('#template-submit').textContent = item ? 'Сохранить изменения' : 'Создать шаблон';
@@ -331,8 +435,51 @@
     }
     const tab = event.target.closest('.tabs [data-tab]');
     if (tab) {
-      const area = tab.closest('#leader-tabs') ? 'leader' : tab.closest('#settings-tabs') ? 'settings' : 'admin';
-      switchTab(area, tab.dataset.tab); return;
+      const area = tab.closest('#settings-tabs') ? 'settings' : 'admin';
+      switchTab(area, tab.dataset.tab);
+      try {
+        if (area === 'settings' && tab.dataset.tab === 'members') await loadMemberList();
+        if (area === 'settings' && tab.dataset.tab === 'wallet-settings') {
+          const settings = await api('wallet_settings');
+          $('#weekly-withdrawal-limit').value = settings.weekly_withdrawal_limit;
+        }
+      } catch(error) { toast(error.message); }
+      return;
+    }
+    if (event.target.closest('#find-members')) { try { await loadMemberList(); } catch(error) { toast(error.message); } return; }
+    if (event.target.closest('#load-member')) { try { await loadMember(); } catch(error) { toast(error.message); } return; }
+    const ownerButton = event.target.closest('[data-member-action]');
+    if (ownerButton) { await memberAction(ownerButton); return; }
+    if (event.target.closest('#save-wallet-settings')) {
+      const button = event.target.closest('#save-wallet-settings'); button.disabled = true;
+      try { await api('save_wallet_settings',{weekly_withdrawal_limit:Number($('#weekly-withdrawal-limit').value)}); await reload({quiet:true}); toast('Недельный лимит сохранён'); }
+      catch(error) { toast(error.message); } finally { button.disabled = false; }
+      return;
+    }
+    const cancel = event.target.closest('[data-cancel-assignment]');
+    if (cancel) {
+      const accepted = await askDecision({title:'Отказаться от задания?',text:'Награда не начислится. Прогресс останется в истории, а занятое место освободится.',confirm:'Отказаться'});
+      if (accepted === null) return;
+      cancel.disabled = true;
+      try { await api('cancel',{assignment_id:cancel.dataset.cancelAssignment}); await reload({quiet:true}); toast('Задание отменено'); }
+      catch(error) { cancel.disabled = false; toast(error.message); }
+      return;
+    }
+    const revoke = event.target.closest('[data-revoke-approval]');
+    if (revoke) {
+      const reason = await askDecision({title:'Отменить одобрение?',text:'Награда, XP и бонус индекса будут скорректированы. Если репорты уже выведены, недостающая сумма погасится будущими начислениями. История решения сохранится.',reason:true,confirm:'Отменить одобрение'});
+      if (!reason) return;
+      revoke.disabled = true;
+      try { await api('revoke_approval',{assignment_id:revoke.dataset.revokeApproval,reason}); await reload({quiet:true}); toast('Одобрение отменено'); }
+      catch(error) { revoke.disabled = false; toast(error.message); }
+      return;
+    }
+    const decisionsMore = event.target.closest('[data-decisions-more]');
+    if (decisionsMore) {
+      decisionsMore.disabled = true;
+      try { const page = await api('moderation_history',{before:state.data.review_history_next_cursor}); const known = new Set((state.data.review_history || []).map(item => item.assignment_id)); state.data.review_history.push(...page.assignments.filter(item => !known.has(item.assignment_id))); state.data.review_history_next_cursor = page.next_cursor; renderLeader(); }
+      catch(error) { decisionsMore.disabled = false; toast(error.message); }
+      return;
     }
     const historyMore = event.target.closest('[data-history-more]');
     if (historyMore) {
@@ -361,7 +508,8 @@
     if (submit) {
       const accepted = await askDecision({ title:'Отправить на проверку?', text:'Награда будет начислена только после решения руководства.', confirm:'Отправить' });
       if (accepted === null) return;
-      try { await api('submit', {assignment_id:submit.dataset.submit}); await reload({quiet:true}); toast('Задание отправлено на проверку'); } catch (error) { toast(error.message); }
+      submit.disabled = true;
+      try { await api('submit', {assignment_id:submit.dataset.submit,...effortPayload(submit.dataset.submit)}); await reload({quiet:true}); toast('Задание отправлено на проверку'); } catch (error) { submit.disabled = false; toast(error.message); }
       return;
     }
     const mark = event.target.closest('[data-mark]');
@@ -394,7 +542,8 @@
       const requiresReason = decision !== 'approve';
       const reason = await askDecision({eyebrow:'Модерация',title:decision === 'approve' ? 'Принять выполнение?' : decision === 'return' ? 'Вернуть на доработку?' : 'Отклонить отчёт?',text:decision === 'approve' ? 'Репорты поступят в кошелёк, а процент применится к индексу.' : 'Администратор увидит указанную причину.',reason:requiresReason,confirm:decision === 'approve' ? 'Принять' : 'Сохранить решение'});
       if (reason === null || (requiresReason && !reason)) return;
-      try { await api('review',{assignment_id:review.dataset.id,decision,reason}); await reload({quiet:true}); toast('Решение сохранено'); } catch (error) { toast(error.message); }
+      review.disabled = true;
+      try { await api('review',{assignment_id:review.dataset.id,decision,reason,...(decision === 'approve' ? effortPayload(review.dataset.id) : {})}); await reload({quiet:true}); toast('Решение сохранено'); } catch (error) { review.disabled = false; toast(error.message); }
       return;
     }
     if (event.target.closest('#save-levels')) {
@@ -456,13 +605,23 @@
   });
 
   $('#withdraw-button').addEventListener('click', async () => {
-    const available = Number(state.data.wallet.report_balance || 0);
+    const available = Math.min(Number(state.data.wallet.report_balance || 0),Number(state.data.wallet.weekly_remaining ?? state.data.wallet.report_balance ?? 0));
     if (!available) return toast('На балансе пока нет бонусных репортов');
     const raw = window.prompt(`Сколько репортов вывести? Доступно: ${available}`, String(available));
     if (raw === null) return;
     const amount = Number(raw);
     if (!Number.isInteger(amount) || amount < 1 || amount > available) return toast('Укажите корректное количество');
-    try { await api('withdraw',{amount,operation_id:`withdraw:${state.data.viewer.user_id}:${crypto.randomUUID()}`}); await reload({quiet:true}); toast('Репорты поставлены в очередь на вывод'); } catch (error) { toast(error.message); }
+    const opName = `admin-task-withdraw:${state.data.viewer.user_id}:${amount}`;
+    const operationId = sessionStorage.getItem(opName) || `withdraw:${state.data.viewer.user_id}:${crypto.randomUUID()}`;
+    sessionStorage.setItem(opName,operationId);
+    $('#withdraw-button').disabled = true;
+    try { await api('withdraw',{amount,operation_id:operationId}); sessionStorage.removeItem(opName); await reload({quiet:true}); toast('Репорты поставлены в очередь на вывод'); } catch (error) { $('#withdraw-button').disabled = false; toast(error.message); }
+  });
+
+  $('#member-select').addEventListener('change', () => { if ($('#member-select').value) $('#member-id').value = $('#member-select').value; });
+  $('#create-stepped').addEventListener('change', () => {
+    if (!$('#create-stepped').checked) return;
+    $('#create-mode').value = 'evidence_review'; $('#create-limit-period').value = 'night'; $('#create-limit').value = 3;
   });
 
   $('#create-form').addEventListener('submit', async event => {
@@ -472,7 +631,8 @@
       const action = templateId ? 'update_template' : 'create_template';
       await api(action, {
         template_id:templateId,title:$('#create-title').value.trim(),description:$('#create-description').value.trim(),instructions:$('#create-instructions').value.trim(),verification_mode:$('#create-mode').value,
-        target_count:Number($('#create-target').value),deadline_hours:Number($('#create-deadline').value),reward_reports:Number($('#create-reports').value),reward_index:Number($('#create-index').value),reward_xp:Number($('#create-xp').value),completion_limit:Number($('#create-limit').value),limit_period:$('#create-limit-period').value
+        target_count:Number($('#create-target').value),deadline_hours:Number($('#create-deadline').value),reward_reports:$('#create-stepped').checked ? Number($('#create-hour-1').value) : Number($('#create-reports').value),reward_index:Number($('#create-index').value),reward_xp:Number($('#create-xp').value),completion_limit:Number($('#create-limit').value),limit_period:$('#create-limit-period').value,
+        global_limit:Number($('#create-global-limit').value),min_level_key:$('#create-min-level').value,publish_from:$('#create-publish-from').value,publish_until:$('#create-publish-until').value,review_hours:Number($('#create-review-hours').value),revision_hours:Number($('#create-revision-hours').value),reward_steps:$('#create-stepped').checked ? [1,2,3].map(hour => Number($(`#create-hour-${hour}`).value)) : []
       });
       $('#create-dialog').close(); await reload({quiet:true});
       state.role = 'settings'; state.settingsTab = 'templates'; render();

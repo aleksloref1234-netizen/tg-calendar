@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#081326">
   <title>Дополнительные задания</title>
-  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261025-2">
+  <link rel="stylesheet" href="admin-task-marketplace.css?v=20261103-1">
+  <link rel="stylesheet" href="admin-task-marketplace-policy.css?v=20261103-2">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="admin-app-bridge.js?v=20261026-1"></script>
 </head>
@@ -49,8 +50,14 @@
             <div class="level-foot" id="level-approved">Выполнено заданий: 0</div>
           </div>
           <div class="wallet-grid">
-            <div><small>Доступно к выводу</small><strong><span id="wallet-reports">0</span> <i>реп.</i></strong></div>
+            <div><small>Бонусный банк</small><strong><span id="wallet-reports">0</span> <i>реп.</i></strong></div>
             <div><small>Добавлено к индексу</small><strong>+<span id="wallet-index">0</span><i>%</i></strong></div>
+          </div>
+          <div class="wallet-week">
+            <div class="progress-head"><span>Вывод на этой неделе</span><b id="wallet-week-label">0 / 1000 реп.</b></div>
+            <div class="progress"><i id="wallet-week-progress"></i></div>
+            <p id="wallet-week-remaining"></p><small id="wallet-week-reset"></small>
+            <p id="wallet-debt" hidden></p>
           </div>
           <button class="button secondary" id="withdraw-button">Вывести репорты</button>
         </div>
@@ -69,17 +76,15 @@
         <div class="leader-hero">
           <p class="eyebrow">Панель руководства</p>
           <h1>Контроль выполнения</h1>
-          <p>Отметки входов, ручные отчёты и доказательства разделены по очередям.</p>
-          <div class="mini-stats"><div><b id="counter-count">0</b><span>счётчики</span></div><div><b id="review-count">0</b><span>на проверке</span></div></div>
+          <p>Все задания в одной очереди: засчитывайте входы и проверяйте отчёты здесь.</p>
+          <div class="mini-stats"><div><b id="queue-count">0</b><span>в общей очереди</span></div><div><b id="review-count">0</b><span>ожидают решения</span></div></div>
+          <p class="time-hint" id="overdue-summary" hidden></p>
         </div>
-        <nav class="tabs" id="leader-tabs">
-          <button class="active" data-tab="counter">Отметки</button>
-          <button data-tab="review">Без файлов</button>
-          <button data-tab="evidence">Со скринами</button>
-        </nav>
-        <section class="list" id="counter-list"></section>
-        <section class="list" id="review-list" hidden></section>
-        <section class="list" id="evidence-list" hidden></section>
+        <section class="list" id="review-queue-list" aria-label="Общая очередь проверки заданий"></section>
+        <details class="task-rules review-history" id="review-history" hidden>
+          <summary>История решений</summary>
+          <section class="list" id="decisions-list"></section>
+        </details>
       </section>
 
       <section id="settings-view" hidden>
@@ -91,9 +96,33 @@
         <nav class="tabs" id="settings-tabs">
           <button class="active" data-tab="templates">Шаблоны заданий</button>
           <button data-tab="levels">Уровни и коэффициенты</button>
+          <button data-tab="members">Администраторы</button>
+          <button data-tab="wallet-settings">Кошелёк</button>
         </nav>
         <section class="list" id="templates-list" hidden></section>
         <section class="list" id="levels-list" hidden></section>
+        <section class="list" id="members-list" hidden>
+          <div class="settings-note">Ручное управление доступно только Master ID. Оно не выдаёт доступ к разделу. История операций сохраняется.</div>
+          <div class="task-card owner-controls">
+            <label>Найти участника<input id="member-query" placeholder="Ник или Telegram ID"><button class="button secondary" id="find-members">Найти</button></label>
+            <label>Участники<select id="member-select"><option value="">Выберите участника или введите ID ниже</option></select></label>
+            <label>Telegram ID<input id="member-id" inputmode="numeric" placeholder="ID администратора"></label>
+            <button class="button secondary" id="load-member">Открыть профиль</button>
+          </div>
+          <div class="task-card owner-controls" id="member-profile" hidden>
+            <h3 id="member-name"></h3><p id="member-stats"></p>
+            <label>Уровень<select id="member-level"><option value="">Автоматически по XP</option><option value="novice">Новичок</option><option value="active">Активный</option><option value="experienced">Опытный</option><option value="expert">Эксперт</option></select></label>
+            <button class="button secondary" data-member-action="set_level">Изменить уровень</button>
+            <div class="owner-danger"><p>Операции сброса требуют причины и отдельного подтверждения. История и репорты в Google-таблице сохранятся.</p>
+              <button class="button danger" data-member-action="reset_bank">Обнулить банк и бонус индекса</button>
+              <button class="button danger" data-member-action="reset_progress">Сбросить XP, уровень и незавершённые задания</button>
+            </div>
+          </div>
+        </section>
+        <section class="list" id="wallet-settings-list" hidden>
+          <div class="settings-note">Лимит действует с понедельника 00:00 по МСК. В него входят выплаты в очереди и завершённые выводы. Накопленный остаток не сгорает.</div>
+          <div class="task-card owner-controls"><label>Вывод репортов в неделю<input id="weekly-withdrawal-limit" type="number" min="1" max="100000" value="1000"></label><button class="button primary" id="save-wallet-settings">Сохранить лимит</button></div>
+        </section>
       </section>
     </div>
   </main>
@@ -125,6 +154,17 @@
       <label>Опыт, XP<input id="create-xp" type="number" min="1" max="1000" value="10"></label>
       <label>Лимит выполнений<input id="create-limit" type="number" min="0" max="1000" value="0"><small>0 — без ограничений</small></label>
       <label>Период лимита<select id="create-limit-period"><option value="none">Без периода</option><option value="day">За сутки</option><option value="week">За неделю</option><option value="night">За ночь</option></select></label>
+      <label>Общее число мест<input id="create-global-limit" type="number" min="0" max="10000" value="0"><small>0 — без ограничения. Отказ освобождает место; подтверждённое выполнение занимает его.</small></label>
+      <label>Минимальный уровень<select id="create-min-level"><option value="novice">Новичок — доступно всем</option><option value="active">Активный</option><option value="experienced">Опытный</option><option value="expert">Эксперт</option></select></label>
+      <label>Начало публикации, МСК<input id="create-publish-from" type="datetime-local"><small>Пусто — без даты начала</small></label>
+      <label>Конец публикации, МСК<input id="create-publish-until" type="datetime-local"><small>Уже взятые задания сохранятся</small></label>
+      <label>Срок проверки, часов<input id="create-review-hours" type="number" min="1" max="744" value="24"></label>
+      <label>Срок доработки, часов<input id="create-revision-hours" type="number" min="1" max="744" value="24"></label>
+      <fieldset class="wide night-settings"><legend>Награда ночного дежурства по часам</legend>
+        <label><input id="create-stepped" type="checkbox"> Использовать почасовую лестницу</label>
+        <div class="hour-tariffs"><label>Первый час<input id="create-hour-1" type="number" min="1" max="10000" value="150"></label><label>Второй час<input id="create-hour-2" type="number" min="1" max="10000" value="250"></label><label>Третий час<input id="create-hour-3" type="number" min="1" max="10000" value="350"></label></div>
+        <small>Суммы складываются: 150 / 400 / 750. Коэффициент уровня применяется к итогу. Часы подтверждает куратор; таймер не запускается. Индекс и XP начисляются за принятый отчёт.</small>
+      </fieldset>
       <button class="button primary wide" id="template-submit" value="default">Создать шаблон</button>
     </form>
   </dialog>
@@ -148,6 +188,6 @@
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261101-1"></script>
+  <script src="admin-task-marketplace.js?v=20261103-2"></script>
 </body>
 </html>

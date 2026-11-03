@@ -1,0 +1,11 @@
+.wallet-week{position:relative;z-index:1;margin:0 0 14px;padding:13px 14px;border:1px solid #294664;border-radius:15px;background:#0a192c}
+.review-history{margin-top:16px}.review-history>.list{padding:0 12px 12px}
+.wallet-week p{margin:9px 0 4px;color:#a9c7df;font-size:11px}.wallet-week small{color:#7894b2;font-size:10px}
+.owner-controls{display:grid;gap:12px}.owner-controls label,.effort-fields label{display:grid;gap:6px;font-size:11px;color:#91aac5}
+.owner-controls input,.owner-controls select,.effort-fields input,.effort-fields select{width:100%;padding:11px;border:1px solid #31506f;border-radius:11px;background:#09182b;color:#fff;font:inherit;min-width:0}
+.owner-danger{display:grid;gap:10px;margin-top:12px;padding-top:15px;border-top:1px solid #6d3746}.owner-danger p{line-height:1.6}
+.effort-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}.effort-fields small{grid-column:1/-1;color:#91aac5;font-size:10px}
+.night-settings{border:1px solid #31506f;border-radius:13px;padding:13px}.night-settings legend{font-size:12px;color:#91dafa}.night-settings>label{display:flex;align-items:center;gap:8px}.night-settings input[type=checkbox]{width:auto}.night-settings small{display:block;line-height:1.6;margin-top:10px;color:#91aac5;font-size:10px}
+.hour-tariffs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.hour-tariffs label{min-width:0}
+#create-dialog{max-height:92dvh;overflow:auto;border-radius:22px}.review-overdue{border-color:#806336}.decision-details{margin-top:12px;font-size:11px;color:#91aac5;white-space:pre-line}
+@media(max-width:420px){.effort-fields{grid-template-columns:1fr}.hour-tariffs{grid-template-columns:1fr}.mini-stats{flex-wrap:wrap}}

@@ -20,16 +20,17 @@ test('all three agreed verification flows are present', () => {
   assert.match(script, /manual_review/);
   assert.match(script, /evidence_review/);
   assert.match(script, /Засчитать вход/);
-  assert.match(html, /Без файлов/);
-  assert.match(html, /Со скринами/);
+  assert.match(html, /id="review-queue-list"/);
+  assert.doesNotMatch(html, /id="leader-tabs"|>Без файлов<|>Со скринами</);
 });
 
 test('screenshots upload directly to object storage and rewards use a wallet', () => {
   assert.match(script, /method:\s*'PUT'/);
   assert.match(script, /confirm_evidence_upload/);
-  assert.match(html, /Доступно к выводу/);
+  assert.match(html, /Бонусный банк/);
   assert.match(html, /Добавлено к индексу/);
-  assert.match(script, /operation_id:`withdraw:/);
+  assert.match(script, /`withdraw:\$\{state.data.viewer.user_id\}/);
+  assert.match(script, /operation_id:operationId/);
 });
 
 test('leadership entry retry reuses one idempotency key', () => {
@@ -42,7 +43,7 @@ test('take confirmation does not show an unnecessary comment field', () => {
   assert.match(script, /\$\('#reason-wrap'\)\.hidden = !reason/);
   assert.match(script, /title:'Взять задание\?'[^\n]+confirm:'Взять'/);
   assert.match(css, /\[hidden\]\{display:none!important\}/);
-  assert.match(html, /admin-task-marketplace\.css\?v=20261025-2/);
+  assert.match(html, /admin-task-marketplace\.css\?v=20261103-1/);
 });
 
 test('task levels show XP progress and are configurable by master', () => {
@@ -70,7 +71,7 @@ test('master can define and edit exact instructions for every task', () => {
 test('admin task cards do not expose internal verification mode labels', () => {
   const source = script.match(/function templateCard[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(source, /typeLabel\(/);
-  assert.match(html, /admin-task-marketplace\.js\?v=20261101-1/);
+  assert.match(html, /admin-task-marketplace\.js\?v=20261103-2/);
 });
 
 test('limited assignments show reward caps without an automatic timer', () => {
