@@ -82,6 +82,7 @@
     try {
       state.data = await api('bootstrap');
       if (state.role === 'settings' && !state.data.viewer.is_master) state.role = 'admin';
+      if (state.role === 'leader' && !state.data.viewer.is_leader) state.role = 'admin';
       $('#loading-gate').hidden = true;
       $('#closed-gate').hidden = true;
       $('#app').hidden = false;
@@ -432,6 +433,7 @@
     const role = event.target.closest('[data-role]');
     if (role) {
       if (role.dataset.role === 'settings' && !state.data.viewer.is_master) return;
+      if (role.dataset.role === 'leader' && !state.data.viewer.is_leader) return;
       state.role = role.dataset.role; render(); return;
     }
     const tab = event.target.closest('.tabs [data-tab]');

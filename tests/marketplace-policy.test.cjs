@@ -17,14 +17,45 @@ function app(fetcher = async action => action === 'bootstrap' ? fixture() : {}) 
     if (!nodes.has(selector)) nodes.set(selector,{value:'',hidden:false,open:false,innerHTML:'',textContent:'',style:{},dataset:{},listeners:{},classList:{add(){},remove(){},toggle(){}},focus(){this.focused=true;},select(){this.selected=true;},addEventListener(type,fn){(this.listeners[type] ||= new Set()).add(fn);},removeEventListener(type,fn){this.listeners[type]?.delete(fn);},showModal(){this.open=true;if(selector === '#decision-dialog'){dialogs.push(nodes.get('#dialog-title').textContent);queueMicrotask(()=>{node('#dialog-reason').value='Обоснованная причина';this.returnValue='default';for(const fn of [...(this.listeners.close || [])])fn();});}},close(){this.open=false;for(const fn of [...(this.listeners.close || [])])fn();}});
     return nodes.get(selector);
   }
-  const document = {querySelector:node,querySelectorAll:()=>[],addEventListener(){}};
+  const documentEvents = new Map();
+  const document = {querySelector:node,querySelectorAll:()=>[],addEventListener(type,listener){documentEvents.set(type,listener);}};
   const window = {Telegram:{WebApp:{initData:'signed-telegram-data',ready(){},expand(){}}}};
   const context = {window,document,Intl,Date,AbortController,CSS:{escape:s=>s},queueMicrotask,crypto:{randomUUID:()=>`uuid-${calls.length}`},sessionStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)},setTimeout:()=>0,clearTimeout(){},fetch:async(_url, options)=>{const body=JSON.parse(options.body);calls.push({body,headers:options.headers});const data=await fetcher(body.action,body);return {ok:true,json:async()=>({status:'success',data})};}};
-  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,render,renderAdmin,renderLeader,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision,openWithdrawDialog,submitWithdrawal};\n})();');
+  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,reload,render,renderAdmin,renderLeader,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision,openWithdrawDialog,submitWithdrawal};\n})();');
   vm.runInNewContext(testSource,context);
   window.testApp.state.data=fixture();
-  return {...window.testApp,node,calls,stored,dialogs};
+  return {...window.testApp,node,calls,stored,dialogs,documentEvents};
 }
+
+test('non-reviewer only sees personal tasks and cannot switch to review or settings',async()=>{
+  const data=fixture();data.viewer={user_id:710,is_master:false,is_leader:false};
+  const page=app(async()=>data);
+  await page.reload();
+  assert.equal(page.node('#role-switch').hidden,true);
+  assert.equal(page.node('#settings-role').hidden,true);
+  for(const role of ['leader','settings']){
+    await page.documentEvents.get('click')({target:{closest:selector=>selector === '[data-role]' ? {dataset:{role}} : null}});
+    assert.equal(page.state.role,'admin');
+    assert.equal(page.node('#leader-view').hidden,true);
+    assert.equal(page.node('#settings-view').hidden,true);
+  }
+});
+
+test('reviewer sees reviews but not master settings and role revocation resets navigation',async()=>{
+  const data=fixture();data.viewer={user_id:710,is_master:false,is_leader:true};
+  const page=app(async()=>data);
+  await page.reload();
+  assert.equal(page.node('#role-switch').hidden,false);
+  assert.equal(page.node('#settings-role').hidden,true);
+  page.state.role='leader';page.render();
+  assert.equal(page.node('#leader-view').hidden,false);
+  data.viewer.is_leader=false;
+  await page.reload();
+  assert.equal(page.state.role,'admin');
+  assert.equal(page.node('#role-switch').hidden,true);
+  assert.equal(page.node('#leader-view').hidden,true);
+  assert.equal(page.node('#admin-view').hidden,false);
+});
 
 test('all static element bindings exist in the page',()=>{
   const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]));
