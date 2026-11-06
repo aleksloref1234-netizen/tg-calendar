@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--port", type=int, default=4196)
     parser.add_argument("--state", choices=("free", "active", "pending"), default="free")
     parser.add_argument("--unified", action="store_true", help="Preview the real app shell and active-document bridge")
+    parser.add_argument("--fullscreen-sdk", action="store_true", help="Synthetic Telegram fullscreen events and safe areas, not a native-client test")
     args = parser.parse_args()
     temporary = tempfile.TemporaryDirectory()
     service = AdminTaskMarketplaceService(AdminTaskMarketplaceConfig(
@@ -71,7 +72,20 @@ def main():
                 return
             if path == "/__fixture/telegram.js":
                 init_data = "location.pathname.endsWith('/app.html')?'local-fixture':''" if args.unified else "'local-fixture'"
-                self.send(200, "window.Telegram={WebApp:{initData:" + init_data + ",ready(){},expand(){},HapticFeedback:{notificationOccurred(){}}}};", "text/javascript")
+                sdk = "window.Telegram={WebApp:{initData:" + init_data + ",ready(){},expand(){},HapticFeedback:{notificationOccurred(){}}}};"
+                if args.fullscreen_sdk:
+                    sdk += """(()=>{
+                      const app=window.Telegram.WebApp,events=new Map();
+                      const emit=name=>{for(const fn of events.get(name)||[])fn();};
+                      Object.assign(app,{isFullscreen:false,isVersionAtLeast:()=>true,
+                        onEvent(name,fn){if(!events.has(name))events.set(name,new Set());events.get(name).add(fn);},
+                        offEvent(name,fn){events.get(name)?.delete(fn);},
+                        requestFullscreen(){this.isFullscreen=true;this.safeAreaInset={top:24,right:0,bottom:18,left:0};this.contentSafeAreaInset={top:42,right:0,bottom:0,left:0};emit('safeAreaChanged');emit('contentSafeAreaChanged');emit('fullscreenChanged');},
+                        exitFullscreen(){this.isFullscreen=false;this.safeAreaInset={top:0,right:0,bottom:0,left:0};this.contentSafeAreaInset={top:0,right:0,bottom:0,left:0};emit('fullscreenChanged');}
+                      });
+                      window.addEventListener('keydown',event=>{if(event.key==='Escape'&&app.isFullscreen)app.exitFullscreen();});
+                    })();"""
+                self.send(200, sdk, "text/javascript")
                 return
             if path == "/__fixture/bridge.js":
                 self.send(200, "/* No production bridge on the local fixture. */", "text/javascript")

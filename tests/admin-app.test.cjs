@@ -92,7 +92,7 @@ test('all existing non-training module pages install the bridge after the Telegr
 });
 test('unified app has no production preview bypass or persisted authentication data',()=>{
   const js=read('admin-app.js'),bridge=read('admin-app-bridge.js'),html=read('app.html');
-  for(const script of [js,bridge,read('admin-app-model.js')])new vm.Script(script);
+  for(const script of [js,bridge,read('admin-app-model.js'),read('admin-app-viewport.js')])new vm.Script(script);
   assert.match(js,/X-Telegram-Init-Data/);
   assert.doesNotMatch(js,/PREVIEW_MODE|fixture|mock|preview=1/);
   assert.match(html,/frame-src 'self'/);

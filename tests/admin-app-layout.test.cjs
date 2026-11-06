@@ -8,12 +8,12 @@ const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 const base='https://example.test/tg-calendar/';
 
 function harness(){
-  const nodes=new Map(),timers=new Map(),frames=[];
+  const nodes=new Map(),timers=new Map(),frames=[],nativeEvents=new Map();
   let timerId=0,expandCalls=0,fetchCalls=0;
   function node(){
     const attributes=new Map(),classes=new Set(),events=new Map();
     return {
-      attributes,classes,events,hidden:false,open:false,style:{},dataset:{},children:[],removed:0,
+      attributes,classes,events,hidden:false,open:false,style:{setProperty(key,value){this[key]=value;}},dataset:{},children:[],removed:0,
       classList:{add(name){classes.add(name);},remove(name){classes.delete(name);},toggle(name,on){if(on)classes.add(name);else classes.delete(name);}},
       setAttribute(key,value){attributes.set(key,String(value));},getAttribute(key){return attributes.get(key);},removeAttribute(key){attributes.delete(key);},
       addEventListener(name,fn){events.set(name,fn);},
@@ -36,11 +36,11 @@ function harness(){
     }
     return el;
   }};
-  const window={AdminAppModel:model,Telegram:{WebApp:{ready(){},expand(){expandCalls++;},BackButton:{show(){},hide(){}}}},addEventListener(){},scrollTo(){}};
+  const window={AdminAppModel:model,Telegram:{WebApp:{ready(){},expand(){expandCalls++;},BackButton:{show(){},hide(){}},onEvent(event,handler){nativeEvents.set(event,handler);},offEvent(event,handler){if(nativeEvents.get(event)===handler)nativeEvents.delete(event);}}},addEventListener(){},scrollTo(){}};
   const storage=new Map();
   const source=read('admin-app.js').replace('initIcons();void bootstrap();','window.layoutTest={state,mountModule,closeFrame,setModuleExpanded,moduleBack,showView,guarded};');
   assert.ok(source.includes('window.layoutTest='));
-  vm.runInNewContext(source,{window,document,location:{href:base+'app.html'},URL,URLSearchParams,AbortController,Date,
+  vm.runInNewContext(read('admin-app-viewport.js')+'\nwindow.AdminAppViewport=AdminAppViewport;\n'+source,{window,document,location:{href:base+'app.html'},URL,URLSearchParams,AbortController,Date,
     setTimeout(fn){const id=++timerId;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);},
     sessionStorage:{getItem:key=>storage.get(key),setItem(key,value){storage.set(key,value);}},
     fetch(){fetchCalls++;throw new Error('Unexpected network request');},
@@ -52,7 +52,7 @@ function harness(){
   ])};
   app.state.loadedAt=Date.now();
   const target=id=>{const section=app.state.data.sections.find(row=>row.id===id);return model.target(section.path,app.state.data.sections,base,app.state.data.viewer);};
-  return {app,get,body,frames,timers,target,window,get expandCalls(){return expandCalls;},get fetchCalls(){return fetchCalls;}};
+  return {app,get,body,frames,timers,target,window,nativeEvents,get expandCalls(){return expandCalls;},get fetchCalls(){return fetchCalls;}};
 }
 
 test('opening a section compacts the shell without changing the embedded target',()=>{
@@ -143,10 +143,41 @@ test('late load events of removed frames cannot overwrite the current layout',()
 test('layout rules keep back and reload controls accessible and version their assets',()=>{
   const html=read('app.html'),css=read('admin-app.css');
   assert.match(html,/id="module-expand"[^>]+aria-pressed="false"[^>]+aria-controls="module-container"/);
-  assert.match(html,/admin-app\.css\?v=20261106-1/);assert.match(html,/admin-app\.js\?v=20261106-1/);
+  assert.match(html,/admin-app\.css\?v=20261106-2/);assert.match(html,/admin-app\.js\?v=20261106-2/);
+  assert.ok(html.indexOf('admin-app-viewport.js')<html.indexOf('src="admin-app.js'));
   assert.match(css,/body\.module-open\{--app-header:0px\}/);
   assert.match(css,/\.module-open \.app-header\{display:none\}/);
   assert.match(css,/body\.module-expanded\{--app-dock:0px\}/);
   assert.match(css,/@media\(pointer:coarse\)\{\.module-open \.module-toolbar \.icon-button\{width:40px;min-height:40px\}/);
   assert.doesNotMatch(css,/#module-(?:back|reload)\s*\{[^}]*display:none/);
+});
+
+test('native expansion is requested only on a button gesture and survives module reload',()=>{
+  const h=harness(),tg=h.window.Telegram.WebApp;
+  let entered=0,exited=0;
+  Object.assign(tg,{isVersionAtLeast:()=>true,requestFullscreen(){entered++;},exitFullscreen(){exited++;}});
+  h.app.mountModule(h.target('additional-tasks'));
+  assert.equal(entered,0);
+  h.get('module-expand').events.get('click')();
+  assert.equal(entered,1);
+  tg.isFullscreen=true;h.nativeEvents.get('fullscreenChanged')();
+  h.get('module-reload').events.get('click')();
+  assert.equal(entered,1);assert.equal(exited,0);
+  assert.equal(h.app.state.moduleExpanded,true);
+  h.app.closeFrame();assert.equal(exited,1);
+  tg.isFullscreen=false;h.nativeEvents.get('fullscreenChanged')();
+  assert.equal(h.timers.size,0);
+});
+
+test('native exit restores navigation without replacing the form',()=>{
+  const h=harness(),tg=h.window.Telegram.WebApp;
+  Object.assign(tg,{isVersionAtLeast:()=>true,requestFullscreen(){},exitFullscreen(){}});
+  h.app.mountModule(h.target('additional-tasks'));const frame=h.app.state.frame;
+  h.get('module-expand').events.get('click')();
+  tg.isFullscreen=true;h.nativeEvents.get('fullscreenChanged')();
+  frame.leave.dirty=true;
+  tg.isFullscreen=false;h.nativeEvents.get('fullscreenChanged')();
+  assert.equal(h.app.state.moduleExpanded,false);
+  assert.equal(h.app.state.frame,frame);assert.equal(frame.leave.dirty,true);
+  assert.equal(h.get('module-expand').getAttribute('aria-pressed'),'false');
 });

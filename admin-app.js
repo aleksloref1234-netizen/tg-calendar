@@ -5,6 +5,7 @@
   const $=id=>document.getElementById(id), esc=model.escape;
   const base=new URL('.',location.href);
   const state={data:null,view:'home',group:'all',search:'',section:null,moduleURL:null,frame:null,moduleExpanded:false,loadedAt:0,recent:[],preferenceBusy:false};
+  const viewport=window.AdminAppViewport.create({telegram:tg,root:document.documentElement,onExit:()=>setModuleExpanded(false),onNotice:toast});
   let bootstrapRequest=null,frameTimer=null,toastTimer=null,bootstrapSerial=0;
   let leaveAction=null;
   function leaveDecision(){try{return model.leaveDecision(state.frame?.contentWindow?.AdminControlEmbed?.getLeaveState());}catch{return 'allow';}}
@@ -50,9 +51,8 @@
     button.setAttribute('aria-label',label);
     button.title=label;
     button.innerHTML=icon(active?'minimize':'maximize');
-    if(active){try{tg?.expand?.();}catch{}}
   }
-  function closeFrame(){clearTimeout(frameTimer);frameTimer=null;if(state.frame){try{state.frame.contentWindow?.AdminControlEmbed?.dispose();}catch{}state.frame.remove();state.frame=null;}$('module-container').replaceChildren();$('module-view').hidden=true;state.section=null;state.moduleURL=null;setModuleExpanded(false);document.body.classList.remove('module-open');}
+  function closeFrame({keepExpanded=false}={}){clearTimeout(frameTimer);frameTimer=null;if(state.frame){try{state.frame.contentWindow?.AdminControlEmbed?.dispose();}catch{}state.frame.remove();state.frame=null;}$('module-container').replaceChildren();$('module-view').hidden=true;state.section=null;state.moduleURL=null;if(!keepExpanded){setModuleExpanded(false);viewport.leave();}document.body.classList.remove('module-open');}
   function lockSection(section){$('access-title').textContent=section?.title||'Раздел закрыт';$('access-reason').textContent=section?.reason||'Доступ к разделу не выдан вашей должности.';$('access-dialog').showModal();}
   function tool(section){return `<button type="button" class="tool ${section.allowed?'':'locked'}" data-section="${esc(section.id)}"><span class="tool-top"><span class="tool-icon">${icon(section.icon)}</span><span class="tool-hint">${section.allowed?icon('arrow-right'):`${icon('lock')} Закрыт`}</span></span><b>${esc(section.title)}</b><small>${esc(section.description)}</small></button>`;}
   function listRow(title,description,glyph,attrs){return `<button type="button" class="list-row" ${attrs}><span class="tool-icon">${icon(glyph)}</span><span class="row-copy"><b>${esc(title)}</b><small>${esc(description)}</small></span>${icon('chevron')}</button>`;}
@@ -72,7 +72,7 @@
   function frameError(text){closeFrame();$('app-main').hidden=false;$('app-main').replaceChildren();const panel=document.createElement('div');panel.className='module-error';panel.textContent=text;const button=document.createElement('button');button.type='button';button.className='primary-button';button.textContent='К разделам';button.addEventListener('click',()=>showView('catalog'));panel.append(document.createElement('br'),button);$('app-main').append(panel);}
   function mountModule(target) {
     const expanded=state.moduleExpanded;
-    closeFrame();
+    closeFrame({keepExpanded:expanded});
     state.section=target.section;
     state.moduleURL=target.url.href;
     state.view='module';
@@ -129,7 +129,7 @@
   document.addEventListener('input',event=>{if(event.target.id==='catalog-search'){state.search=event.target.value;renderCatalogResults();}});
   $('retry-bootstrap').addEventListener('click',()=>void bootstrap());
   $('module-back').addEventListener('click',moduleBack);
-  $('module-expand').addEventListener('click',()=>setModuleExpanded(!state.moduleExpanded));
+  $('module-expand').addEventListener('click',()=>{setModuleExpanded(!state.moduleExpanded);if(state.moduleExpanded)viewport.enter();else viewport.leave({force:true});});
   $('module-reload').addEventListener('click',()=>guarded(()=>{if(state.frame){const target=resolveTarget(state.moduleURL||state.frame.src);if(target)mountModule(target);}}));
   $('cancel-leave').addEventListener('click',()=>$('leave-dialog').close());
   $('confirm-leave').addEventListener('click',()=>{const action=leaveAction;leaveAction=null;$('leave-dialog').close();action?.();});
@@ -139,6 +139,6 @@
   $('access-dialog').addEventListener('click',event=>{if(event.target===$('access-dialog'))$('access-dialog').close();});
   tg?.ready();tg?.expand();try{tg?.setHeaderColor?.('#0b1528');tg?.setBackgroundColor?.('#0b1528');tg?.setBottomBarColor?.('#0b1528');}catch{}
   tg?.onEvent?.('backButtonClicked',()=>{if($('leave-dialog').open){$('leave-dialog').close();return;}if($('access-dialog').open){$('access-dialog').close();return;}if(state.view==='module')moduleBack();else showView('home');});
-  window.addEventListener('pagehide',()=>{bootstrapRequest?.abort();closeFrame();clearTimeout(toastTimer);});
+  window.addEventListener('pagehide',()=>{bootstrapRequest?.abort();closeFrame();viewport.destroy();clearTimeout(toastTimer);});
   initIcons();void bootstrap();
 })();
