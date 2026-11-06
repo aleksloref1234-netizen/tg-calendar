@@ -7,10 +7,10 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org; style-src 'self'; img-src 'self' https://t.me https://*.telegram.org https://telegram.org https://*.telegram-cdn.org https://telegram-cdn.org; connect-src 'self' https://tg-admin-bot-1k1g.onrender.com; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <title>Admin Control · Единое приложение</title>
-  <link rel="stylesheet" href="admin-app.css?v=20261026-1">
+  <link rel="stylesheet" href="admin-app.css?v=20261106-1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="admin-app-model.js?v=20261026-1" defer></script>
-  <script src="admin-app.js?v=20261026-1" defer></script>
+  <script src="admin-app.js?v=20261106-1" defer></script>
 </head>
 <body>
   <div id="app-gate" class="app-gate" role="status" aria-live="polite">
@@ -25,7 +25,7 @@
     </header>
     <main id="app-main" class="app-main" aria-live="polite"></main>
     <section id="module-view" class="module-view" hidden aria-label="Открытый раздел">
-      <header class="module-toolbar"><button type="button" class="icon-button" id="module-back" aria-label="Назад к разделам" data-icon="arrow-left"></button><div><h1 id="module-title"></h1><p id="module-subtitle"></p></div><button type="button" class="icon-button" id="module-reload" aria-label="Обновить раздел" data-icon="refresh"></button></header>
+      <header class="module-toolbar"><button type="button" class="icon-button" id="module-back" aria-label="Назад к разделам" data-icon="arrow-left"></button><div><h1 id="module-title"></h1><p id="module-subtitle"></p></div><button type="button" class="icon-button" id="module-expand" aria-label="Развернуть раздел" aria-pressed="false" aria-controls="module-container" title="Развернуть раздел" data-icon="maximize"></button><button type="button" class="icon-button" id="module-reload" aria-label="Обновить раздел" data-icon="refresh"></button></header>
       <div id="module-loading" class="module-loading" role="status">Открываем раздел…</div>
       <div id="module-container"></div>
     </section>

@@ -16,12 +16,14 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT.parent / "tg-admin-bot-redzone"))
 from admin_task_marketplace import AdminTaskMarketplaceConfig, AdminTaskMarketplaceService  # noqa: E402
+from admin_app import section_manifest, PREFERENCE_DEFAULTS  # noqa: E402
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=4196)
     parser.add_argument("--state", choices=("free", "active", "pending"), default="free")
+    parser.add_argument("--unified", action="store_true", help="Preview the real app shell and active-document bridge")
     args = parser.parse_args()
     temporary = tempfile.TemporaryDirectory()
     service = AdminTaskMarketplaceService(AdminTaskMarketplaceConfig(
@@ -64,10 +66,12 @@ def main():
         def do_GET(self):
             path = urlsplit(self.path).path
             if path == "/__fixture/mobile":
-                self.send(200, '<!doctype html><html lang="ru"><meta charset="utf-8"><title>Мобильный макет · 390 px</title><body style="margin:0;background:#030b17;display:grid;place-items:center;min-height:100vh"><iframe title="Тестовый мобильный экран" src="/admin-task-marketplace.html" style="display:block;width:390px;height:860px;max-width:100vw;border:1px solid #29405f;border-radius:20px"></iframe></body></html>', "text/html; charset=utf-8")
+                page = "/app.html?section=additional-tasks" if args.unified else "/admin-task-marketplace.html"
+                self.send(200, '<!doctype html><html lang="ru"><meta charset="utf-8"><title>Мобильный макет · 390 px</title><body style="margin:0;background:#030b17;display:grid;place-items:center;min-height:100vh"><iframe title="Тестовый мобильный экран" src="' + page + '" style="display:block;width:390px;height:860px;max-width:100vw;border:1px solid #29405f;border-radius:20px"></iframe></body></html>', "text/html; charset=utf-8")
                 return
             if path == "/__fixture/telegram.js":
-                self.send(200, "window.Telegram={WebApp:{initData:'local-fixture',ready(){},expand(){},HapticFeedback:{notificationOccurred(){}}}};", "text/javascript")
+                init_data = "location.pathname.endsWith('/app.html')?'local-fixture':''" if args.unified else "'local-fixture'"
+                self.send(200, "window.Telegram={WebApp:{initData:" + init_data + ",ready(){},expand(){},HapticFeedback:{notificationOccurred(){}}}};", "text/javascript")
                 return
             if path == "/__fixture/bridge.js":
                 self.send(200, "/* No production bridge on the local fixture. */", "text/javascript")
@@ -78,17 +82,31 @@ def main():
                 return
             content = filename.read_text(encoding="utf-8")
             if filename.suffix == ".html":
-                content = content.replace("https://telegram.org/js/telegram-web-app.js", "/__fixture/telegram.js").replace('src="admin-app-bridge.js?v=20261026-1"', 'src="/__fixture/bridge.js"').replace("Закрытый тест", "ТЕСТОВЫЕ ДАННЫЕ")
+                content = content.replace("https://telegram.org/js/telegram-web-app.js", "/__fixture/telegram.js").replace("Закрытый тест", "ТЕСТОВЫЕ ДАННЫЕ")
+                if not args.unified:
+                    content = content.replace('src="admin-app-bridge.js?v=20261026-1"', 'src="/__fixture/bridge.js"')
             content = content.replace("https://tg-admin-bot-1k1g.onrender.com", f"http://127.0.0.1:{args.port}")
             self.send(200, content, (mimetypes.guess_type(str(filename))[0] or "text/plain") + "; charset=utf-8")
 
         def do_POST(self):
-            if urlsplit(self.path).path != "/api/admin/tasks" or self.headers.get("X-Telegram-Init-Data") != "local-fixture":
+            api_path = urlsplit(self.path).path
+            if api_path not in {"/api/admin/tasks", "/api/app"} or self.headers.get("X-Telegram-Init-Data") != "local-fixture":
                 self.send(403, '{}')
                 return
             try:
                 body = json.loads(self.rfile.read(min(int(self.headers.get("Content-Length", "0")), 8192)))
                 action = body.get("action", "bootstrap")
+                if api_path == "/api/app":
+                    if not args.unified or action != "bootstrap":
+                        raise ValueError("Локальный стенд: действие не подключено.")
+                    data = {
+                        "release": "local-qa", "viewer": {"telegram_id": 101, "nickname": "Demo_Admin", "is_master": False, "role_title": "Куратор агентов поддержки"},
+                        "server": {"name": "ЛОКАЛЬНЫЙ СТЕНД", "number": "68"},
+                        "preferences": dict(PREFERENCE_DEFAULTS), "preferences_available": True,
+                        "sections": section_manifest(user_id=101, master_id=900, is_staff=True, roles={101: "support_curator"}, task_access=True),
+                    }
+                    self.send(200, json.dumps({"status": "success", "data": data}, ensure_ascii=False))
+                    return
                 if action == "bootstrap":
                     data = service.bootstrap(101)
                     data["viewer"].update(is_master=False)

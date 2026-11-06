@@ -4,7 +4,7 @@
   const tg=window.Telegram?.WebApp, model=window.AdminAppModel;
   const $=id=>document.getElementById(id), esc=model.escape;
   const base=new URL('.',location.href);
-  const state={data:null,view:'home',group:'all',search:'',section:null,moduleURL:null,frame:null,loadedAt:0,recent:[],preferenceBusy:false};
+  const state={data:null,view:'home',group:'all',search:'',section:null,moduleURL:null,frame:null,moduleExpanded:false,loadedAt:0,recent:[],preferenceBusy:false};
   let bootstrapRequest=null,frameTimer=null,toastTimer=null,bootstrapSerial=0;
   let leaveAction=null;
   function leaveDecision(){try{return model.leaveDecision(state.frame?.contentWindow?.AdminControlEmbed?.getLeaveState());}catch{return 'allow';}}
@@ -27,6 +27,8 @@
     history:'M3 3v6h6M3 9a9 9 0 1 1 1 9M12 7v5l4 2',lock:'M6 10h12v11H6zm3 0V6a3 3 0 0 1 6 0v4m-3 5v2',
     'arrow-left':'m14 5-7 7 7 7M7 12h14','arrow-right':'m9 5 7 7-7 7M3 12h13',chevron:'m9 5 7 7-7 7',x:'m6 6 12 12M18 6 6 18',refresh:'M20 4v6h-6M4 20v-6h6m9-6A8 8 0 0 0 5 5m0 11a8 8 0 0 0 14 3',
     waves:'M3 7q3-4 6 0t6 0 6 0M3 12q3-4 6 0t6 0 6 0M3 17q3-4 6 0t6 0 6 0',info:'M12 11v6m0-10v.1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
+    maximize:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',
+    minimize:'M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5',
   };
   const icon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name]||paths.layout}"></path></svg>`;
   function initIcons(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon);});}
@@ -38,7 +40,19 @@
   function applyPreferences(){document.documentElement.classList.toggle('reduce-motion',state.data?.preferences?.reduce_motion===true);}
   function rememberSection(id){state.recent=[id,...state.recent.filter(key=>key!==id)].slice(0,6);try{sessionStorage.setItem(`admin-app-recent:${state.data.viewer.telegram_id}`,JSON.stringify(state.recent));}catch{}}
   function readRecent(){try{const ids=JSON.parse(sessionStorage.getItem(`admin-app-recent:${state.data.viewer.telegram_id}`)||'[]');state.recent=Array.isArray(ids)?ids.filter(id=>state.data.sections.some(s=>s.id===id&&s.allowed)).slice(0,6):[];}catch{state.recent=[];}}
-  function closeFrame(){clearTimeout(frameTimer);frameTimer=null;if(state.frame){try{state.frame.contentWindow?.AdminControlEmbed?.dispose();}catch{}state.frame.remove();state.frame=null;}$('module-container').replaceChildren();$('module-view').hidden=true;state.section=null;state.moduleURL=null;document.body.classList.remove('module-open');}
+  function setModuleExpanded(expanded){
+    const active=Boolean(expanded&&state.frame&&state.view==='module');
+    state.moduleExpanded=active;
+    document.body.classList.toggle('module-expanded',active);
+    const label=active?'Вернуть нижнее меню':'Развернуть раздел';
+    const button=$('module-expand');
+    button.setAttribute('aria-pressed',String(active));
+    button.setAttribute('aria-label',label);
+    button.title=label;
+    button.innerHTML=icon(active?'minimize':'maximize');
+    if(active){try{tg?.expand?.();}catch{}}
+  }
+  function closeFrame(){clearTimeout(frameTimer);frameTimer=null;if(state.frame){try{state.frame.contentWindow?.AdminControlEmbed?.dispose();}catch{}state.frame.remove();state.frame=null;}$('module-container').replaceChildren();$('module-view').hidden=true;state.section=null;state.moduleURL=null;setModuleExpanded(false);document.body.classList.remove('module-open');}
   function lockSection(section){$('access-title').textContent=section?.title||'Раздел закрыт';$('access-reason').textContent=section?.reason||'Доступ к разделу не выдан вашей должности.';$('access-dialog').showModal();}
   function tool(section){return `<button type="button" class="tool ${section.allowed?'':'locked'}" data-section="${esc(section.id)}"><span class="tool-top"><span class="tool-icon">${icon(section.icon)}</span><span class="tool-hint">${section.allowed?icon('arrow-right'):`${icon('lock')} Закрыт`}</span></span><b>${esc(section.title)}</b><small>${esc(section.description)}</small></button>`;}
   function listRow(title,description,glyph,attrs){return `<button type="button" class="list-row" ${attrs}><span class="tool-icon">${icon(glyph)}</span><span class="row-copy"><b>${esc(title)}</b><small>${esc(description)}</small></span>${icon('chevron')}</button>`;}
@@ -57,6 +71,7 @@
   function moduleBack(){try{const dialog=state.frame?.contentDocument?.querySelector('dialog[open]');if(dialog){dialog.close();return;}}catch{}guarded(()=>{if(state.moduleURL){const current=new URL(state.moduleURL);if(current.pathname.endsWith('/dashboard.html')&&current.searchParams.has('admin_id')&&state.data?.sections.some(s=>s.id==='administration'&&s.allowed)){void openSection('administration').catch(e=>toast(e.message));return;}}showView('catalog');});}
   function frameError(text){closeFrame();$('app-main').hidden=false;$('app-main').replaceChildren();const panel=document.createElement('div');panel.className='module-error';panel.textContent=text;const button=document.createElement('button');button.type='button';button.className='primary-button';button.textContent='К разделам';button.addEventListener('click',()=>showView('catalog'));panel.append(document.createElement('br'),button);$('app-main').append(panel);}
   function mountModule(target) {
+    const expanded=state.moduleExpanded;
     closeFrame();
     state.section=target.section;
     state.moduleURL=target.url.href;
@@ -73,6 +88,7 @@
     frame.referrerPolicy='no-referrer';
     frame.setAttribute('allow','clipboard-write');
     state.frame=frame;
+    setModuleExpanded(expanded);
     frame.addEventListener('load',()=>{
       if(state.frame!==frame)return;
       clearTimeout(frameTimer);
@@ -113,6 +129,7 @@
   document.addEventListener('input',event=>{if(event.target.id==='catalog-search'){state.search=event.target.value;renderCatalogResults();}});
   $('retry-bootstrap').addEventListener('click',()=>void bootstrap());
   $('module-back').addEventListener('click',moduleBack);
+  $('module-expand').addEventListener('click',()=>setModuleExpanded(!state.moduleExpanded));
   $('module-reload').addEventListener('click',()=>guarded(()=>{if(state.frame){const target=resolveTarget(state.moduleURL||state.frame.src);if(target)mountModule(target);}}));
   $('cancel-leave').addEventListener('click',()=>$('leave-dialog').close());
   $('confirm-leave').addEventListener('click',()=>{const action=leaveAction;leaveAction=null;$('leave-dialog').close();action?.();});
