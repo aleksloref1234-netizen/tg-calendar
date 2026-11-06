@@ -72,6 +72,14 @@ test('factor vessels fill from live component scores and show earned points', ()
   assert.equal(nodes.get('help-rating-value').innerText, '4,7');
   assert.equal(nodes.get('help-rating-level').innerText, 'Высокий');
   assert.equal(nodes.get('help-rating-fill').style.width, '94%');
+  context.renderPerformanceIndex({has_data:true,value:89.5,zone:'green',value_before_task_bonus:87,task_bonus_points:2.5});
+  assert.equal(nodes.get('performance-task-note').hidden,false);
+  assert.match(nodes.get('performance-task-note').innerText,/Основной индекс: 87% · допзадания: \+2,5 п.п./);
+  context.renderPerformanceIndex({has_data:true,value:100,zone:'green',value_before_task_bonus:99,task_bonus_points:3});
+  assert.match(nodes.get('performance-task-note').innerText,/допзадания: \+1 п.п./);
+  context.renderPerformanceIndex({has_data:true,value:99,zone:'green',value_before_task_bonus:99,task_bonus_points:0});
+  assert.equal(nodes.get('performance-task-note').hidden,true);
+  assert.equal(nodes.get('performance-task-note').innerText,'');
 });
 
 test('unavailable components stay empty instead of pretending to be zero', () => {

@@ -28,7 +28,7 @@ test('screenshots upload directly to object storage and rewards use a wallet', (
   assert.match(script, /method:\s*'PUT'/);
   assert.match(script, /confirm_evidence_upload/);
   assert.match(html, /Бонусный банк/);
-  assert.match(html, /Добавлено к индексу/);
+  assert.match(html, /Бонус к индексу/);
   assert.match(script, /`withdraw:\$\{state.data.viewer.user_id\}/);
   assert.match(script, /operation_id:operationId/);
 });
@@ -71,7 +71,7 @@ test('master can define and edit exact instructions for every task', () => {
 test('admin task cards do not expose internal verification mode labels', () => {
   const source = script.match(/function templateCard[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(source, /typeLabel\(/);
-  assert.match(html, /admin-task-marketplace\.js\?v=20261105-1/);
+  assert.match(html, /admin-task-marketplace\.js\?v=20261106-1/);
 });
 
 test('limited assignments show reward caps without an automatic timer', () => {
@@ -94,9 +94,9 @@ test('master settings contain templates, levels and configurable task limits', (
 });
 
 test('tasks disappear from available list after their configured limit is exhausted', () => {
-  assert.match(script, /availableTemplates\s*=\s*templates\.filter/);
+  assert.match(script, /templates\s*=\s*\(state.data.templates \|\| \[\]\)\.filter/);
   assert.match(script, /Number\(item\.limit_remaining\)\s*>\s*0/);
-  assert.match(script, /availableTemplates\.map/);
+  assert.match(script, /filtered\.map/);
 });
 
 test('pending level-up is celebrated once and acknowledged through the API', () => {

@@ -261,6 +261,15 @@
             font-weight: 600;
         }
 
+        .performance-task-note {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(96, 165, 250, 0.16);
+            color: var(--text-sub);
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
         .help-rating-card {
             margin-bottom: 16px;
             padding: 16px;
@@ -579,6 +588,7 @@
                 <span><b>Дисциплина</b> <span id="performance-points-discipline">— из 10%</span></span>
                 <span><b>Нарушения</b> <span id="performance-points-violations">— из 5%</span></span>
             </div>
+            <div class="performance-task-note" id="performance-task-note" hidden></div>
         </div>
 
         <div class="card help-rating-card" data-ui-block="performance_index">
@@ -869,6 +879,9 @@
             const ratingValueElement = document.getElementById('help-rating-value');
             const ratingFillElement = document.getElementById('help-rating-fill');
             const ratingLevelElement = document.getElementById('help-rating-level');
+            const taskNoteElement = document.getElementById('performance-task-note');
+            taskNoteElement.hidden = true;
+            taskNoteElement.innerText = '';
             const numericValue = Number(performance?.value);
             const zoneStyles = {
                 green: {className: 'zone-green', label: 'Зелёная зона'},
@@ -949,6 +962,13 @@
                 : numericValue.toFixed(1);
 
             valueElement.innerText = `${formattedValue}%`;
+            const baseValue = Number(performance?.value_before_task_bonus);
+            const bonus = Math.max(0, Math.min(3, Number(performance?.task_bonus_points) || 0));
+            if (performance?.value_before_task_bonus != null && Number.isFinite(baseValue) && bonus > 0) {
+                const appliedBonus = Math.max(0, Math.min(bonus, numericValue - baseValue));
+                taskNoteElement.hidden = false;
+                taskNoteElement.innerText = `Основной индекс: ${formatDecimal(baseValue)}% · допзадания: +${formatDecimal(appliedBonus)} п.п. Начисления действуют 7 дней, общий предел +3 п.п.`;
+            }
         }
 
         function renderTestResults(testResults) {

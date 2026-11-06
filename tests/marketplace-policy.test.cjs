@@ -21,7 +21,7 @@ function app(fetcher = async action => action === 'bootstrap' ? fixture() : {}) 
   const document = {querySelector:node,querySelectorAll:()=>[],addEventListener(type,listener){documentEvents.set(type,listener);}};
   const window = {Telegram:{WebApp:{initData:'signed-telegram-data',ready(){},expand(){}}}};
   const context = {window,document,Intl,Date,AbortController,CSS:{escape:s=>s},queueMicrotask,crypto:{randomUUID:()=>`uuid-${calls.length}`},sessionStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)},setTimeout:()=>0,clearTimeout(){},fetch:async(_url, options)=>{const body=JSON.parse(options.body);calls.push({body,headers:options.headers});const data=await fetcher(body.action,body);return {ok:true,json:async()=>({status:'success',data})};}};
-  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,reload,render,renderAdmin,renderLeader,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision,openWithdrawDialog,submitWithdrawal};\n})();');
+  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,reload,render,renderAdmin,renderLeader,renderCatalog,renderTaskFocus,templateCard,catalogRewards,takeTask,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision,openWithdrawDialog,submitWithdrawal};\n})();');
   vm.runInNewContext(testSource,context);
   window.testApp.state.data=fixture();
   return {...window.testApp,node,calls,stored,dialogs,documentEvents};
@@ -60,6 +60,90 @@ test('reviewer sees reviews but not master settings and role revocation resets n
 test('all static element bindings exist in the page',()=>{
   const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]));
   for(const match of source.matchAll(/\$\('#([a-z0-9-]+)'\)/g)) assert.ok(ids.has(match[1]),`Missing #${match[1]}`);
+});
+
+test('only one own unfinished task blocks catalog takes including pending review',async()=>{
+  for(const status of ['in_progress','pending_review']){
+    const page=app();page.state.data.templates=[{template_id:'new',title:'Новое',target_count:1}];
+    page.state.data.own_assignments=[{assignment_id:'current',template_id:'old',title:'Текущее',status,target_count:5,progress:2}];
+    page.renderAdmin();
+    assert.match(page.node('#available-list').innerHTML,/data-take="new" disabled/);
+    assert.equal(page.node('#catalog-slot').textContent,'Слот занят');
+    assert.equal(page.node('#active-count').textContent,1);
+    await page.takeTask('new');
+    assert.equal(page.calls.length,0);assert.equal(page.dialogs.length,0);
+    assert.match(page.node('#task-focus').innerHTML,status==='pending_review'?/Ожидает проверки/:/40%/);
+  }
+});
+
+test('another administrators review queue does not block own slot',()=>{
+  const page=app();page.state.data.templates=[{template_id:'new',title:'Новое'}];
+  page.state.data.assignments=[{assignment_id:'other',template_id:'new',status:'in_progress',admin_id:101}];
+  page.renderAdmin();
+  assert.doesNotMatch(page.node('#available-list').innerHTML,/data-take="new" disabled/);
+  assert.equal(page.node('#catalog-slot').textContent,'1 свободный слот');
+});
+
+test('server slot state fails closed and legacy multiple tasks stay visible',async()=>{
+  const page=app();page.state.data.assignment_limit={can_take:false,active_count:2,max_active:1};
+  page.state.data.own_assignments=[{assignment_id:'old-1',title:'Первое',status:'in_progress'}, {assignment_id:'old-2',title:'Второе',status:'pending_review'}];
+  page.renderAdmin();
+  assert.match(page.node('#task-focus').innerHTML,/Ранее взято заданий: 2/);
+  assert.match(page.node('#active-list').innerHTML,/Первое/);assert.match(page.node('#active-list').innerHTML,/Второе/);
+  await page.takeTask('new');assert.equal(page.calls.length,0);
+});
+
+test('search and sorting are local and do not request metadata again',async()=>{
+  const page=app();page.state.data.templates=[
+    {template_id:'post',title:'Контроль поста',description:'Порядок',reward_reports:100,reward_index:2},
+    {template_id:'events',title:'Мероприятия',description:'Провести пять',reward_reports:200,reward_index:1},
+    {template_id:'night',title:'Ночное дежурство',description:'Ночь',reward_reports:50,reward_index:3}
+  ];
+  await page.documentEvents.get('change')({target:{id:'catalog-sort',value:'reports'}});
+  assert.ok(page.node('#available-list').innerHTML.indexOf('Мероприятия')<page.node('#available-list').innerHTML.indexOf('Контроль поста'));
+  await page.documentEvents.get('input')({target:{id:'catalog-search',value:'НОЧНОЕ'}});
+  assert.match(page.node('#available-list').innerHTML,/Ночное дежурство/);
+  assert.doesNotMatch(page.node('#available-list').innerHTML,/Мероприятия/);
+  await page.documentEvents.get('input')({target:{id:'catalog-search',value:'Не существует'}});
+  assert.match(page.node('#available-list').innerHTML,/ничего не найдено/);
+  assert.equal(page.calls.length,0);
+});
+
+test('catalog shows meaningful rewards for index-only and hourly tasks and escapes text',()=>{
+  const page=app();
+  const index=page.catalogRewards({reward_reports:0,reward_index:4,reward_xp:30});
+  assert.match(index,/до \+3/);assert.match(index,/7 дней/);assert.doesNotMatch(index,/\+0/);
+  assert.match(page.catalogRewards({reward_steps:[150,250,350],reward_multiplier:1.25,reward_index:2}),/до \+940/);
+  const card=page.templateCard({template_id:'<tag>',title:'<img src=x>',description:'<script>bad</script>',instructions:'one\ntwo',reward_reports:100},new Set());
+  assert.doesNotMatch(card,/<img|<script>/);assert.match(card,/&lt;img/);
+  assert.match(html,/admin-task-marketplace-catalog\.css\?v=20261106-1/);
+});
+
+test('bank shows only active capped index bonus, never the lifetime total',()=>{
+  const page=app();page.state.data.wallet.index_bonus_total=28.5;
+  page.state.data.wallet.index_bonus_active=0;page.renderAdmin();
+  assert.equal(page.node('#wallet-index').textContent,'0');
+  assert.match(page.node('#wallet-index-rule').textContent,/\+3 п.п. · 7 дней/);
+  page.state.data.wallet.index_bonus_active=2.5;page.renderAdmin();
+  assert.equal(page.node('#wallet-index').textContent,'2,5');
+});
+
+test('double take clicks send one request and success switches to current task',async()=>{
+  const data=fixture();data.templates=[{template_id:'one',title:'Задание',description:'Работа'}];
+  let release;
+  const page=app(async action=>{
+    if(action==='take_task') {await new Promise(resolve=>{release=resolve});data.own_assignments=[{assignment_id:'taken',template_id:'one',title:'Задание',status:'in_progress'}];return {assignment_id:'taken'};}
+    return data;
+  });
+  page.state.data=data;
+  const first=page.takeTask('one');
+  for(let i=0;i<8;i++)await Promise.resolve();
+  assert.equal(page.state.taking,true);
+  await page.takeTask('one');
+  assert.equal(page.calls.filter(call=>call.body.action==='take_task').length,1);
+  release();await first;
+  assert.equal(page.state.adminTab,'active');assert.equal(page.state.taking,false);
+  assert.match(page.node('#available-list').innerHTML,/data-take="one" disabled/);
 });
 
 test('confirmation keeps paragraphs, list indentation and untrusted text as literal text',async()=>{

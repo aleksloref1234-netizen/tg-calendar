@@ -7,6 +7,7 @@
   <title>Дополнительные задания</title>
   <link rel="stylesheet" href="admin-task-marketplace.css?v=20261103-1">
   <link rel="stylesheet" href="admin-task-marketplace-policy.css?v=20261103-4">
+  <link rel="stylesheet" href="admin-task-marketplace-catalog.css?v=20261106-1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="admin-app-bridge.js?v=20261026-1"></script>
 </head>
@@ -51,23 +52,31 @@
           </div>
           <div class="wallet-grid">
             <div><small>Бонусный банк</small><strong><span id="wallet-reports">0</span> <i>реп.</i></strong></div>
-            <div><small>Добавлено к индексу</small><strong>+<span id="wallet-index">0</span><i>%</i></strong></div>
+            <div><small>Бонус к индексу</small><strong>+<span id="wallet-index">0</span><i>п.п.</i></strong><small class="index-policy-note" id="wallet-index-rule">Максимум +3 п.п. · 7 дней</small></div>
           </div>
-          <div class="wallet-week">
-            <div class="progress-head"><span>Вывод на этой неделе</span><b id="wallet-week-label">0 / 1000 реп.</b></div>
+          <details class="wallet-week bank-details">
+            <summary><span>Вывод на этой неделе</span><b id="wallet-week-label">0 / 1000 реп.</b><span class="bank-chevron" aria-hidden="true">⌄</span></summary>
+            <div class="bank-details-body">
             <div class="progress"><i id="wallet-week-progress"></i></div>
             <p id="wallet-week-remaining"></p><small id="wallet-week-reset"></small>
-            <p id="wallet-debt" hidden></p>
-          </div>
+            </div>
+          </details>
+          <p id="wallet-debt" hidden></p>
           <button class="button secondary" id="withdraw-button">Вывести репорты</button>
         </div>
 
+        <section class="task-focus" id="task-focus" aria-label="Текущее задание" aria-live="polite"></section>
         <nav class="tabs" id="admin-tabs">
-          <button class="active" data-tab="available">Доступные</button>
-          <button data-tab="active">В работе</button>
-          <button data-tab="history">История</button>
+          <button class="active" data-tab="available">Доступные <span id="available-count" class="tab-count">0</span></button>
+          <button data-tab="active">В работе <span id="active-count" class="tab-count">0</span></button>
+          <button data-tab="history">История <span id="history-count" class="tab-count">0</span></button>
         </nav>
-        <section class="list" id="available-list"></section>
+        <div class="catalog-tools" id="catalog-tools">
+          <div class="catalog-heading"><div><p class="eyebrow">Следующий шаг</p><h2>Каталог заданий</h2></div><span class="slot-label" id="catalog-slot">1 свободный слот</span></div>
+          <div class="catalog-controls"><label class="catalog-search"><span class="sr-only">Поиск задания</span><input id="catalog-search" type="search" placeholder="Найти задание" autocomplete="off" maxlength="100"></label><label class="catalog-sort"><span class="sr-only">Сортировка заданий</span><select id="catalog-sort"><option value="default">По порядку</option><option value="reports">Больше репортов</option><option value="index">Больше индекса</option><option value="xp">Больше XP</option></select></label></div>
+          <p class="catalog-lock" id="catalog-lock" hidden></p>
+        </div>
+        <section class="list catalog-grid" id="available-list" aria-label="Каталог заданий"></section>
         <section class="list" id="active-list" hidden></section>
         <section class="list" id="history-list" hidden></section>
       </section>
@@ -92,6 +101,7 @@
           <p class="eyebrow">Только Master ID</p>
           <h1>Настройки заданий</h1>
           <p>Создавайте задания, задавайте правила, награды, лимиты выполнений и уровни системы.</p>
+          <p class="index-settings-note">Бонусы индекса действуют 7 дней после подтверждения. Общая прибавка — не более +3 п.п.; коэффициенты уровней меняют только репорты.</p>
         </div>
         <nav class="tabs" id="settings-tabs">
           <button class="active" data-tab="templates">Шаблоны заданий</button>
@@ -202,6 +212,6 @@
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261105-1"></script>
+  <script src="admin-task-marketplace.js?v=20261106-1"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 
   const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/admin/tasks';
   const tg = window.Telegram?.WebApp;
-  const state = { data: null, role: 'admin', adminTab: 'available', settingsTab: 'templates', levelUpShowing: '', withdrawing: false };
+  const state = { data: null, role: 'admin', adminTab: 'available', settingsTab: 'templates', levelUpShowing: '', withdrawing: false, taking: false, catalogQuery: '', catalogSort: 'default', catalogHasRendered: false };
   const $ = selector => document.querySelector(selector);
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   const dateText = value => value ? new Intl.DateTimeFormat('ru-RU', {timeZone:'Europe/Moscow',dateStyle:'short',timeStyle:'short'}).format(new Date(value)) + ' МСК' : 'Без ограничения';
@@ -132,7 +132,11 @@
     const multiplierLabel = multiplier > 1 ? ` · ×${multiplier.toLocaleString('ru-RU', {maximumFractionDigits:2})}` : '';
     const reportLabel = item.reward_steps?.length && !['pending_review','approved','revoked'].includes(item.status)
       ? 'Репорты по подтверждённым часам' : `+${Number(item.reward_reports || 0)} репортов${multiplierLabel}`;
-    return `<div class="reward-row"><span class="reward">${reportLabel}</span><span class="reward">+${Number(item.reward_index || 0).toLocaleString('ru-RU')}% к индексу</span><span class="reward">+${Number(item.reward_xp || 10)} XP</span></div>`;
+    return `<div class="reward-row"><span class="reward">${reportLabel}</span><span class="reward">до +${effectiveRewardIndex(item).toLocaleString('ru-RU')} п.п. · 7 дней</span><span class="reward">+${Number(item.reward_xp ?? 10)} XP</span></div>`;
+  }
+
+  function effectiveRewardIndex(item) {
+    return Math.min(Number(state.data?.wallet?.index_bonus_cap ?? 3), Math.max(0, Number(item.reward_index || 0)));
   }
 
   function rulesBlock(item) {
@@ -165,12 +169,80 @@
     return `До ${limit} ${item.reward_steps?.length ? 'оплачиваемых часов' : 'выполнений'} ${period}`;
   }
 
-  function templateCard(item, takenIds) {
+  function activeAssignments() {
+    return (state.data?.own_assignments || state.data?.assignments || [])
+      .filter(item => ['in_progress', 'pending_review'].includes(item.status));
+  }
+
+  function slotOccupied() {
+    return activeAssignments().length > 0 || state.data?.assignment_limit?.can_take === false;
+  }
+
+  function taskIcon(item) {
+    const paths = item.reward_steps?.length ? '<path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/>'
+      : item.verification_mode === 'leadership_counter' ? '<path d="m13 2-9 12h7l-1 8 10-12h-7l1-8Z"/>'
+      : item.verification_mode === 'evidence_review' ? '<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/>'
+      : '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>';
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  }
+
+  function catalogReportAmount(item) {
+    return item.reward_steps?.length
+      ? Math.round(item.reward_steps.reduce((total, value) => total + Number(value), 0) * Number(item.reward_multiplier || 1) / 5) * 5
+      : Number(item.reward_reports || 0);
+  }
+
+  function catalogRewards(item) {
+    const reports = catalogReportAmount(item);
+    const index = effectiveRewardIndex(item);
+    const xp = Number(item.reward_xp ?? 10);
+    const primary = reports > 0 ? `${item.reward_steps?.length ? 'до ' : ''}+${reports.toLocaleString('ru-RU')}`
+      : index > 0 ? `до +${index.toLocaleString('ru-RU')}` : `+${xp}`;
+    const label = reports > 0 ? 'репортов в банк' : index > 0 ? 'п.п. к индексу · 7 дней' : 'опыта';
+    const extras = [reports > 0 && index > 0 ? `до +${index.toLocaleString('ru-RU')} п.п. · 7 дней` : '',
+      reports > 0 || index > 0 ? `+${xp} XP` : ''].filter(Boolean);
+    return `<div class="catalog-rewards"><div class="catalog-payout"><strong>${primary}</strong><span>${label}</span></div><div class="catalog-extras">${extras.map(value => `<span>${esc(value)}</span>`).join('')}</div></div>${reports > 0 && Number(item.reward_multiplier) > 1 ? `<p class="catalog-multiplier">Ваш коэффициент ×${Number(item.reward_multiplier).toLocaleString('ru-RU', {maximumFractionDigits:2})} уже учтён</p>` : ''}`;
+  }
+
+  function renderTaskFocus(active) {
+    const item = active[0];
+    if (!item) {
+      $('#task-focus').innerHTML = '<div class="focus-ring focus-free"><span>01</span></div><div class="focus-copy"><p class="eyebrow">Один шаг за раз</p><h2>Место для нового задания</h2><p>Выберите задание, завершите его и получите награду.</p></div><button class="button secondary" data-open-task-tab="available">Выбрать задание <span aria-hidden="true">↗</span></button>';
+      return;
+    }
+    const pending = item.status === 'pending_review';
+    const percent = Math.max(0, Math.min(100, Math.round(Number(item.progress || 0) / Math.max(1, Number(item.target_count || 1)) * 100)));
+    const detail = active.length > 1 ? `Ранее взято заданий: ${active.length}. Они сохранены. Завершите их, чтобы освободить слот.`
+      : pending ? 'Отчёт у руководства. Пока проверка не завершена, слот остаётся занят.'
+      : item.revision_count ? 'Отчёт возвращён на доработку. Исправьте его и отправьте повторно.'
+      : `Прогресс: ${Number(item.progress || 0)} из ${Number(item.target_count || 1)}. Продолжите выполнение во вкладке «В работе».`;
+    $('#task-focus').innerHTML = `<div class="focus-ring ${pending ? 'focus-pending' : ''}" style="--focus-progress:${percent * 3.6}deg"><span>${pending ? '···' : `${percent}%`}</span></div><div class="focus-copy"><p class="eyebrow">${pending ? 'Ожидает проверки' : 'В фокусе'}</p><h2>${esc(item.title)}</h2><p>${esc(detail)}</p></div><button class="button secondary" data-open-task-tab="active">${active.length > 1 ? 'Открыть задания' : pending ? 'Открыть отчёт' : 'Продолжить'} <span aria-hidden="true">↗</span></button>`;
+  }
+
+  function renderCatalog() {
+    const templates = (state.data.templates || []).filter(item => !item.time_rule_key || Number(item.limit_remaining) > 0);
+    const query = state.catalogQuery.trim().toLocaleLowerCase('ru-RU');
+    const filtered = templates.filter(item => `${item.title} ${item.description}`.toLocaleLowerCase('ru-RU').includes(query));
+    const sortKey = {reports:'reward_reports',index:'reward_index',xp:'reward_xp'}[state.catalogSort];
+    if (sortKey) filtered.sort((a,b) => (sortKey === 'reward_reports' ? catalogReportAmount(b) - catalogReportAmount(a) : sortKey === 'reward_index' ? effectiveRewardIndex(b) - effectiveRewardIndex(a) : Number(b[sortKey] || 0) - Number(a[sortKey] || 0)) || String(a.template_id).localeCompare(String(b.template_id)));
+    const occupied = slotOccupied();
+    const takenIds = new Set(activeAssignments().map(item => item.template_id));
+    $('#available-count').textContent = templates.length;
+    $('#catalog-slot').textContent = occupied ? 'Слот занят' : '1 свободный слот';
+    $('#catalog-slot').classList.toggle('occupied', occupied);
+    $('#catalog-lock').hidden = !occupied;
+    $('#catalog-lock').textContent = 'Можно просматривать каталог. Новое задание — после завершения или отмены текущего; отчёт на проверке тоже занимает слот.';
+    $('#available-list').classList.toggle('catalog-enter', !state.catalogHasRendered);
+    state.catalogHasRendered = true;
+    $('#available-list').innerHTML = filtered.length ? filtered.map((item,index) => templateCard(item, takenIds, index)).join('') : empty(query ? 'По вашему запросу ничего не найдено' : 'Новых заданий пока нет. Загляните позже.');
+  }
+
+  function templateCard(item, takenIds, index = 0) {
     const taken = takenIds.has(item.template_id);
     const limitReached = item.time_rule_key && Number(item.limit_remaining) <= 0;
-    const disabled = taken || limitReached;
-    const buttonLabel = taken ? 'Уже в работе' : limitReached ? 'Лимит исчерпан' : 'Взять задание';
-    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : item.verification_mode === 'evidence_review' ? '▣' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div></div>${timeRuleBlock(item)}${rulesBlock(item)}${reward(item)}<div class="meta-row"><span class="meta">Цель: ${item.target_count}</span>${item.time_rule_key ? '' : `<span class="meta">Срок: ${item.deadline_hours} ч.</span>`}</div>${item.time_rule_message && !limitReached ? `<div class="time-hint">${esc(item.time_rule_message)}</div>` : ''}<div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${disabled ? 'disabled' : ''}>${buttonLabel}</button></div></article>`;
+    const disabled = taken || limitReached || slotOccupied() || state.taking;
+    const buttonLabel = taken ? 'Уже в работе' : limitReached ? 'Лимит исчерпан' : state.taking ? 'Подождите…' : slotOccupied() ? 'Сначала текущее задание' : 'Взять задание';
+    return `<article class="task-card catalog-card ${taken ? 'is-current' : ''}" style="--card-order:${Math.min(index, 6)}"><div class="catalog-card-head"><span class="task-icon">${taskIcon(item)}</span><span class="catalog-number">${String(index + 1).padStart(2, '0')}</span></div><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div>${catalogRewards(item)}<div class="meta-row"><span class="meta">Цель: ${Number(item.target_count || 1)}</span>${item.time_rule_key ? '' : `<span class="meta">Срок: ${Number(item.deadline_hours || 24)} ч.</span>`}</div>${timeRuleBlock(item)}${rulesBlock(item)}${item.time_rule_message && !limitReached ? `<div class="time-hint">${esc(item.time_rule_message)}</div>` : ''}<div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${disabled ? 'disabled' : ''}>${buttonLabel}${disabled ? '' : '<span aria-hidden="true">↗</span>'}</button></div></article>`;
   }
 
   function adminAssignmentCard(item, evidenceByAssignment) {
@@ -187,10 +259,12 @@
   }
 
   function renderAdmin() {
-    const { templates, wallet, evidence, task_profile: profile } = state.data;
+    const { wallet, evidence, task_profile: profile } = state.data;
     const assignments = state.data.own_assignments || state.data.assignments;
     $('#wallet-reports').textContent = Number(wallet.report_balance || 0);
-    $('#wallet-index').textContent = Number(wallet.index_bonus_total || 0).toLocaleString('ru-RU');
+    $('#wallet-index').textContent = Math.min(Number(wallet.index_bonus_cap ?? 3), Number(wallet.index_bonus_active ?? wallet.index_bonus_total ?? 0)).toLocaleString('ru-RU');
+    $('#wallet-index-rule').textContent = `Максимум +${Number(wallet.index_bonus_cap ?? 3)} п.п. · ${Number(wallet.index_bonus_window_days ?? 7)} дней`;
+    $('#wallet-index-rule').title = wallet.index_bonus_next_expiry_at ? `Ближайшее истечение начисления: ${dateText(wallet.index_bonus_next_expiry_at)}` : 'Сумма действующих начислений за последние 7 дней после одобрения.';
     const weeklyLimit = Number(wallet.weekly_limit ?? 1000);
     const weeklyUsed = Number(wallet.weekly_used || 0);
     const available = Math.min(Number(wallet.report_balance || 0),Number(wallet.weekly_remaining ?? weeklyLimit));
@@ -212,15 +286,16 @@
     if (profile?.manual_level) $('#level-next').textContent = 'Уровень назначен Master ID · автоматический рост приостановлен';
     const active = assignments.filter(item => ['in_progress', 'pending_review'].includes(item.status));
     const history = assignments.filter(item => !['in_progress', 'pending_review'].includes(item.status));
-    const takenIds = new Set(active.map(item => item.template_id));
     const evidenceByAssignment = new Map();
     const ownIds = new Set(assignments.map(item => item.assignment_id));
     evidence.filter(file => ownIds.has(file.assignment_id)).forEach(file => {
       const list = evidenceByAssignment.get(file.assignment_id) || [];
       list.push(file); evidenceByAssignment.set(file.assignment_id, list);
     });
-    const availableTemplates = templates.filter(item => !item.time_rule_key || Number(item.limit_remaining) > 0);
-    $('#available-list').innerHTML = availableTemplates.length ? availableTemplates.map(item => templateCard(item, takenIds)).join('') : empty('Нет доступных заданий');
+    renderTaskFocus(active);
+    renderCatalog();
+    $('#active-count').textContent = active.length;
+    $('#history-count').textContent = state.data.history_next_cursor ? `${history.length}+` : history.length;
     $('#active-list').innerHTML = active.length ? active.map(item => adminAssignmentCard(item, evidenceByAssignment)).join('') : empty('Нет заданий в работе');
     $('#history-list').innerHTML = history.length ? history.map(item => adminAssignmentCard(item, evidenceByAssignment)).join('') : empty('История пока пуста');
     if (state.data.history_next_cursor) $('#history-list').innerHTML += '<button class="button secondary" data-history-more>Показать ещё</button>';
@@ -285,7 +360,7 @@
     const {task_profile:profile,wallet} = state.member;
     $('#member-profile').hidden = false;
     $('#member-name').textContent = `${state.member.admin_nickname} · ${state.member.admin_id}`;
-    $('#member-stats').textContent = `${profile.title} · ${profile.xp} XP · банк ${wallet.report_balance} реп. · бонус индекса +${wallet.index_bonus_total}%${Number(wallet.report_debt || 0) ? ` · корректировка к погашению ${wallet.report_debt} реп.` : ''}`;
+    $('#member-stats').textContent = `${profile.title} · ${profile.xp} XP · банк ${wallet.report_balance} реп. · действующий бонус +${Math.min(Number(wallet.index_bonus_cap ?? 3), Number(wallet.index_bonus_active ?? wallet.index_bonus_total ?? 0))} п.п.${Number(wallet.report_debt || 0) ? ` · корректировка к погашению ${wallet.report_debt} реп.` : ''}`;
     $('#member-level').value = profile.manual_level ? profile.level_key : '';
   }
 
@@ -335,6 +410,31 @@
     document.querySelectorAll(`#${area}-tabs button`).forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
     const ids = area === 'admin' ? ['available','active','history'] : ['templates','levels','members','wallet-settings'];
     ids.forEach(id => { $(`#${id}-list`).hidden = id !== tab; });
+    if (area === 'admin') $('#catalog-tools').hidden = tab !== 'available';
+  }
+
+  async function takeTask(templateId) {
+    if (state.taking) return;
+    if (slotOccupied()) { toast('Сначала завершите текущее задание или дождитесь его проверки.'); return; }
+    const template = state.data.templates.find(item => item.template_id === templateId);
+    if (!template) return;
+    state.taking = true;
+    renderCatalog();
+    try {
+      const details = `${template.description}${template.instructions ? `\n\nПравила:\n${template.instructions}` : ''}\n\nОдновременно можно выполнять одно задание. Отчёт на проверке тоже занимает слот.`;
+      const accepted = await askDecision({ title:'Взять задание?', text:details, confirm:'Взять' });
+      if (accepted === null) return;
+      await api('take_task', {template_id:templateId});
+      await reload({quiet:true});
+      switchTab('admin', 'active');
+      toast('Задание взято. Оно появилось во вкладке «В работе».');
+    } catch (error) {
+      toast(error.message);
+      await reload({quiet:true});
+    } finally {
+      state.taking = false;
+      if (state.data) renderCatalog();
+    }
   }
 
   function askDecision({ eyebrow = 'Подтверждение', title, text, reason = false, confirm = 'Подтвердить' }) {
@@ -430,6 +530,8 @@
   }
 
   document.addEventListener('click', async event => {
+    const taskTab = event.target.closest('[data-open-task-tab]');
+    if (taskTab) { switchTab('admin', taskTab.dataset.openTaskTab); $('#admin-tabs').scrollIntoView?.({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'instant' : 'smooth', block:'start'}); return; }
     const role = event.target.closest('[data-role]');
     if (role) {
       if (role.dataset.role === 'settings' && !state.data.viewer.is_master) return;
@@ -498,13 +600,7 @@
     }
     const take = event.target.closest('[data-take]');
     if (take) {
-      const template = state.data.templates.find(item => item.template_id === take.dataset.take);
-      const details = template
-        ? `${template.description}${template.instructions ? `\n\nПравила:\n${template.instructions}` : ''}`
-        : 'После подтверждения оно появится во вкладке «В работе».';
-      const accepted = await askDecision({ title:'Взять задание?', text:details, confirm:'Взять' });
-      if (accepted === null) return;
-      try { await api('take_task', {template_id:take.dataset.take}); await reload({quiet:true}); toast('Задание взято'); } catch (error) { toast(error.message); }
+      await takeTask(take.dataset.take);
       return;
     }
     const submit = event.target.closest('[data-submit]');
@@ -589,7 +685,18 @@
     if (event.target.closest('#open-create')) { openTemplateEditor(); return; }
   });
 
+  document.addEventListener('input', event => {
+    if (event.target.id !== 'catalog-search') return;
+    state.catalogQuery = event.target.value.slice(0, 100);
+    renderCatalog();
+  });
+
   document.addEventListener('change', async event => {
+    if (event.target.id === 'catalog-sort') {
+      state.catalogSort = event.target.value;
+      renderCatalog();
+      return;
+    }
     if (event.target.matches('#create-limit')) {
       const limit = Number(event.target.value || 0);
       if (limit <= 0) $('#create-limit-period').value = 'none';
