@@ -33,6 +33,12 @@ def main():
     with service.store._connection() as connection:
         connection.execute("UPDATE admin_task_templates SET reward_reports = 350, reward_index = 2.5 WHERE template_id = 'crowd-control'")
         connection.execute("UPDATE admin_task_templates SET reward_reports = 0, reward_index = 4, reward_xp = 30 WHERE template_id = 'events-5'")
+    roster = {101:"Demo_Admin",202:"Demo_North",203:"Demo_West",204:"Demo_River"}
+    for admin_id, count in ((101,1),(202,3),(203,2),(204,1)):
+        for _ in range(count):
+            sample = service.store.take_task(admin_id,roster[admin_id],"events-5")
+            service.store.submit_assignment(admin_id,sample["assignment_id"])
+            service.review(900,sample["assignment_id"],"approve")
     if args.state != "free":
         assignment = service.take_task(101, "Demo_Admin", "events-5" if args.state == "pending" else "zov-5")
         if args.state == "pending":
@@ -93,6 +99,8 @@ def main():
                     data = service.cancel(101, body.get("assignment_id", ""))
                 elif action == "submit":
                     data = service.submit(101, body.get("assignment_id", ""))
+                elif action == "leaderboard":
+                    data = service.leaderboard(101,roster,period=body.get("period","current"),offset=body.get("offset",0))
                 else:
                     raise ValueError("Локальный стенд: это действие не подключено.")
                 self.send(200, json.dumps({"status": "success", "data": data}, ensure_ascii=False))

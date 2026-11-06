@@ -7,7 +7,7 @@
   <title>Дополнительные задания</title>
   <link rel="stylesheet" href="admin-task-marketplace.css?v=20261103-1">
   <link rel="stylesheet" href="admin-task-marketplace-policy.css?v=20261103-4">
-  <link rel="stylesheet" href="admin-task-marketplace-catalog.css?v=20261106-1">
+  <link rel="stylesheet" href="admin-task-marketplace-catalog.css?v=20261106-2">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="admin-app-bridge.js?v=20261026-1"></script>
 </head>
@@ -70,6 +70,7 @@
           <button class="active" data-tab="available">Доступные <span id="available-count" class="tab-count">0</span></button>
           <button data-tab="active">В работе <span id="active-count" class="tab-count">0</span></button>
           <button data-tab="history">История <span id="history-count" class="tab-count">0</span></button>
+          <button data-tab="ranking">Рейтинг</button>
         </nav>
         <div class="catalog-tools" id="catalog-tools">
           <div class="catalog-heading"><div><p class="eyebrow">Следующий шаг</p><h2>Каталог заданий</h2></div><span class="slot-label" id="catalog-slot">1 свободный слот</span></div>
@@ -79,6 +80,7 @@
         <section class="list catalog-grid" id="available-list" aria-label="Каталог заданий"></section>
         <section class="list" id="active-list" hidden></section>
         <section class="list" id="history-list" hidden></section>
+        <section id="ranking-list" aria-label="Рейтинг дополнительных заданий" aria-live="polite" hidden></section>
       </section>
 
       <section id="leader-view" hidden>
@@ -212,6 +214,6 @@
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261106-1"></script>
+  <script src="admin-task-marketplace.js?v=20261106-2"></script>
 </body>
 </html>

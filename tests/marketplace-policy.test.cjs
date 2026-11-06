@@ -21,7 +21,7 @@ function app(fetcher = async action => action === 'bootstrap' ? fixture() : {}) 
   const document = {querySelector:node,querySelectorAll:()=>[],addEventListener(type,listener){documentEvents.set(type,listener);}};
   const window = {Telegram:{WebApp:{initData:'signed-telegram-data',ready(){},expand(){}}}};
   const context = {window,document,Intl,Date,AbortController,CSS:{escape:s=>s},queueMicrotask,crypto:{randomUUID:()=>`uuid-${calls.length}`},sessionStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)},setTimeout:()=>0,clearTimeout(){},fetch:async(_url, options)=>{const body=JSON.parse(options.body);calls.push({body,headers:options.headers});const data=await fetcher(body.action,body);return {ok:true,json:async()=>({status:'success',data})};}};
-  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,reload,render,renderAdmin,renderLeader,renderCatalog,renderTaskFocus,templateCard,catalogRewards,takeTask,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision,openWithdrawDialog,submitWithdrawal};\n})();');
+  const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,reload,render,renderAdmin,renderLeader,renderCatalog,renderTaskFocus,renderLeaderboard,loadLeaderboard,templateCard,catalogRewards,takeTask,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision,openWithdrawDialog,submitWithdrawal};\n})();');
   vm.runInNewContext(testSource,context);
   window.testApp.state.data=fixture();
   return {...window.testApp,node,calls,stored,dialogs,documentEvents};
@@ -60,6 +60,53 @@ test('reviewer sees reviews but not master settings and role revocation resets n
 test('all static element bindings exist in the page',()=>{
   const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]));
   for(const match of source.matchAll(/\$\('#([a-z0-9-]+)'\)/g)) assert.ok(ids.has(match[1]),`Missing #${match[1]}`);
+});
+
+function rankingFixture(period='current') {
+  return {period,period_label:'02.11 — 08.11.2026',total_participants:27,rewards_enabled:false,next_offset:20,
+    self:{rank:23,nickname:'My_Admin',xp:10,completed:1,in_roster:true,xp_to_next_rank:20},
+    entries:[{entry_id:'first',rank:1,nickname:'First_Admin',xp:100,completed:5,is_me:false}]};
+}
+
+test('ranking keeps own place visible outside top page and escapes participant names',()=>{
+  const page=app();page.state.ranking=rankingFixture();page.state.ranking.entries[0].nickname='<img src=x>';
+  page.renderLeaderboard();
+  const view=page.node('#ranking-list').innerHTML;
+  assert.match(view,/№23/);assert.match(view,/My_Admin/);assert.match(view,/До следующего места: 20 XP/);
+  assert.match(view,/&lt;img/);assert.doesNotMatch(view,/<img src=x>/);
+  assert.match(view,/автоматические призы пока не начисляются/);
+});
+
+test('ranking loads lazily and reuses a short client snapshot',async()=>{
+  const page=app(async(action,payload)=>action==='leaderboard'?rankingFixture(payload.period):fixture());
+  page.render();assert.equal(page.calls.length,0);
+  await page.loadLeaderboard();await page.loadLeaderboard();
+  assert.equal(page.calls.filter(call=>call.body.action==='leaderboard').length,1);
+  page.state.rankingPeriod='previous';page.state.ranking=null;await page.loadLeaderboard();
+  assert.equal(page.state.ranking.period,'previous');assert.equal(page.calls.length,2);
+});
+
+test('older ranking response cannot overwrite a newly selected week',async()=>{
+  let release;
+  const page=app(async(_action,payload)=>payload.period==='current'?await new Promise(resolve=>{release=()=>resolve(rankingFixture('current'));}):rankingFixture('previous'));
+  const first=page.loadLeaderboard();
+  for(let i=0;i<4;i++)await Promise.resolve();
+  page.state.rankingPeriod='previous';page.state.ranking=null;
+  await page.loadLeaderboard();release();await first;
+  assert.equal(page.state.ranking.period,'previous');assert.equal(page.state.rankingLoading,false);
+});
+
+test('ranking error stays inside its tab and pagination deduplicates entries',async()=>{
+  const page=app(async(_action,payload)=>{
+    if(payload.offset===20)return {...rankingFixture(),entries:[{entry_id:'first',rank:1,nickname:'First_Admin',xp:100},{entry_id:'next',rank:21,nickname:'Next_Admin',xp:20}],next_offset:null};
+    throw new Error('Состав временно недоступен');
+  });
+  await page.loadLeaderboard();
+  assert.match(page.node('#ranking-list').innerHTML,/Состав временно недоступен/);
+  assert.match(page.node('#ranking-list').innerHTML,/data-rank-retry/);
+  page.state.ranking=rankingFixture();await page.loadLeaderboard({more:true});
+  assert.equal(page.state.ranking.entries.length,2);
+  assert.equal(page.state.ranking.next_offset,null);
 });
 
 test('only one own unfinished task blocks catalog takes including pending review',async()=>{
@@ -116,7 +163,7 @@ test('catalog shows meaningful rewards for index-only and hourly tasks and escap
   assert.match(page.catalogRewards({reward_steps:[150,250,350],reward_multiplier:1.25,reward_index:2}),/до \+940/);
   const card=page.templateCard({template_id:'<tag>',title:'<img src=x>',description:'<script>bad</script>',instructions:'one\ntwo',reward_reports:100},new Set());
   assert.doesNotMatch(card,/<img|<script>/);assert.match(card,/&lt;img/);
-  assert.match(html,/admin-task-marketplace-catalog\.css\?v=20261106-1/);
+  assert.match(html,/admin-task-marketplace-catalog\.css\?v=20261106-2/);
 });
 
 test('bank shows only active capped index bonus, never the lifetime total',()=>{

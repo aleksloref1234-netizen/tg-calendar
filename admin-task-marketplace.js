@@ -3,7 +3,7 @@
 
   const API_URL = 'https://tg-admin-bot-1k1g.onrender.com/api/admin/tasks';
   const tg = window.Telegram?.WebApp;
-  const state = { data: null, role: 'admin', adminTab: 'available', settingsTab: 'templates', levelUpShowing: '', withdrawing: false, taking: false, catalogQuery: '', catalogSort: 'default', catalogHasRendered: false };
+  const state = { data: null, role: 'admin', adminTab: 'available', settingsTab: 'templates', levelUpShowing: '', withdrawing: false, taking: false, catalogQuery: '', catalogSort: 'default', catalogHasRendered: false, ranking: null, rankingPeriod:'current', rankingLoading:false, rankingError:'', rankingRequest:0, rankingFetchedAt:0 };
   const $ = selector => document.querySelector(selector);
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   const dateText = value => value ? new Intl.DateTimeFormat('ru-RU', {timeZone:'Europe/Moscow',dateStyle:'short',timeStyle:'short'}).format(new Date(value)) + ' МСК' : 'Без ограничения';
@@ -88,7 +88,11 @@
       $('#app').hidden = false;
       $('#role-switch').hidden = !state.data.viewer.is_leader;
       $('#settings-role').hidden = !state.data.viewer.is_master;
+      state.ranking = null;
+      state.rankingRequest++;
+      state.rankingLoading = false;
       render();
+      if (state.role === 'admin' && state.adminTab === 'ranking') await loadLeaderboard();
       showPendingLevelUp();
     } catch (error) {
       $('#loading-gate').hidden = true;
@@ -235,6 +239,46 @@
     $('#available-list').classList.toggle('catalog-enter', !state.catalogHasRendered);
     state.catalogHasRendered = true;
     $('#available-list').innerHTML = filtered.length ? filtered.map((item,index) => templateCard(item, takenIds, index)).join('') : empty(query ? 'По вашему запросу ничего не найдено' : 'Новых заданий пока нет. Загляните позже.');
+  }
+
+  function renderLeaderboard() {
+    const data = state.ranking;
+    const own = data?.self;
+    const rankText = Number(own?.rank) > 0 ? `№${Number(own.rank)}` : '—';
+    const standing = own?.rank === 1 ? 'Вы в лидирующей группе'
+      : own?.xp_to_next_rank != null ? `До следующего места: ${Number(own.xp_to_next_rank)} XP`
+      : own?.in_roster === false ? 'Вашего профиля нет в актуальном составе'
+      : 'Место появится после первого подтверждённого задания';
+    const entries = data?.entries || [];
+    const participantCount = Number(data?.total_participants || 0);
+    const participantWord = participantCount % 100 >= 11 && participantCount % 100 <= 14 ? 'участников' : participantCount % 10 === 1 ? 'участник' : [2,3,4].includes(participantCount % 10) ? 'участника' : 'участников';
+    $('#ranking-list').innerHTML = `<div class="ranking-head"><div><p class="eyebrow">Активность состава</p><h2>Рейтинг недели</h2><p>${data ? `${esc(data.period_label)} · МСК` : 'Подтверждённые задания за неделю'}</p></div><span class="slot-label">${Number(data?.total_participants || 0)} участников</span></div><div class="ranking-periods" aria-label="Период рейтинга"><button data-rank-period="current" aria-pressed="${state.rankingPeriod === 'current'}">Эта неделя</button><button data-rank-period="previous" aria-pressed="${state.rankingPeriod === 'previous'}">Прошлая</button></div>${data ? `<div class="ranking-self"><strong class="ranking-place">${rankText}</strong><div><p class="eyebrow">Ваше место</p><h3>${esc(own?.nickname || 'Ваш профиль')}</h3><p>${esc(standing)}</p></div><div class="ranking-own-score"><strong>${Number(own?.xp || 0)}<small> XP</small></strong><span>Подтверждено: ${Number(own?.completed || 0)}</span></div></div>` : ''}${state.rankingError ? `<div class="empty" role="alert">${esc(state.rankingError)}<div class="actions"><button class="button secondary" data-rank-retry>Повторить</button></div></div>` : ''}${!data && state.rankingLoading ? '<div class="empty">Загружаем рейтинг…</div>' : data ? entries.length ? `<ol class="ranking-rows">${entries.map(item => `<li class="ranking-row ${item.is_me ? 'is-me' : ''}" value="${Number(item.rank)}"><span class="ranking-number ${Number(item.rank) <= 3 ? 'is-top' : ''}">${Number(item.rank)}</span><div class="ranking-person"><strong>${esc(item.nickname)}${item.is_me ? '<small>Вы</small>' : ''}</strong><span>Подтверждено заданий: ${Number(item.completed)}</span></div><strong class="ranking-score">${Number(item.xp)}<small> XP</small></strong></li>`).join('')}</ol>` : '<div class="empty">За эту неделю пока нет подтверждённых заданий. Первое одобрение откроет рейтинг.</div>' : ''}${data?.next_offset != null ? `<button class="button secondary ranking-more" data-ranking-more ${state.rankingLoading ? 'disabled' : ''}>${state.rankingLoading ? 'Загружаем…' : 'Показать ещё'}</button>` : ''}<details class="task-rules ranking-rules"><summary>Как считаются места</summary><p>Учитывается XP только из подтверждённых заданий текущего состава. Банк, выплаты и коэффициент уровня не дают преимущества.<br>Неделя — с понедельника по воскресенье, МСК. Задание относится к неделе сдачи; если проверка задержалась, после одобрения оно попадёт в свою неделю.<br>При одинаковом XP место одинаковое. Отменённые одобрения исключаются. За позиции автоматические призы пока не начисляются.</p></details>`;
+    $('#ranking-list .slot-label').textContent = `${participantCount} ${participantWord}`;
+  }
+
+  async function loadLeaderboard({more = false, force = false} = {}) {
+    if (more && (state.rankingLoading || state.ranking?.next_offset == null)) return;
+    if (!more && !force && state.ranking?.period === state.rankingPeriod && Date.now() - state.rankingFetchedAt < 60000) { renderLeaderboard(); return; }
+    const request = ++state.rankingRequest;
+    const period = state.rankingPeriod;
+    const offset = more ? state.ranking.next_offset : 0;
+    state.rankingLoading = true;
+    state.rankingError = '';
+    renderLeaderboard();
+    try {
+      const data = await api('leaderboard', {period,offset});
+      if (request !== state.rankingRequest || period !== state.rankingPeriod) return;
+      if (more && state.ranking?.period === period) {
+        const known = new Set(state.ranking.entries.map(item => item.entry_id));
+        data.entries = [...state.ranking.entries, ...data.entries.filter(item => !known.has(item.entry_id))];
+      }
+      state.ranking = data;
+      state.rankingFetchedAt = Date.now();
+    } catch(error) {
+      if (request === state.rankingRequest) state.rankingError = error.message;
+    } finally {
+      if (request === state.rankingRequest) { state.rankingLoading = false; renderLeaderboard(); }
+    }
   }
 
   function templateCard(item, takenIds, index = 0) {
@@ -398,6 +442,7 @@
     $('#settings-view').hidden = state.role !== 'settings';
     document.querySelectorAll('#role-switch button').forEach(button => button.classList.toggle('active', button.dataset.role === state.role));
     renderAdmin();
+    if (state.adminTab === 'ranking') renderLeaderboard();
     if (state.data.viewer.is_leader) renderLeader();
     if (state.data.viewer.is_master) renderSettings();
     switchTab('admin', state.adminTab);
@@ -408,7 +453,7 @@
     const stateKey = area === 'admin' ? 'adminTab' : 'settingsTab';
     state[stateKey] = tab;
     document.querySelectorAll(`#${area}-tabs button`).forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
-    const ids = area === 'admin' ? ['available','active','history'] : ['templates','levels','members','wallet-settings'];
+    const ids = area === 'admin' ? ['available','active','history','ranking'] : ['templates','levels','members','wallet-settings'];
     ids.forEach(id => { $(`#${id}-list`).hidden = id !== tab; });
     if (area === 'admin') $('#catalog-tools').hidden = tab !== 'available';
   }
@@ -530,6 +575,10 @@
   }
 
   document.addEventListener('click', async event => {
+    const rankPeriod = event.target.closest('[data-rank-period]');
+    if (rankPeriod) { if (state.rankingPeriod !== rankPeriod.dataset.rankPeriod) {state.rankingPeriod = rankPeriod.dataset.rankPeriod; state.ranking = null;} else if (state.rankingLoading) return; await loadLeaderboard(); return; }
+    if (event.target.closest('[data-rank-retry]')) { await loadLeaderboard({force:true}); return; }
+    if (event.target.closest('[data-ranking-more]')) { await loadLeaderboard({more:true}); return; }
     const taskTab = event.target.closest('[data-open-task-tab]');
     if (taskTab) { switchTab('admin', taskTab.dataset.openTaskTab); $('#admin-tabs').scrollIntoView?.({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'instant' : 'smooth', block:'start'}); return; }
     const role = event.target.closest('[data-role]');
@@ -543,6 +592,7 @@
       const area = tab.closest('#settings-tabs') ? 'settings' : 'admin';
       switchTab(area, tab.dataset.tab);
       try {
+        if (area === 'admin' && tab.dataset.tab === 'ranking') await loadLeaderboard();
         if (area === 'settings' && tab.dataset.tab === 'members') await loadMemberList();
         if (area === 'settings' && tab.dataset.tab === 'wallet-settings') {
           const settings = await api('wallet_settings');
