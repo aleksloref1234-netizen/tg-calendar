@@ -16,20 +16,19 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand"><span class="brand-mark">✦</span><div><b>Дополнительные задания</b><small>ADMIN CONTROL BOT</small></div></div>
-      <span class="closed-badge">Закрытый тест</span>
+      <span class="closed-badge" id="task-access-badge">Для администраторов</span>
     </header>
 
     <section class="gate card" id="loading-gate">
       <span class="loader"></span>
       <h1>Загружаем задания</h1>
-      <p>Проверяем подпись Telegram и доступ к закрытому тесту.</p>
+      <p>Проверяем подпись Telegram и доступ к заданиям.</p>
     </section>
 
     <section class="gate card" id="closed-gate" hidden>
       <span class="gate-icon">⌁</span>
-      <p class="eyebrow">Раздел подготовлен</p>
-      <h1>Доступ пока закрыт</h1>
-      <p id="closed-message">Система находится в закрытом тестировании и ещё не выдана пользователям.</p>
+      <h1>Раздел недоступен</h1>
+      <p id="closed-message">Откройте раздел в Telegram с аккаунта действующего администратора.</p>
     </section>
 
     <div id="app" hidden>

@@ -11,8 +11,9 @@ const css = fs.readFileSync(path.join(__dirname, '../admin-task-marketplace.css'
 test('additional assignments page stays behind Telegram and the protected API', () => {
   assert.match(script, /\/api\/admin\/tasks/);
   assert.match(script, /X-Telegram-Init-Data/);
-  assert.match(html, /Доступ пока закрыт/);
-  assert.match(html, /Закрытый тест/);
+  assert.match(html, /Раздел недоступен/);
+  assert.match(html, /Для администраторов/);
+  assert.doesNotMatch(html, /закрыт(?:ый|ому) тест/i);
 });
 
 test('all three agreed verification flows are present', () => {

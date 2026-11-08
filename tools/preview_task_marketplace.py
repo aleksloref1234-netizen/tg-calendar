@@ -96,7 +96,7 @@ def main():
                 return
             content = filename.read_text(encoding="utf-8")
             if filename.suffix == ".html":
-                content = content.replace("https://telegram.org/js/telegram-web-app.js", "/__fixture/telegram.js").replace("Закрытый тест", "ТЕСТОВЫЕ ДАННЫЕ")
+                content = content.replace("https://telegram.org/js/telegram-web-app.js", "/__fixture/telegram.js").replace("Для администраторов", "ТЕСТОВЫЕ ДАННЫЕ")
                 if not args.unified:
                     content = content.replace('src="admin-app-bridge.js?v=20261026-1"', 'src="/__fixture/bridge.js"')
             content = content.replace("https://tg-admin-bot-1k1g.onrender.com", f"http://127.0.0.1:{args.port}")
