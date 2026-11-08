@@ -208,13 +208,15 @@ test('submit retries transient failures with one stable operation id', () => {
 test('dynamic norm entitlement is visible to the curator', () => {
   assert.match(html, /class="discount hidden" id="discount"/);
   assert.match(html, /Сокращённый норматив активен/);
-  assert.match(html, /находится в зелёной зоне/);
+  assert.match(html, /Норматив сокращён в 2 раза/);
   assert.doesNotMatch(html, /льготн/i);
 });
 
 test('weekly reduced-norm lock is explained to the curator', () => {
   assert.match(html, /Сокращённый норматив приостановлен/);
-  assert.match(html, /До следующего понедельника применяется стандартный норматив/);
+  assert.match(html, /На прошлой неделе было нарушено условие/);
+  assert.match(html, /со следующего понедельника действует стандартный норматив/);
+  assert.match(html, /dynamic\.next_week_locked/);
   assert.match(html, /dynamic\.weekly_locked/);
   assert.match(html, /dynamic\.weekly_lock_reasons/);
 });

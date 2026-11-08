@@ -858,14 +858,16 @@
                 ? 'Сокращённая норма приостановлена'
                 : 'Сокращённая норма действует';
             document.getElementById('reduced-norm-category').innerText = locked
-                ? `${profile.category_title || 'Текущая категория'} · до следующей недели`
-                : `${profile.category_title || 'Текущая категория'} · зелёная зона`;
+                ? `${profile.category_title || 'Текущая категория'} · текущая неделя`
+                : `${profile.category_title || 'Текущая категория'} · до конца недели`;
             document.getElementById('reduced-norm-badge').innerText = locked
                 ? 'СТАНДАРТ'
                 : '−50%';
             document.getElementById('reduced-norm-caption').innerText = locked
-                ? `В течение недели было нарушено условие: ${reasons || 'статус зелёной зоны изменился'}. До понедельника применяется стандартный норматив.`
-                : 'Показатели соответствуют условиям зелёной зоны. Ниже указан действующий дневной норматив.';
+                ? `На прошлой неделе было нарушено условие: ${reasons || 'статус зелёной зоны изменился'}. На этой неделе действует стандартный норматив.`
+                : profile.next_week_locked
+                    ? 'Сокращённая норма сохраняется до конца недели. Со следующего понедельника будет действовать стандартная.'
+                    : 'Ниже указан действующий сокращённый дневной норматив.';
             document.getElementById('reduced-reports').innerText = formatNorm(norm.reports);
             document.getElementById('reduced-minutes').innerText = formatNorm(norm.minutes);
             document.getElementById('reduced-events').innerText = formatNorm(norm.events);

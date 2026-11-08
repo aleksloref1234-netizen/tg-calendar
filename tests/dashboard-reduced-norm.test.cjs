@@ -23,7 +23,9 @@ test('reduced norm card renders all effective daily requirements', () => {
 
 test('weekly violation keeps a visible standard-norm lock notice', () => {
   assert.match(html, /Сокращённая норма приостановлена/);
-  assert.match(html, /До понедельника применяется стандартный норматив/);
+  assert.match(html, /На этой неделе действует стандартный норматив/);
+  assert.match(html, /Со следующего понедельника будет действовать стандартная/);
+  assert.match(html, /profile\.next_week_locked/);
   assert.match(html, /profile\?\.weekly_locked/);
   assert.match(html, /classList\.toggle\('locked', locked\)/);
 });
