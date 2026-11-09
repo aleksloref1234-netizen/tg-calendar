@@ -34,6 +34,34 @@ test('screenshots upload directly to object storage and rewards use a wallet', (
   assert.match(script, /operation_id:operationId/);
 });
 
+test('the picker uploads ten files and respects remaining assignment capacity', async () => {
+  const source = script.match(/async function uploadEvidence\([\s\S]*?\n  }/)[0];
+  const confirmed = [];
+  const state = {data: {max_evidence_files: 10, evidence: [{assignment_id: 'other'}]}};
+  const context = {
+    state,
+    compressImage: async name => ({name, type: 'image/webp', blob: {size: 1}}),
+    api: async (action, payload) => {
+      if (action === 'create_evidence_upload') {
+        return {upload_url: '/storage', max_bytes: 5 * 1024 * 1024, evidence_id: payload.file_name};
+      }
+      assert.equal(action, 'confirm_evidence_upload');
+      confirmed.push(payload.evidence_id);
+    },
+    fetch: async () => ({ok: true}),
+  };
+  vm.runInNewContext(source, context);
+  const files = Array.from({length: 10}, (_, index) => `proof-${index}`);
+  await context.uploadEvidence('task', files);
+  assert.deepEqual(confirmed, files);
+
+  state.data.evidence.push({assignment_id: 'task'});
+  await assert.rejects(context.uploadEvidence('task', files), /не более 10 файлов/);
+  assert.equal(confirmed.length, 10); // No partial upload on selection overflow.
+  await context.uploadEvidence('task', files.slice(0, 9));
+  assert.equal(confirmed.length, 19);
+});
+
 test('leadership entry retry reuses one idempotency key', () => {
   assert.match(script, /sessionStorage\.getItem\(operationName\)/);
   assert.match(script, /sessionStorage\.removeItem\(operationName\)/);
@@ -72,7 +100,7 @@ test('master can define and edit exact instructions for every task', () => {
 test('admin task cards do not expose internal verification mode labels', () => {
   const source = script.match(/function templateCard[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(source, /typeLabel\(/);
-  assert.match(html, /admin-task-marketplace\.js\?v=20261106-2/);
+  assert.match(html, /admin-task-marketplace\.js\?v=20261109-1/);
 });
 
 test('limited assignments show reward caps without an automatic timer', () => {

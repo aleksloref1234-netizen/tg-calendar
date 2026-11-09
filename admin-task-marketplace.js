@@ -533,7 +533,13 @@
   }
 
   async function uploadEvidence(assignmentId, files) {
-    for (const source of [...files].slice(0, 5)) {
+    // A previously deployed server may not expose its upload limit yet.
+    const limit = state.data?.max_evidence_files ?? 5;
+    const attached = (state.data?.evidence || []).filter(file => file.assignment_id === assignmentId).length;
+    if (files.length > Math.max(0, limit - attached)) {
+      throw new Error(`Можно прикрепить не более ${limit} файлов на одно задание.`);
+    }
+    for (const source of files) {
       const prepared = await compressImage(source);
       const reservation = await api('create_evidence_upload', {
         assignment_id: assignmentId, file_name: prepared.name, mime_type: prepared.type
