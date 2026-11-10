@@ -100,7 +100,7 @@ test('master can define and edit exact instructions for every task', () => {
 test('admin task cards do not expose internal verification mode labels', () => {
   const source = script.match(/function templateCard[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(source, /typeLabel\(/);
-  assert.match(html, /admin-task-marketplace\.js\?v=20261110-1/);
+  assert.match(html, /admin-task-marketplace\.js\?v=20261110-2/);
 });
 
 test('hot cards use custom content, hide the player until take, and keep sparks running', () => {
@@ -109,18 +109,20 @@ test('hot cards use custom content, hide the player until take, and keep sparks 
   assert.match(html, /id="create-player"/);
   assert.match(urgentCss, /animation:hot-border-spark [^;{}]+infinite/);
   assert.match(urgentCss, /prefers-reduced-motion:reduce/);
-  const source = ['templateCard', 'urgentAssignmentDetails'].map(name =>
+  const source = ['templateCard', 'urgentAssignmentDetails', 'urgentBadge'].map(name =>
     script.match(new RegExp(`function ${name}\\([\\s\\S]*?\\n  }`))[0]).join('\n');
   const context = {
     esc: value => String(value).replaceAll('<', '&lt;'),
     state: {taking:false}, slotOccupied: () => false,
-    urgentBadge: () => 'Горячее', urgentRewards: () => '',
+    urgentRewards: () => '',
     rulesBlock: () => '', dateText: () => '22:00 МСК',
   };
   vm.runInNewContext(source, context);
   const item = {is_urgent:1,title:'Моё название',description:'Мой текст',template_id:'a',has_player:true,player_nickname:'Hidden_Nickname',private_details:'<private>'};
   const card = context.templateCard(item, new Set());
   assert.match(card, /Моё название.*Мой текст/);
+  assert.match(card, /> Горящее<\/span>/);
+  assert.match(html, /Горящее задание/);
   assert.match(card, /hot-sparks/);
   assert.match(card, /Ник игрока откроется после принятия/);
   assert.doesNotMatch(card, /Hidden_Nickname|private|античит|сигнал/i);

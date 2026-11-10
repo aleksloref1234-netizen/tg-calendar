@@ -212,7 +212,7 @@
   }
 
   function urgentBadge() {
-    return '<span class="hot-badge"><span aria-hidden="true">✦</span> Горячее</span>';
+    return '<span class="hot-badge"><span aria-hidden="true">✦</span> Горящее</span>';
   }
 
   function urgentPublicationEnded(item, now = Date.now() + (state.serverClockOffset || 0)) {
@@ -661,7 +661,7 @@
     $('#create-player').value = item?.player_nickname || '';
     $('#create-private-details').value = item?.private_details || '';
     syncUrgentTemplateForm({defaults:republish});
-    $('#template-dialog-eyebrow').textContent = republish ? 'Горячее задание' : item ? 'Редактирование' : 'Новый шаблон';
+    $('#template-dialog-eyebrow').textContent = republish ? 'Горящее задание' : item ? 'Редактирование' : 'Новый шаблон';
     $('#template-dialog-title').textContent = republish ? 'Новая публикация' : item ? 'Настроить задание' : 'Создать задание';
     $('#template-submit').textContent = republish ? 'Опубликовать снова' : item ? 'Сохранить изменения' : 'Создать шаблон';
     $('#create-dialog').showModal();
