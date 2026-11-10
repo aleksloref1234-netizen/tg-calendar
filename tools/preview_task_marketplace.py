@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--state", choices=("free", "active", "pending"), default="free")
     parser.add_argument("--unified", action="store_true", help="Preview the real app shell and active-document bridge")
     parser.add_argument("--fullscreen-sdk", action="store_true", help="Synthetic Telegram fullscreen events and safe areas, not a native-client test")
+    parser.add_argument("--urgent", action="store_true", help="Enable the local master fixture (?fixture_role=master)")
     args = parser.parse_args()
     temporary = tempfile.TemporaryDirectory()
     service = AdminTaskMarketplaceService(AdminTaskMarketplaceConfig(
@@ -72,6 +73,8 @@ def main():
                 return
             if path == "/__fixture/telegram.js":
                 init_data = "location.pathname.endsWith('/app.html')?'local-fixture':''" if args.unified else "'local-fixture'"
+                if args.urgent and not args.unified:
+                    init_data = "new URLSearchParams(location.search).get('fixture_role')==='master'?'local-fixture-master':'local-fixture'"
                 sdk = "window.Telegram={WebApp:{initData:" + init_data + ",ready(){},expand(){},HapticFeedback:{notificationOccurred(){}}}};"
                 if args.fullscreen_sdk:
                     sdk += """(()=>{
@@ -104,7 +107,9 @@ def main():
 
         def do_POST(self):
             api_path = urlsplit(self.path).path
-            if api_path not in {"/api/admin/tasks", "/api/app"} or self.headers.get("X-Telegram-Init-Data") != "local-fixture":
+            init_data = self.headers.get("X-Telegram-Init-Data")
+            user_id = 900 if args.urgent and init_data == "local-fixture-master" else 101 if init_data == "local-fixture" else 0
+            if api_path not in {"/api/admin/tasks", "/api/app"} or not user_id:
                 self.send(403, '{}')
                 return
             try:
@@ -122,15 +127,22 @@ def main():
                     self.send(200, json.dumps({"status": "success", "data": data}, ensure_ascii=False))
                     return
                 if action == "bootstrap":
-                    data = service.bootstrap(101)
-                    data["viewer"].update(is_master=False)
-                    data["wallet"].update(report_balance=550, index_bonus_total=8.5, index_bonus_active=2.5)
+                    data = service.bootstrap(user_id)
+                    data["viewer"].update(is_master=user_id == 900)
+                    if not args.urgent:
+                        data["wallet"].update(report_balance=550, index_bonus_total=8.5, index_bonus_active=2.5)
                 elif action == "take_task":
-                    data = service.take_task(101, "Demo_Admin", body.get("template_id", ""))
+                    data = service.take_task(user_id, "Demo_Master" if user_id == 900 else "Demo_Admin", body.get("template_id", ""))
                 elif action == "cancel":
-                    data = service.cancel(101, body.get("assignment_id", ""))
+                    data = service.cancel(user_id, body.get("assignment_id", ""))
                 elif action == "submit":
-                    data = service.submit(101, body.get("assignment_id", ""))
+                    data = service.submit(user_id, body.get("assignment_id", ""), urgent_report=body.get("urgent_report"))
+                elif action == "create_template" and user_id == 900:
+                    data = service.create_template(user_id, body)
+                elif action == "republish_urgent_template" and user_id == 900:
+                    data = service.republish_urgent_template(user_id, body.get("template_id", ""), body)
+                elif action == "review" and user_id == 900:
+                    data = service.review(user_id, body.get("assignment_id", ""), body.get("decision", ""), body.get("reason", ""))
                 elif action == "leaderboard":
                     data = service.leaderboard(101,roster,period=body.get("period","current"),offset=body.get("offset",0))
                 else:

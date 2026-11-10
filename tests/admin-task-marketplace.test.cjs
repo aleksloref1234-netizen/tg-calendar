@@ -100,7 +100,36 @@ test('master can define and edit exact instructions for every task', () => {
 test('admin task cards do not expose internal verification mode labels', () => {
   const source = script.match(/function templateCard[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(source, /typeLabel\(/);
-  assert.match(html, /admin-task-marketplace\.js\?v=20261109-1/);
+  assert.match(html, /admin-task-marketplace\.js\?v=20261110-1/);
+});
+
+test('hot cards use custom content, hide the player until take, and keep sparks running', () => {
+  const urgentCss = fs.readFileSync(path.join(__dirname, '../admin-task-marketplace-urgent.css'), 'utf8');
+  assert.match(html, /id="create-urgent"/);
+  assert.match(html, /id="create-player"/);
+  assert.match(urgentCss, /animation:hot-border-spark [^;{}]+infinite/);
+  assert.match(urgentCss, /prefers-reduced-motion:reduce/);
+  const source = ['templateCard', 'urgentAssignmentDetails'].map(name =>
+    script.match(new RegExp(`function ${name}\\([\\s\\S]*?\\n  }`))[0]).join('\n');
+  const context = {
+    esc: value => String(value).replaceAll('<', '&lt;'),
+    state: {taking:false}, slotOccupied: () => false,
+    urgentBadge: () => 'Горячее', urgentRewards: () => '',
+    rulesBlock: () => '', dateText: () => '22:00 МСК',
+  };
+  vm.runInNewContext(source, context);
+  const item = {is_urgent:1,title:'Моё название',description:'Мой текст',template_id:'a',has_player:true,player_nickname:'Hidden_Nickname',private_details:'<private>'};
+  const card = context.templateCard(item, new Set());
+  assert.match(card, /Моё название.*Мой текст/);
+  assert.match(card, /hot-sparks/);
+  assert.match(card, /Ник игрока откроется после принятия/);
+  assert.doesNotMatch(card, /Hidden_Nickname|private|античит|сигнал/i);
+  const busy = context.templateCard({...item,publication_available:false}, new Set());
+  assert.match(busy, /Уже в работе/);
+  assert.doesNotMatch(busy, /hot-sparks|Hidden_Nickname/);
+  const taken = context.urgentAssignmentDetails(item);
+  assert.match(taken, /<code dir="ltr">Hidden_Nickname<\/code>/);
+  assert.match(taken, /&lt;private>/);
 });
 
 test('limited assignments show reward caps without an automatic timer', () => {

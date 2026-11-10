@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="admin-task-marketplace.css?v=20261103-1">
   <link rel="stylesheet" href="admin-task-marketplace-policy.css?v=20261103-4">
   <link rel="stylesheet" href="admin-task-marketplace-catalog.css?v=20261106-2">
+  <link rel="stylesheet" href="admin-task-marketplace-urgent.css?v=20261110-1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="admin-app-bridge.js?v=20261026-1"></script>
 </head>
@@ -140,12 +141,12 @@
 
   <dialog id="decision-dialog">
     <form method="dialog" class="dialog-card" id="decision-form">
-      <button class="dialog-close" value="cancel" aria-label="Закрыть">×</button>
+      <button class="dialog-close" value="cancel" formnovalidate aria-label="Закрыть">×</button>
       <p class="eyebrow" id="dialog-eyebrow">Решение</p>
       <h2 id="dialog-title">Подтвердить действие</h2>
       <p id="dialog-text"></p>
-      <label id="reason-wrap" hidden>Причина<textarea id="dialog-reason" rows="3" placeholder="Обязательный комментарий"></textarea></label>
-      <div class="dialog-actions"><button class="button secondary" value="cancel">Отмена</button><button class="button primary" id="dialog-confirm" value="default">Подтвердить</button></div>
+      <label id="reason-wrap" hidden><span id="dialog-reason-label">Причина</span><textarea id="dialog-reason" rows="3" placeholder="Обязательный комментарий"></textarea></label>
+      <div class="dialog-actions"><button class="button secondary" value="cancel" formnovalidate>Отмена</button><button class="button primary" id="dialog-confirm" value="default">Подтвердить</button></div>
     </form>
   </dialog>
 
@@ -165,27 +166,34 @@
 
   <dialog id="create-dialog">
     <form method="dialog" class="dialog-card form-grid" id="create-form">
-      <button class="dialog-close" value="cancel" aria-label="Закрыть">×</button>
+      <button class="dialog-close" type="button" id="create-close" aria-label="Закрыть">×</button>
       <p class="eyebrow" id="template-dialog-eyebrow">Новый шаблон</p><h2 id="template-dialog-title">Создать задание</h2>
       <input id="template-id" type="hidden">
       <label class="wide">Название<input id="create-title" required maxlength="160"></label>
+      <label class="wide hot-toggle" id="create-urgent-wrap" hidden><input id="create-urgent" type="checkbox"> Горячее задание</label>
       <label class="wide">Краткое описание<textarea id="create-description" rows="2" required maxlength="500" placeholder="Коротко отображается в карточке задания"></textarea></label>
       <label class="wide">Подробное описание и правила<textarea id="create-instructions" rows="6" required maxlength="4000" placeholder="Что именно нужно сделать, что считается выполнением и как проходит проверка"></textarea></label>
+      <fieldset class="wide hot-settings" id="create-hot-details" hidden>
+        <legend>Видно после принятия</legend>
+        <label>Ник игрока<input id="create-player" maxlength="32" placeholder="Nick_Name" autocomplete="off" spellcheck="false"></label>
+        <label>Закрытые детали<textarea id="create-private-details" rows="3" maxlength="4000"></textarea></label>
+        <small>Заполняй, если нужно. Ник и детали увидят исполнитель и проверяющие. Не добавляй их в открытое описание.</small>
+      </fieldset>
       <label class="wide">Проверка<select id="create-mode"><option value="leadership_counter">Отметки руководства</option><option value="manual_review">Ручная проверка</option><option value="evidence_review">Ручная проверка со скринами</option></select></label>
       <label>Цель внутри задания<input id="create-target" type="number" min="1" max="100" value="1"></label>
       <label>Срок, часов<input id="create-deadline" type="number" min="1" max="744" value="24"></label>
       <label>Репорты<input id="create-reports" type="number" min="0" value="50"></label>
-      <label>Индекс, %<input id="create-index" type="number" min="0" max="25" step="0.5" value="1"></label>
+      <label>Индекс, п.п.<input id="create-index" type="number" min="0" max="25" step="0.5" value="1"></label>
       <label>Опыт, XP<input id="create-xp" type="number" min="1" max="1000" value="10"></label>
       <label>Лимит выполнений<input id="create-limit" type="number" min="0" max="1000" value="0"><small>0 — без ограничений</small></label>
       <label>Период лимита<select id="create-limit-period"><option value="none">Без периода</option><option value="day">За сутки</option><option value="week">За неделю</option><option value="night">За ночь</option></select></label>
-      <label>Общее число мест<input id="create-global-limit" type="number" min="0" max="10000" value="0"><small>0 — без ограничения. Отказ освобождает место; подтверждённое выполнение занимает его.</small></label>
+      <label>Общее число мест<input id="create-global-limit" type="number" min="0" max="10000" value="0"><small id="create-global-limit-hint">0 — без ограничения. Отказ освобождает место; подтверждённое выполнение занимает его.</small></label>
       <label>Минимальный уровень<select id="create-min-level"><option value="novice">Новичок — доступно всем</option><option value="active">Активный</option><option value="experienced">Опытный</option><option value="expert">Эксперт</option></select></label>
       <label>Начало публикации, МСК<input id="create-publish-from" type="datetime-local"><small>Пусто — без даты начала</small></label>
       <label>Конец публикации, МСК<input id="create-publish-until" type="datetime-local"><small>Уже взятые задания сохранятся</small></label>
       <label>Срок проверки, часов<input id="create-review-hours" type="number" min="1" max="744" value="24"></label>
       <label>Срок доработки, часов<input id="create-revision-hours" type="number" min="1" max="744" value="24"></label>
-      <fieldset class="wide night-settings"><legend>Награда ночного дежурства по часам</legend>
+      <fieldset class="wide night-settings" id="create-night-settings"><legend>Награда ночного дежурства по часам</legend>
         <label><input id="create-stepped" type="checkbox"> Использовать почасовую лестницу</label>
         <div class="hour-tariffs"><label>Первый час<input id="create-hour-1" type="number" min="1" max="10000" value="150"></label><label>Второй час<input id="create-hour-2" type="number" min="1" max="10000" value="250"></label><label>Третий час<input id="create-hour-3" type="number" min="1" max="10000" value="350"></label></div>
         <small>Суммы складываются: 150 / 400 / 750. Коэффициент уровня применяется к итогу. Часы подтверждает куратор; таймер не запускается. Индекс и XP начисляются за принятый отчёт.</small>
@@ -213,6 +221,6 @@
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261109-1"></script>
+  <script src="admin-task-marketplace.js?v=20261110-1"></script>
 </body>
 </html>

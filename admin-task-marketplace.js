@@ -81,6 +81,8 @@
   async function reload({ quiet = false } = {}) {
     try {
       state.data = await api('bootstrap');
+      const serverTime = Date.parse(state.data.generated_at);
+      state.serverClockOffset = Number.isFinite(serverTime) ? serverTime - Date.now() : 0;
       if (state.role === 'settings' && !state.data.viewer.is_master) state.role = 'admin';
       if (state.role === 'leader' && !state.data.viewer.is_leader) state.role = 'admin';
       $('#loading-gate').hidden = true;
@@ -92,6 +94,7 @@
       state.rankingRequest++;
       state.rankingLoading = false;
       render();
+      scheduleUrgentExpiry();
       if (state.role === 'admin' && state.adminTab === 'ranking') await loadLeaderboard();
       showPendingLevelUp();
     } catch (error) {
@@ -208,6 +211,48 @@
     return `<div class="catalog-rewards"><div class="catalog-payout"><strong>${primary}</strong><span>${label}</span></div><div class="catalog-extras">${extras.map(value => `<span>${esc(value)}</span>`).join('')}</div></div>${reports > 0 && Number(item.reward_multiplier) > 1 ? `<p class="catalog-multiplier">Ваш коэффициент ×${Number(item.reward_multiplier).toLocaleString('ru-RU', {maximumFractionDigits:2})} уже учтён</p>` : ''}`;
   }
 
+  function urgentBadge() {
+    return '<span class="hot-badge"><span aria-hidden="true">✦</span> Горячее</span>';
+  }
+
+  function urgentPublicationEnded(item, now = Date.now() + (state.serverClockOffset || 0)) {
+    return Boolean(item.is_urgent && Date.parse(item.publish_until) <= now);
+  }
+
+  function scheduleUrgentExpiry() {
+    clearTimeout(state.urgentExpiryTimer);
+    const now = Date.now() + (state.serverClockOffset || 0);
+    let nearest = Infinity;
+    for (const item of [...(state.data?.templates || []), ...(state.data?.all_templates || [])]) {
+      const end = item.is_urgent ? Date.parse(item.publish_until) : NaN;
+      if (end > now && end < nearest) nearest = end;
+    }
+    if (!Number.isFinite(nearest)) return;
+    state.urgentExpiryTimer = setTimeout(() => {
+      renderCatalog();
+      if (state.role === 'settings') renderSettings();
+      scheduleUrgentExpiry();
+    }, Math.min(2147483647, nearest - now + 25));
+  }
+
+  function urgentRewards(item) {
+    const format = amount => Number(amount).toLocaleString('ru-RU', {maximumFractionDigits:2});
+    return `<dl class="hot-rewards" aria-label="Награда за задание">
+      <div><dt>Репорты в банк</dt><dd>+${format(catalogReportAmount(item))}</dd></div>
+      <div><dt>Опыт</dt><dd>+${format(item.reward_xp ?? 10)} XP</dd></div>
+      <div><dt>К индексу · 7 дней</dt><dd>${effectiveRewardIndex(item) > 0 ? 'до ' : ''}+${format(effectiveRewardIndex(item))} п.п.</dd></div>
+    </dl>`;
+  }
+
+  function urgentAssignmentDetails(item) {
+    if (!item.is_urgent) return '';
+    const player = item.player_nickname ? `<div class="hot-player"><span class="hot-player-icon" aria-hidden="true">◎</span><div><span>Ник игрока</span><code dir="ltr">${esc(item.player_nickname)}</code></div></div>` : '';
+    const details = item.private_details ? `<details class="task-rules hot-details"><summary>Закрытые детали</summary><p>${esc(item.private_details)}</p></details>` : '';
+    const report = item.urgent_report && item.status !== 'in_progress'
+      ? `<div class="hot-report"><b>Отчёт администратора</b><p>${esc(item.urgent_report)}</p></div>` : '';
+    return player + details + report;
+  }
+
   function renderTaskFocus(active) {
     const item = active[0];
     if (!item) {
@@ -224,11 +269,13 @@
   }
 
   function renderCatalog() {
-    const templates = (state.data.templates || []).filter(item => !item.time_rule_key || Number(item.limit_remaining) > 0);
+    const templates = (state.data.templates || []).filter(item =>
+      !urgentPublicationEnded(item) && (!item.time_rule_key || Number(item.limit_remaining) > 0));
     const query = state.catalogQuery.trim().toLocaleLowerCase('ru-RU');
     const filtered = templates.filter(item => `${item.title} ${item.description}`.toLocaleLowerCase('ru-RU').includes(query));
     const sortKey = {reports:'reward_reports',index:'reward_index',xp:'reward_xp'}[state.catalogSort];
     if (sortKey) filtered.sort((a,b) => (sortKey === 'reward_reports' ? catalogReportAmount(b) - catalogReportAmount(a) : sortKey === 'reward_index' ? effectiveRewardIndex(b) - effectiveRewardIndex(a) : Number(b[sortKey] || 0) - Number(a[sortKey] || 0)) || String(a.template_id).localeCompare(String(b.template_id)));
+    filtered.sort((a,b) => Number(Boolean(b.is_urgent)) - Number(Boolean(a.is_urgent)));
     const occupied = slotOccupied();
     const takenIds = new Set(activeAssignments().map(item => item.template_id));
     $('#available-count').textContent = templates.length;
@@ -284,8 +331,23 @@
   function templateCard(item, takenIds, index = 0) {
     const taken = takenIds.has(item.template_id);
     const limitReached = item.time_rule_key && Number(item.limit_remaining) <= 0;
-    const disabled = taken || limitReached || slotOccupied() || state.taking;
-    const buttonLabel = taken ? 'Уже в работе' : limitReached ? 'Лимит исчерпан' : state.taking ? 'Подождите…' : slotOccupied() ? 'Сначала текущее задание' : 'Взять задание';
+    const unavailable = item.publication_available === false;
+    const disabled = taken || unavailable || limitReached || slotOccupied() || state.taking;
+    const buttonLabel = taken || unavailable ? 'Уже в работе' : limitReached ? 'Лимит исчерпан' : state.taking ? 'Подождите…' : slotOccupied() ? 'Сначала текущее задание' : 'Взять задание';
+    if (item.is_urgent) {
+      const live = !taken && !unavailable;
+      const places = unavailable ? 'Места заняты' : `Мест свободно: ${Number(item.global_remaining ?? 0)}`;
+      return `<article class="task-card catalog-card hot-card ${live ? 'hot-live' : 'hot-occupied'}">
+        ${live ? '<div class="hot-sparks" aria-hidden="true"><i></i><i></i><i></i></div>' : ''}
+        <div class="hot-meta">${urgentBadge()}<span>${esc(places)}</span></div>
+        <div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div>
+        ${urgentRewards(item)}
+        <div class="meta-row"><span class="meta">Взять до: ${esc(dateText(item.publish_until))}</span><span class="meta">На выполнение: ${Number(item.deadline_hours || 24)} ч.</span></div>
+        ${item.has_player ? '<p class="hot-lock-note">Ник игрока откроется после принятия</p>' : ''}
+        ${rulesBlock(item)}
+        <div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${disabled ? 'disabled' : ''}>${buttonLabel}${disabled ? '' : '<span aria-hidden="true">↗</span>'}</button></div>
+      </article>`;
+    }
     return `<article class="task-card catalog-card ${taken ? 'is-current' : ''}" style="--card-order:${Math.min(index, 6)}"><div class="catalog-card-head"><span class="task-icon">${taskIcon(item)}</span><span class="catalog-number">${String(index + 1).padStart(2, '0')}</span></div><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div>${catalogRewards(item)}<div class="meta-row"><span class="meta">Цель: ${Number(item.target_count || 1)}</span>${item.time_rule_key ? '' : `<span class="meta">Срок: ${Number(item.deadline_hours || 24)} ч.</span>`}</div>${timeRuleBlock(item)}${rulesBlock(item)}${item.time_rule_message && !limitReached ? `<div class="time-hint">${esc(item.time_rule_message)}</div>` : ''}<div class="actions"><button class="button primary" data-take="${esc(item.template_id)}" ${disabled ? 'disabled' : ''}>${buttonLabel}${disabled ? '' : '<span aria-hidden="true">↗</span>'}</button></div></article>`;
   }
 
@@ -299,7 +361,7 @@
     const deadline = item.status === 'pending_review'
       ? `Ожидание проверки не расходует срок выполнения. Проверка до ${dateText(item.review_due_at)}.`
       : item.status === 'in_progress' ? `${item.revision_count ? 'Доработать' : 'Выполнить'} до ${dateText(item.deadline_at)}.` : '';
-    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${deadline ? `<p class="decision-details">${esc(deadline)}</p>` : ''}${evidenceList}${upload}${nightFields(item)}<div class="actions">${canSubmit ? `<button class="button primary" data-submit="${esc(item.assignment_id)}">Задание выполнено</button>` : ''}${canCancel ? `<button class="button ghost" data-cancel-assignment="${esc(item.assignment_id)}">Отказаться от задания</button>` : ''}</div>${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
+    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${urgentAssignmentDetails(item)}${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${deadline ? `<p class="decision-details">${esc(deadline)}</p>` : ''}${evidenceList}${upload}${nightFields(item)}<div class="actions">${canSubmit ? `<button class="button primary" data-submit="${esc(item.assignment_id)}">${item.is_urgent ? 'Отправить отчёт' : 'Задание выполнено'}</button>` : ''}${canCancel ? `<button class="button ghost" data-cancel-assignment="${esc(item.assignment_id)}">Отказаться от задания</button>` : ''}</div>${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
   }
 
   function renderAdmin() {
@@ -352,7 +414,7 @@
       ? `<div class="actions"><button class="button primary" data-mark="${esc(item.assignment_id)}">Засчитать вход</button><button class="button ghost" data-undo="${esc(item.assignment_id)}">Отменить отметку</button></div>`
       : item.status === 'pending_review'
         ? `<div class="actions"><button class="button primary" data-review="approve" data-id="${esc(item.assignment_id)}">Принять</button><button class="button secondary" data-review="return" data-id="${esc(item.assignment_id)}">Вернуть</button><button class="button danger" data-review="reject" data-id="${esc(item.assignment_id)}">Отклонить</button></div>` : '';
-    return `<article class="task-card ${item.review_overdue ? 'review-overdue' : ''}"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${item.submitted_at ? `<p class="decision-details">Отправлено: ${esc(dateText(item.submitted_at))}<br>Проверить до: ${esc(dateText(item.review_due_at))}${item.review_overdue ? ' · проверка просрочена' : ''}</p>` : ''}${fileHtml}${item.status === 'pending_review' ? nightFields(item,true) : ''}${controls}</article>`;
+    return `<article class="task-card ${item.review_overdue ? 'review-overdue' : ''}"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${urgentAssignmentDetails(item)}${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${item.submitted_at ? `<p class="decision-details">Отправлено: ${esc(dateText(item.submitted_at))}<br>Проверить до: ${esc(dateText(item.review_due_at))}${item.review_overdue ? ' · проверка просрочена' : ''}</p>` : ''}${fileHtml}${item.status === 'pending_review' ? nightFields(item,true) : ''}${controls}</article>`;
   }
 
   function renderLeader() {
@@ -384,10 +446,20 @@
 
   function renderSettings() {
     if (!state.data.viewer.is_master) return;
-    const templates = state.data.all_templates || state.data.templates;
-    $('#templates-list').innerHTML = `<div class="settings-note">Здесь настраивается полный каталог заданий. Лимит 0 означает, что задание можно выполнять без ограничения по количеству.</div><div class="actions"><button class="button primary" id="open-create">＋ Создать задание</button></div>${templates.map(item => `<article class="task-card"><div class="task-top"><span class="task-icon">✦</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><span class="type">${typeLabel(item.verification_mode)} · цель ${item.target_count}</span><span class="template-limit">${esc(templateLimitLabel(item))}</span></div><span class="status ${item.enabled ? 'ok' : 'bad'}">${item.enabled ? 'Активно' : 'Выключено'}</span></div>${rulesBlock(item)}${reward({...item,reward_reports:item.base_reward_reports ?? item.reward_reports,reward_multiplier:1})}<div class="actions"><button class="button secondary" data-edit-template="${esc(item.template_id)}">Редактировать</button><button class="button ghost" data-toggle-template="${esc(item.template_id)}" data-enabled="${item.enabled ? '1' : '0'}">${item.enabled ? 'Выключить' : 'Включить'}</button></div></article>`).join('')}`;
+    const templates = [...(state.data.all_templates || state.data.templates)].sort((a,b) =>
+      Number(Boolean(b.is_urgent)) - Number(Boolean(a.is_urgent)) ||
+      (a.is_urgent && b.is_urgent ? String(b.created_at || '').localeCompare(String(a.created_at || '')) : 0));
+    $('#templates-list').innerHTML = `<div class="settings-note">Здесь настраивается полный каталог заданий. Лимит 0 означает, что задание можно выполнять без ограничения по количеству.</div><div class="actions"><button class="button primary" id="open-create">＋ Создать задание</button></div>${templates.map(settingsTemplateCard).join('')}`;
     const levels = state.data.level_settings || [];
     $('#levels-list').innerHTML = `<div class="settings-note">Уровень определяется по накопленному XP. Новые коэффициенты применяются только к заданиям, взятым после сохранения.</div>${levels.map(level => `<article class="task-card level-settings" data-level="${esc(level.level_key)}"><div class="level-name"><b>${esc(level.title)}</b><small>${level.level_key === 'novice' ? 'Начальный уровень' : 'Порог повышения'}</small></div><label>Требуется XP<input data-level-xp type="number" min="0" step="1" value="${Number(level.min_xp || 0)}" ${level.level_key === 'novice' ? 'readonly' : ''}></label><label>Коэффициент<input data-level-multiplier type="number" min="1" max="5" step="0.05" value="${Number(level.report_multiplier || 1)}"></label></article>`).join('')}<button class="button primary level-save" id="save-levels">Сохранить уровни</button>`;
+  }
+
+  function settingsTemplateCard(item) {
+    const expired = urgentPublicationEnded(item);
+    const id = esc(item.template_id);
+    const status = expired ? 'Публикация завершена' : item.enabled ? 'Активно' : 'Выключено';
+    const schedule = item.is_urgent ? `<div class="meta-row">${urgentBadge()}<span class="meta">Мест: ${Number(item.global_limit)}</span><span class="meta">До ${esc(dateText(item.publish_until))}</span></div>` : '';
+    return `<article class="task-card"><div class="task-top"><span class="task-icon">✦</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><span class="type">${typeLabel(item.verification_mode)} · цель ${item.target_count}</span><span class="template-limit">${esc(templateLimitLabel(item))}</span></div><span class="status ${item.enabled && !expired ? 'ok' : 'bad'}">${status}</span></div>${schedule}${rulesBlock(item)}${reward({...item,reward_reports:item.base_reward_reports ?? item.reward_reports,reward_multiplier:1})}<div class="actions"><button class="button secondary" data-edit-template="${id}">Редактировать</button>${expired ? `<button class="button primary" data-republish-template="${id}">Опубликовать снова</button>` : `<button class="button ghost" data-toggle-template="${id}" data-enabled="${item.enabled ? '1' : '0'}">${item.enabled ? 'Выключить' : 'Включить'}</button>`}</div></article>`;
   }
 
   function empty(text) { return `<div class="empty">${esc(text)}</div>`; }
@@ -462,7 +534,7 @@
     if (state.taking) return;
     if (slotOccupied()) { toast('Сначала завершите текущее задание или дождитесь его проверки.'); return; }
     const template = state.data.templates.find(item => item.template_id === templateId);
-    if (!template) return;
+    if (!template || urgentPublicationEnded(template) || template.publication_available === false) return;
     state.taking = true;
     renderCatalog();
     try {
@@ -482,15 +554,22 @@
     }
   }
 
-  function askDecision({ eyebrow = 'Подтверждение', title, text, reason = false, confirm = 'Подтвердить' }) {
+  function askDecision({ eyebrow = 'Подтверждение', title, text, reason = false, confirm = 'Подтвердить',
+    reasonLabel = 'Причина', reasonValue = '', requireText = false } = {}) {
     return new Promise(resolve => {
       const dialog = $('#decision-dialog');
       $('#dialog-eyebrow').textContent = eyebrow;
       $('#dialog-title').textContent = title;
       $('#dialog-text').textContent = text || '';
       $('#reason-wrap').hidden = !reason;
-      $('#dialog-reason').value = '';
+      $('#dialog-reason-label').textContent = reasonLabel;
+      const textarea = $('#dialog-reason');
+      textarea.value = reasonValue;
+      textarea.required = requireText;
+      textarea.maxLength = requireText ? 1500 : 1000;
+      textarea.placeholder = requireText ? 'Кратко опишите результат' : 'Обязательный комментарий';
       $('#dialog-confirm').textContent = confirm;
+      dialog.returnValue = 'cancel';
       const finish = () => {
         dialog.removeEventListener('close', finish);
         resolve(dialog.returnValue === 'default' ? $('#dialog-reason').value.trim() : null);
@@ -553,7 +632,8 @@
     }
   }
 
-  function openTemplateEditor(item = null) {
+  function openTemplateEditor(item = null, {republish = false} = {}) {
+    state.republishingTemplate = republish;
     $('#template-id').value = item?.template_id || '';
     $('#create-title').value = item?.title || '';
     $('#create-description').value = item?.description || '';
@@ -561,23 +641,54 @@
     $('#create-mode').value = item?.verification_mode || 'leadership_counter';
     $('#create-target').value = Number(item?.target_count || 1);
     $('#create-deadline').value = Number(item?.deadline_hours || 24);
-    $('#create-reports').value = Number(item?.reward_reports || 50);
-    $('#create-index').value = Number(item?.reward_index || 1);
+    $('#create-reports').value = Number(item?.reward_reports ?? 50);
+    $('#create-index').value = Number(item?.reward_index ?? 1);
     $('#create-xp').value = Number(item?.reward_xp || 10);
     $('#create-limit').value = Number(item?.completion_limit || 0);
     $('#create-limit-period').value = item?.limit_period || 'none';
     $('#create-global-limit').value = Number(item?.global_limit || 0);
     $('#create-min-level').value = item?.min_level_key || 'novice';
-    $('#create-publish-from').value = moscowInput(item?.publish_from);
-    $('#create-publish-until').value = moscowInput(item?.publish_until);
+    $('#create-publish-from').value = republish ? '' : moscowInput(item?.publish_from);
+    $('#create-publish-from').disabled = republish;
+    $('#create-publish-until').value = republish ? '' : moscowInput(item?.publish_until);
     $('#create-review-hours').value = Number(item?.review_hours || 24);
     $('#create-revision-hours').value = Number(item?.revision_hours || 24);
     $('#create-stepped').checked = !!item?.reward_steps?.length;
     [150,250,350].forEach((amount,index) => { $(`#create-hour-${index+1}`).value = Number(item?.reward_steps?.[index] || amount); });
-    $('#template-dialog-eyebrow').textContent = item ? 'Редактирование' : 'Новый шаблон';
-    $('#template-dialog-title').textContent = item ? 'Настроить задание' : 'Создать задание';
-    $('#template-submit').textContent = item ? 'Сохранить изменения' : 'Создать шаблон';
+    $('#create-urgent-wrap').hidden = !state.data.supports_urgent_tasks;
+    $('#create-urgent').checked = !!item?.is_urgent;
+    $('#create-urgent').disabled = republish;
+    $('#create-player').value = item?.player_nickname || '';
+    $('#create-private-details').value = item?.private_details || '';
+    syncUrgentTemplateForm({defaults:republish});
+    $('#template-dialog-eyebrow').textContent = republish ? 'Горячее задание' : item ? 'Редактирование' : 'Новый шаблон';
+    $('#template-dialog-title').textContent = republish ? 'Новая публикация' : item ? 'Настроить задание' : 'Создать задание';
+    $('#template-submit').textContent = republish ? 'Опубликовать снова' : item ? 'Сохранить изменения' : 'Создать шаблон';
     $('#create-dialog').showModal();
+  }
+
+  function syncUrgentTemplateForm({defaults = false} = {}) {
+    const urgent = $('#create-urgent').checked;
+    const places = $('#create-global-limit');
+    const until = $('#create-publish-until');
+    const maxUrgentPlaces = Number(state.data?.urgent_task_max_places) || 10;
+    $('#create-hot-details').hidden = !urgent;
+    $('#create-min-level').disabled = urgent;
+    $('#create-mode option[value="leadership_counter"]').disabled = urgent;
+    $('#create-night-settings').hidden = urgent;
+    places.min = urgent ? '1' : '0';
+    places.max = urgent ? String(maxUrgentPlaces) : '10000';
+    places.required = urgent;
+    $('#create-global-limit-hint').textContent = urgent
+      ? `От 1 до ${maxUrgentPlaces} разных исполнителей. Подтверждённый отчёт занимает место.`
+      : '0 — без ограничения. Отказ освобождает место; подтверждённое выполнение занимает его.';
+    until.required = urgent;
+    if (!urgent) return;
+    $('#create-min-level').value = 'novice';
+    $('#create-stepped').checked = false;
+    if ($('#create-mode').value === 'leadership_counter') $('#create-mode').value = 'manual_review';
+    if (defaults && (!Number(places.value) || Number(places.value) > maxUrgentPlaces)) places.value = String(maxUrgentPlaces);
+    if (defaults && !until.value) until.value = moscowInput(new Date(Date.now() + 4 * 3600000));
   }
 
   document.addEventListener('click', async event => {
@@ -661,10 +772,24 @@
     }
     const submit = event.target.closest('[data-submit]');
     if (submit) {
-      const accepted = await askDecision({ title:'Отправить на проверку?', text:'Награда будет начислена только после решения руководства.', confirm:'Отправить' });
+      const assignmentId = submit.dataset.submit;
+      const item = activeAssignments().find(row => row.assignment_id === assignmentId);
+      const urgent = !!item?.is_urgent;
+      const accepted = await askDecision({
+        title:'Отправить на проверку?', text:'Награда будет начислена только после решения руководства.',
+        confirm:'Отправить',
+        ...(urgent ? {reason:true, reasonLabel:'Итог выполнения', requireText:true,
+          reasonValue:state.urgentDraft?.id === assignmentId ? state.urgentDraft.text : item.urgent_report || ''} : {}),
+      });
       if (accepted === null) return;
+      if (urgent && !accepted) { toast('Укажите итог выполнения задания.'); return; }
       submit.disabled = true;
-      try { await api('submit', {assignment_id:submit.dataset.submit,...effortPayload(submit.dataset.submit)}); await reload({quiet:true}); toast('Задание отправлено на проверку'); } catch (error) { submit.disabled = false; toast(error.message); }
+      if (urgent) state.urgentDraft = {id:assignmentId, text:accepted};
+      try {
+        await api('submit', {assignment_id:assignmentId,...effortPayload(assignmentId),...(urgent ? {urgent_report:accepted} : {})});
+        if (urgent) state.urgentDraft = null;
+        await reload({quiet:true}); toast('Задание отправлено на проверку');
+      } catch (error) { submit.disabled = false; toast(error.message); }
       return;
     }
     const mark = event.target.closest('[data-mark]');
@@ -723,6 +848,12 @@
       const item = (state.data.all_templates || state.data.templates)
         .find(template => template.template_id === editTemplate.dataset.editTemplate);
       if (item) openTemplateEditor(item);
+      return;
+    }
+    const republishTemplate = event.target.closest('[data-republish-template]');
+    if (republishTemplate && state.data.viewer.is_master) {
+      const item = state.data.all_templates.find(template => template.template_id === republishTemplate.dataset.republishTemplate);
+      if (item && urgentPublicationEnded(item)) openTemplateEditor(item, {republish:true});
       return;
     }
     const toggleTemplate = event.target.closest('[data-toggle-template]');
@@ -843,20 +974,30 @@
     $('#create-mode').value = 'evidence_review'; $('#create-limit-period').value = 'night'; $('#create-limit').value = 3;
   });
 
+  $('#create-urgent').addEventListener('change', () => syncUrgentTemplateForm({defaults:true}));
+  $('#create-close').addEventListener('click', () => $('#create-dialog').close());
   $('#create-form').addEventListener('submit', async event => {
     event.preventDefault();
+    const submitButton = $('#template-submit');
+    if (submitButton.disabled) return;
+    submitButton.disabled = true;
     try {
       const templateId = $('#template-id').value;
-      const action = templateId ? 'update_template' : 'create_template';
+      const republish = state.republishingTemplate && templateId;
+      const action = republish ? 'republish_urgent_template' : templateId ? 'update_template' : 'create_template';
+      const urgent = $('#create-urgent').checked;
       await api(action, {
         template_id:templateId,title:$('#create-title').value.trim(),description:$('#create-description').value.trim(),instructions:$('#create-instructions').value.trim(),verification_mode:$('#create-mode').value,
         target_count:Number($('#create-target').value),deadline_hours:Number($('#create-deadline').value),reward_reports:$('#create-stepped').checked ? Number($('#create-hour-1').value) : Number($('#create-reports').value),reward_index:Number($('#create-index').value),reward_xp:Number($('#create-xp').value),completion_limit:Number($('#create-limit').value),limit_period:$('#create-limit-period').value,
-        global_limit:Number($('#create-global-limit').value),min_level_key:$('#create-min-level').value,publish_from:$('#create-publish-from').value,publish_until:$('#create-publish-until').value,review_hours:Number($('#create-review-hours').value),revision_hours:Number($('#create-revision-hours').value),reward_steps:$('#create-stepped').checked ? [1,2,3].map(hour => Number($(`#create-hour-${hour}`).value)) : []
+        global_limit:Number($('#create-global-limit').value),min_level_key:$('#create-min-level').value,publish_from:$('#create-publish-from').value,publish_until:$('#create-publish-until').value,review_hours:Number($('#create-review-hours').value),revision_hours:Number($('#create-revision-hours').value),reward_steps:$('#create-stepped').checked ? [1,2,3].map(hour => Number($(`#create-hour-${hour}`).value)) : [],
+        ...(state.data.supports_urgent_tasks ? {is_urgent:urgent,player_nickname:urgent ? $('#create-player').value.trim() : '',
+          private_details:urgent ? $('#create-private-details').value.trim() : ''} : {}),
       });
       $('#create-dialog').close(); await reload({quiet:true});
       state.role = 'settings'; state.settingsTab = 'templates'; render();
-      toast(templateId ? 'Задание обновлено' : 'Шаблон создан');
+      toast(republish ? 'Задание опубликовано снова' : templateId ? 'Задание обновлено' : 'Шаблон создан');
     } catch (error) { toast(error.message); }
+    finally { submitButton.disabled = false; }
   });
 
   reload();
