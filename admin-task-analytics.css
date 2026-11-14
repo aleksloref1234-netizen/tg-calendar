@@ -1,0 +1,43 @@
+/* Master-only task analytics. All charts are native HTML/CSS. */
+#settings-tabs{scroll-padding-inline:5px}
+.ta-heading{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.ta-heading>div{flex:1 1 175px}
+.ta-heading h2{margin:0;font-size:23px;letter-spacing:-.025em}
+.ta-heading label,.ta-filters label{display:grid;gap:5px;color:#a7bdd3;font-size:11px;min-width:0}
+.ta-heading select,.ta-chart-head select,.ta-filters :is(input,select){
+  width:100%;min-width:0;min-height:39px;padding:7px 9px;border:1px solid #355576;
+  border-radius:9px;background:#0a1a2e;color:#e7f3ff;font:inherit;font-size:12px
+}
+.ta-heading>.button,.ta-more{min-height:39px;padding:8px 12px;font-size:12px}
+.ta-status,.ta-range,.ta-note{color:#a7bdd3;font-size:12px;margin:9px 4px;line-height:1.55}
+.ta-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:7px}
+.ta-metrics>div{min-width:0;padding:10px 11px;background:#10263f;border:1px solid #284866;border-radius:14px}
+.ta-metrics span{display:block;color:#a9c2d9;font-size:11px}
+.ta-metrics strong{display:block;margin-top:4px;color:#a8edff;font-size:23px;font-variant-numeric:tabular-nums}
+.ta-card{min-width:0;margin-top:11px}
+.ta-card>p,.ta-chart-detail{color:#a9c2d9;margin:6px 0 0;font-size:11px}
+.ta-chart-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px}
+.ta-chart-head h3{margin:0}.ta-chart-head select{width:auto}
+.ta-chart{display:flex;align-items:stretch;gap:3px;margin-top:10px}
+.ta-day{display:grid;grid-template-rows:82px auto;gap:4px;justify-items:center;align-items:end;flex:1 1 0;min-width:0;padding:0;border:0;border-radius:4px;background:none;color:#a6c1d9;font:inherit;font-size:10px;cursor:pointer}
+.ta-bar-track{width:100%;height:100%;display:flex;align-items:flex-end;justify-content:center;border-bottom:1px solid #345370}
+.ta-bar{display:block;height:var(--ta-height);width:80%;max-width:22px;border-radius:4px 4px 0 0;background:linear-gradient(#71e0f6,#2081a8)}
+.ta-day:hover .ta-bar,.ta-day:focus-visible .ta-bar,.ta-day[aria-pressed=true] .ta-bar{background:#b8efff}
+.ta-day[aria-pressed=true] .ta-axis{color:#d6f9ff}
+.ta-many-days .ta-axis{visibility:hidden}
+.ta-many-days .ta-day:is(:first-child,:nth-child(5n),:last-child) .ta-axis{visibility:visible}
+.ta-chart-detail{min-height:1.5em}
+.ta-filters,.ta-breakdowns{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.ta-filters{margin:10px 0 3px}
+.ta-breakdowns{grid-template-columns:1fr}
+.ta-table-wrap{margin-top:8px}
+.ta-table{width:100%;border-collapse:collapse;font-size:12px;color:#dceafb}
+.ta-table thead th{font-size:10px;color:#9eb7d0}
+.ta-table :is(th,td){padding:7px 4px;text-align:right;border-bottom:1px solid #253d57;font-variant-numeric:tabular-nums}
+.ta-table th:first-child{text-align:left;overflow-wrap:anywhere}
+.ta-table tbody th{font-weight:650}
+.ta-table small{display:block;font-size:10px;font-weight:400;color:#9eb7d0}
+.ta-card summary{cursor:pointer;color:#dceafb;font-weight:700}
+.ta-more{display:block;margin:10px auto 0}
+@media(min-width:680px){.ta-breakdowns{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:410px){.ta-card{padding:12px}.ta-table :is(th,td){padding-inline:3px}.ta-chart{gap:2px}}

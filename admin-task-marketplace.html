@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="admin-task-marketplace-policy.css?v=20261103-4">
   <link rel="stylesheet" href="admin-task-marketplace-catalog.css?v=20261106-2">
   <link rel="stylesheet" href="admin-task-marketplace-urgent.css?v=20261110-1">
+  <link rel="stylesheet" href="admin-task-analytics.css?v=20261114-1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="admin-app-bridge.js?v=20261026-1"></script>
 </head>
@@ -106,11 +107,24 @@
           <p class="index-settings-note">Бонусы индекса действуют 7 дней после подтверждения. Общая прибавка — не более +3 п.п.; коэффициенты уровней меняют только репорты.</p>
         </div>
         <nav class="tabs" id="settings-tabs">
+          <button id="task-analytics-tab" data-tab="task-analytics" hidden>Статистика</button>
           <button class="active" data-tab="templates">Шаблоны заданий</button>
           <button data-tab="levels">Уровни и коэффициенты</button>
           <button data-tab="members">Администраторы</button>
           <button data-tab="wallet-settings">Кошелёк</button>
         </nav>
+        <section id="task-analytics-list" aria-label="Статистика выполнения заданий" hidden>
+          <div class="task-card ta-heading">
+            <div><p class="eyebrow">Дополнительные задания</p><h2>Статистика выполнения</h2></div>
+            <label>Период<select id="task-analytics-period">
+              <option value="week">Эта неделя</option><option value="previous_week">Прошлая неделя</option>
+              <option value="month">Этот месяц</option><option value="previous_month">Прошлый месяц</option>
+            </select></label>
+            <button class="button secondary" id="task-analytics-refresh" type="button">Обновить</button>
+          </div>
+          <p id="task-analytics-status" class="ta-status" role="status" hidden></p>
+          <div id="task-analytics-result"></div>
+        </section>
         <section class="list" id="templates-list" hidden></section>
         <section class="list" id="levels-list" hidden></section>
         <section class="list" id="members-list" hidden>
@@ -221,6 +235,6 @@
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261110-2"></script>
+  <script src="admin-task-marketplace.js?v=20261114-1"></script>
 </body>
 </html>

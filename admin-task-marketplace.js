@@ -85,19 +85,30 @@
       state.serverClockOffset = Number.isFinite(serverTime) ? serverTime - Date.now() : 0;
       if (state.role === 'settings' && !state.data.viewer.is_master) state.role = 'admin';
       if (state.role === 'leader' && !state.data.viewer.is_leader) state.role = 'admin';
+      if (!canViewTaskAnalytics()) {
+        state.taskAnalytics = null;
+        state.taskAnalyticsController?.abort();
+        $('#task-analytics-result').innerHTML = '';
+        if (state.settingsTab === 'task-analytics') state.settingsTab = 'templates';
+      }
       $('#loading-gate').hidden = true;
       $('#closed-gate').hidden = true;
       $('#app').hidden = false;
       $('#role-switch').hidden = !state.data.viewer.is_leader;
       $('#settings-role').hidden = !state.data.viewer.is_master;
+      $('#task-analytics-tab').hidden = !canViewTaskAnalytics();
       state.ranking = null;
       state.rankingRequest++;
       state.rankingLoading = false;
       render();
       scheduleUrgentExpiry();
       if (state.role === 'admin' && state.adminTab === 'ranking') await loadLeaderboard();
+      if (state.role === 'settings' && state.settingsTab === 'task-analytics') await loadTaskAnalytics();
       showPendingLevelUp();
     } catch (error) {
+      state.taskAnalytics = null;
+      state.taskAnalyticsController?.abort();
+      $('#task-analytics-result').innerHTML = '';
       $('#loading-gate').hidden = true;
       $('#app').hidden = true;
       $('#closed-gate').hidden = false;
@@ -525,9 +536,116 @@
     const stateKey = area === 'admin' ? 'adminTab' : 'settingsTab';
     state[stateKey] = tab;
     document.querySelectorAll(`#${area}-tabs button`).forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
-    const ids = area === 'admin' ? ['available','active','history','ranking'] : ['templates','levels','members','wallet-settings'];
+    const ids = area === 'admin' ? ['available','active','history','ranking'] : ['templates','levels','members','wallet-settings','task-analytics'];
     ids.forEach(id => { $(`#${id}-list`).hidden = id !== tab; });
     if (area === 'admin') $('#catalog-tools').hidden = tab !== 'available';
+  }
+
+  function canViewTaskAnalytics() {
+    return Boolean(state.data?.viewer?.is_master && state.data?.supports_task_analytics);
+  }
+
+  const analyticsNumber = value => new Intl.NumberFormat('ru-RU').format(Number(value) || 0);
+  const analyticsDate = value => String(value || '').split('-').reverse().join('.');
+
+  function analyticsRows(rows, {people = false} = {}) {
+    if (!rows.length) return empty(people ? 'Администраторы не найдены' : 'Нет выполнений за выбранный период');
+    return `<div class="ta-table-wrap"><table class="ta-table"><thead><tr><th scope="col">${people ? 'Администратор' : 'Категория'}</th><th scope="col">Выполнено</th><th scope="col">Репорты</th><th scope="col">XP</th></tr></thead><tbody>
+      ${rows.map(row => `<tr><th scope="row">${esc(row.label)}${people ? `<small>${esc(row.rights_level)}${row.current_admin ? '' : ' · вне текущего состава'}</small>` : ''}</th><td>${analyticsNumber(row.completed)}</td><td>${analyticsNumber(row.reports)}</td><td>${analyticsNumber(row.xp)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  }
+
+  function renderAnalyticsPeople() {
+    if (!canViewTaskAnalytics() || !state.taskAnalytics) return;
+    const container = $('#task-analytics-people');
+    if (!container) return;
+    const query = ($('#task-analytics-search')?.value || '').trim().toLocaleLowerCase('ru-RU');
+    const rights = $('#task-analytics-rights')?.value || '';
+    const rows = state.taskAnalytics.admins.filter(row =>
+      (!rights || row.rights_level === rights) && row.label.toLocaleLowerCase('ru-RU').includes(query));
+    const limit = state.taskAnalyticsPeopleLimit || 20;
+    container.innerHTML = analyticsRows(rows.slice(0, limit), {people:true}) +
+      (rows.length > limit ? '<button class="button secondary ta-more" type="button" data-ta-more>Показать ещё</button>' : '');
+  }
+
+  function renderTaskAnalytics() {
+    const data = state.taskAnalytics;
+    if (!canViewTaskAnalytics() || !data) return;
+    const {totals} = data;
+    const metrics = [
+      ['Выполнено заданий', totals.completed], ['Участников', totals.participants],
+      ['Начислено репортов', totals.reports], ['Начислено XP', totals.xp], ['Горящих выполнено', totals.urgent],
+    ];
+    $('#task-analytics-result').innerHTML = `
+      <p class="ta-range">${esc(analyticsDate(data.start))} — ${esc(analyticsDate(data.end))} · МСК</p>
+      <div class="ta-metrics">${metrics.map(([label,value]) => `<div><span>${label}</span><strong>${analyticsNumber(value)}</strong></div>`).join('')}</div>
+      <section class="task-card ta-card"><div class="ta-chart-head"><h3>Динамика по дням</h3>
+        <select id="task-analytics-metric" aria-label="Показатель графика"><option value="completed">Выполнения</option><option value="reports">Репорты</option><option value="xp">Опыт (XP)</option></select></div>
+        <div id="task-analytics-chart"></div>
+      </section>
+      <section class="task-card ta-card"><h3>По администраторам</h3>
+        <div class="ta-filters"><label>Ник<input id="task-analytics-search" aria-label="Поиск по нику" type="search" placeholder="Найти администратора" maxlength="120"></label>
+        <label>Уровень админправ<select id="task-analytics-rights" aria-label="Уровень админправ"><option value="">Все уровни</option>
+        ${data.rights_levels.map(row => `<option value="${esc(row.label)}">${esc(row.label)}</option>`).join('')}</select></label></div>
+        <div id="task-analytics-people"></div>
+      </section>
+      <div class="ta-breakdowns">
+        <section class="task-card ta-card"><h3>По уровням админправ</h3><p>По текущему составу. Если данных нет, уровень не указан.</p>${analyticsRows(data.rights_levels)}</section>
+        <section class="task-card ta-card"><h3>По уровням заданий</h3><p>Уровень на момент взятия задания.</p>${analyticsRows(data.task_levels)}</section>
+      </div>
+      <details class="task-card ta-card"><summary>По видам заданий</summary>${analyticsRows(data.templates)}</details>
+      <p class="ta-note">Только подтверждённые выполнения без отменённых наград. Отчёты учитываются по дате сдачи, задания со счётчиком — по дате подтверждения. Репорты — начисления за задания, а не выводы из банка.</p>`;
+    state.taskAnalyticsPeopleLimit = 20;
+    renderAnalyticsChart();
+    renderAnalyticsPeople();
+  }
+
+  function renderAnalyticsChart() {
+    if (!canViewTaskAnalytics() || !state.taskAnalytics) return;
+    const container = $('#task-analytics-chart');
+    if (!container) return;
+    const days = state.taskAnalytics.days;
+    const metric = ({completed:'completed',reports:'reports',xp:'xp'})[$('#task-analytics-metric')?.value] || 'completed';
+    const max = Math.max(0, ...days.map(item => Number(item[metric]) || 0));
+    const late = days.length > 15;
+    container.innerHTML = max > 0 ? `<div class="ta-chart ${late ? 'ta-many-days' : ''}" role="group" aria-label="Показатели по дням">
+      ${days.map((item,index) => `<button class="ta-day" type="button" data-ta-day="${index}" aria-pressed="false" aria-label="${esc(analyticsDate(item.date))}: ${analyticsNumber(item[metric])}">
+        <span class="ta-bar-track"><i class="ta-bar" style="--ta-height:${100 * (Number(item[metric]) || 0) / max}%"></i></span>
+        <span class="ta-axis" aria-hidden="true">${esc(item.date.slice(-2))}</span></button>`).join('')}
+    </div><p class="ta-chart-detail" id="task-analytics-day-detail" aria-live="polite">Выберите день на графике</p>` : empty('По этому показателю за выбранный период нет данных');
+  }
+
+  async function loadTaskAnalytics({force = false} = {}) {
+    if (!canViewTaskAnalytics()) return;
+    const period = $('#task-analytics-period').value || 'week';
+    if (!force && state.taskAnalytics?.period === period && Date.now() - state.taskAnalyticsFetchedAt < 60000) return;
+    if (!force && state.taskAnalyticsPending === period && !state.taskAnalyticsController?.signal.aborted) return;
+    state.taskAnalyticsController?.abort();
+    const controller = new AbortController();
+    state.taskAnalyticsController = controller;
+    state.taskAnalyticsPending = period;
+    state.taskAnalytics = null;
+    const status = $('#task-analytics-status');
+    status.hidden = false;
+    status.textContent = 'Загружаем статистику…';
+    $('#task-analytics-result').innerHTML = '';
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const data = await api('task_analytics', {period}, {signal:controller.signal});
+      if (controller.signal.aborted || state.taskAnalyticsController !== controller || !canViewTaskAnalytics()) return;
+      state.taskAnalytics = data;
+      state.taskAnalyticsFetchedAt = Date.now();
+      renderTaskAnalytics();
+      status.hidden = true;
+    } catch (error) {
+      if (state.taskAnalyticsController === controller && canViewTaskAnalytics()) {
+        state.taskAnalytics = null;
+        status.textContent = controller.signal.aborted ? 'Статистика не ответила вовремя. Нажмите «Обновить».' : error.message;
+      }
+    } finally {
+      clearTimeout(timeout);
+      if (state.taskAnalyticsController === controller) state.taskAnalyticsPending = null;
+    }
   }
 
   async function takeTask(templateId) {
@@ -707,15 +825,38 @@
     const tab = event.target.closest('.tabs [data-tab]');
     if (tab) {
       const area = tab.closest('#settings-tabs') ? 'settings' : 'admin';
+      if (area === 'settings' && tab.dataset.tab === 'task-analytics' && !canViewTaskAnalytics()) return;
       switchTab(area, tab.dataset.tab);
       try {
         if (area === 'admin' && tab.dataset.tab === 'ranking') await loadLeaderboard();
         if (area === 'settings' && tab.dataset.tab === 'members') await loadMemberList();
+        if (area === 'settings' && tab.dataset.tab === 'task-analytics') await loadTaskAnalytics();
         if (area === 'settings' && tab.dataset.tab === 'wallet-settings') {
           const settings = await api('wallet_settings');
           $('#weekly-withdrawal-limit').value = settings.weekly_withdrawal_limit;
         }
       } catch(error) { toast(error.message); }
+      return;
+    }
+    if (event.target.closest('#task-analytics-refresh') && canViewTaskAnalytics()) {
+      await loadTaskAnalytics({force:true});
+      return;
+    }
+    if (event.target.closest('[data-ta-more]') && canViewTaskAnalytics()) {
+      state.taskAnalyticsPeopleLimit = (state.taskAnalyticsPeopleLimit || 20) + 20;
+      renderAnalyticsPeople();
+      return;
+    }
+    const chartDay = event.target.closest('[data-ta-day]');
+    if (chartDay && canViewTaskAnalytics() && state.taskAnalytics) {
+      const item = state.taskAnalytics.days[Number(chartDay.dataset.taDay)];
+      if (item) {
+        $('#task-analytics-day-detail').textContent =
+          `${analyticsDate(item.date)} · заданий: ${analyticsNumber(item.completed)} · репортов: ${analyticsNumber(item.reports)} · XP: ${analyticsNumber(item.xp)}`;
+        const selected = $('#task-analytics-chart [aria-pressed="true"]');
+        selected?.setAttribute?.('aria-pressed', 'false');
+        chartDay.setAttribute?.('aria-pressed', 'true');
+      }
       return;
     }
     if (event.target.closest('#find-members')) { try { await loadMemberList(); } catch(error) { toast(error.message); } return; }
@@ -968,6 +1109,20 @@
   }));
   $('#withdraw-dialog').addEventListener('cancel', event => { if (state.withdrawing) event.preventDefault(); });
 
+  $('#task-analytics-period').addEventListener('change', () => loadTaskAnalytics());
+  $('#task-analytics-result').addEventListener('input', event => {
+    if (event.target.id === 'task-analytics-search') {
+      state.taskAnalyticsPeopleLimit = 20;
+      renderAnalyticsPeople();
+    }
+  });
+  $('#task-analytics-result').addEventListener('change', event => {
+    if (event.target.id === 'task-analytics-metric') renderAnalyticsChart();
+    if (event.target.id === 'task-analytics-rights') {
+      state.taskAnalyticsPeopleLimit = 20;
+      renderAnalyticsPeople();
+    }
+  });
   $('#member-select').addEventListener('change', () => { if ($('#member-select').value) $('#member-id').value = $('#member-select').value; });
   $('#create-stepped').addEventListener('change', () => {
     if (!$('#create-stepped').checked) return;

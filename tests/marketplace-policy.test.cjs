@@ -58,8 +58,42 @@ test('reviewer sees reviews but not master settings and role revocation resets n
 });
 
 test('all static element bindings exist in the page',()=>{
-  const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]));
+  const ids=new Set([...(html + source).matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]));
   for(const match of source.matchAll(/\$\('#([a-z0-9-]+)'\)/g)) assert.ok(ids.has(match[1]),`Missing #${match[1]}`);
+});
+
+test('task analytics opens lazily for master, escapes names, and supports period changes', async()=>{
+  const data=fixture();
+  data.supports_task_analytics=true;
+  const snapshot=period=>({
+    period,start:'2026-11-09',end:'2026-11-15',
+    totals:{completed:1,reports:100,xp:20,urgent:0,participants:1},
+    days:[{date:'2026-11-09',completed:1,reports:100,xp:20}],
+    admins:[{label:'<Admin>',rights_level:'2 уровень',current_admin:true,completed:1,reports:100,xp:20}],
+    rights_levels:[{label:'2 уровень',completed:1}], task_levels:[], templates:[],
+  });
+  const page=app(async(action,body)=>action==='bootstrap'?data:snapshot(body.period));
+  await page.reload();
+  assert.equal(page.node('#task-analytics-tab').hidden,false);
+  assert.deepEqual(page.calls.map(call=>call.body.action),['bootstrap']);
+  const tab={dataset:{tab:'task-analytics'},closest:()=>true};
+  await page.documentEvents.get('click')({target:{closest:selector=>selector==='.tabs [data-tab]'?tab:null}});
+  assert.equal(page.state.settingsTab,'task-analytics');
+  assert.equal(page.calls[1].body.period,'week');
+  assert.match(page.node('#task-analytics-result').innerHTML,/Выполнено заданий/);
+  assert.match(page.node('#task-analytics-people').innerHTML,/&lt;Admin&gt;/);
+  await page.documentEvents.get('click')({target:{closest:selector=>selector==='[data-ta-day]'?{dataset:{taDay:'0'}}:null}});
+  assert.match(page.node('#task-analytics-day-detail').textContent,/09\.11\.2026 · заданий: 1/);
+  const selector=page.node('#task-analytics-period');
+  selector.value='month';
+  for(const listener of selector.listeners.change) await listener();
+  assert.equal(page.calls.at(-1).body.period,'month');
+  data.viewer.is_master=false;
+  await page.reload();
+  assert.equal(page.node('#task-analytics-tab').hidden,true);
+  assert.equal(page.node('#task-analytics-result').innerHTML,'');
+  await page.documentEvents.get('click')({target:{closest:value=>value==='.tabs [data-tab]'?tab:null}});
+  assert.equal(page.calls.at(-1).body.action,'bootstrap');
 });
 
 function rankingFixture(period='current') {
