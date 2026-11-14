@@ -100,7 +100,7 @@ test('master can define and edit exact instructions for every task', () => {
 test('admin task cards do not expose internal verification mode labels', () => {
   const source = script.match(/function templateCard[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(source, /typeLabel\(/);
-  assert.match(html, /admin-task-marketplace\.js\?v=20261114-1/);
+  assert.match(html, /admin-task-marketplace\.js\?v=20261114-3/);
 });
 
 test('hot cards use custom content, hide the player until take, and keep sparks running', () => {

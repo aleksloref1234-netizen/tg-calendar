@@ -136,7 +136,10 @@ def main():
                 elif action == "cancel":
                     data = service.cancel(user_id, body.get("assignment_id", ""))
                 elif action == "submit":
-                    data = service.submit(user_id, body.get("assignment_id", ""), urgent_report=body.get("urgent_report"))
+                    data = service.submit(
+                        user_id, body.get("assignment_id", ""), urgent_report=body.get("urgent_report"),
+                        submission_comment=body.get("submission_comment"),
+                    )
                 elif action == "create_template" and user_id == 900:
                     data = service.create_template(user_id, body)
                 elif action == "republish_urgent_template" and user_id == 900:

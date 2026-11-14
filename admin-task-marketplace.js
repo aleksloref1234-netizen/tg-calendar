@@ -264,6 +264,12 @@
     return player + details + report;
   }
 
+  function submissionComment(item) {
+    const comment = String(item.submission_comment || '').trim();
+    return comment
+      ? `<div class="submission-comment"><b>Комментарий</b><p>${esc(comment)}</p></div>` : '';
+  }
+
   function renderTaskFocus(active) {
     const item = active[0];
     if (!item) {
@@ -372,7 +378,7 @@
     const deadline = item.status === 'pending_review'
       ? `Ожидание проверки не расходует срок выполнения. Проверка до ${dateText(item.review_due_at)}.`
       : item.status === 'in_progress' ? `${item.revision_count ? 'Доработать' : 'Выполнить'} до ${dateText(item.deadline_at)}.` : '';
-    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${urgentAssignmentDetails(item)}${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${deadline ? `<p class="decision-details">${esc(deadline)}</p>` : ''}${evidenceList}${upload}${nightFields(item)}<div class="actions">${canSubmit ? `<button class="button primary" data-submit="${esc(item.assignment_id)}">${item.is_urgent ? 'Отправить отчёт' : 'Задание выполнено'}</button>` : ''}${canCancel ? `<button class="button ghost" data-cancel-assignment="${esc(item.assignment_id)}">Отказаться от задания</button>` : ''}</div>${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
+    return `<article class="task-card"><div class="task-top"><span class="task-icon">${item.verification_mode === 'leadership_counter' ? '⚡' : '✓'}</span><div class="task-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${urgentAssignmentDetails(item)}${submissionComment(item)}${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${deadline ? `<p class="decision-details">${esc(deadline)}</p>` : ''}${evidenceList}${upload}${nightFields(item)}<div class="actions">${canSubmit ? `<button class="button primary" data-submit="${esc(item.assignment_id)}">${item.is_urgent ? 'Отправить отчёт' : 'Задание выполнено'}</button>` : ''}${canCancel ? `<button class="button ghost" data-cancel-assignment="${esc(item.assignment_id)}">Отказаться от задания</button>` : ''}</div>${item.decision_reason ? `<div class="meta-row"><span class="meta">${esc(item.decision_reason)}</span></div>` : ''}</article>`;
   }
 
   function renderAdmin() {
@@ -425,7 +431,7 @@
       ? `<div class="actions"><button class="button primary" data-mark="${esc(item.assignment_id)}">Засчитать вход</button><button class="button ghost" data-undo="${esc(item.assignment_id)}">Отменить отметку</button></div>`
       : item.status === 'pending_review'
         ? `<div class="actions"><button class="button primary" data-review="approve" data-id="${esc(item.assignment_id)}">Принять</button><button class="button secondary" data-review="return" data-id="${esc(item.assignment_id)}">Вернуть</button><button class="button danger" data-review="reject" data-id="${esc(item.assignment_id)}">Отклонить</button></div>` : '';
-    return `<article class="task-card ${item.review_overdue ? 'review-overdue' : ''}"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${urgentAssignmentDetails(item)}${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${item.submitted_at ? `<p class="decision-details">Отправлено: ${esc(dateText(item.submitted_at))}<br>Проверить до: ${esc(dateText(item.review_due_at))}${item.review_overdue ? ' · проверка просрочена' : ''}</p>` : ''}${fileHtml}${item.status === 'pending_review' ? nightFields(item,true) : ''}${controls}</article>`;
+    return `<article class="task-card ${item.review_overdue ? 'review-overdue' : ''}"><div class="person"><span class="avatar">${esc((item.admin_nickname || 'ID').slice(0,2).toUpperCase())}</span><div class="task-copy"><h3>${esc(item.admin_nickname || `ID ${item.admin_id}`)}</h3><small>${esc(item.title)}</small></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div><p>${esc(item.description)}</p>${urgentAssignmentDetails(item)}${submissionComment(item)}${timeRuleBlock(item, true)}${rulesBlock(item)}${reward(item)}${progressBlock(item)}${item.submitted_at ? `<p class="decision-details">Отправлено: ${esc(dateText(item.submitted_at))}<br>Проверить до: ${esc(dateText(item.review_due_at))}${item.review_overdue ? ' · проверка просрочена' : ''}</p>` : ''}${fileHtml}${item.status === 'pending_review' ? nightFields(item,true) : ''}${controls}</article>`;
   }
 
   function renderLeader() {
@@ -450,7 +456,7 @@
     $('#review-history').hidden = !state.data.viewer.is_master;
     if (state.data.viewer.is_master) {
       const decisions = state.data.review_history || [];
-      $('#decisions-list').innerHTML = decisions.length ? decisions.map(item => `<article class="task-card"><div class="task-top"><div class="task-copy"><h3>${esc(item.admin_nickname || item.admin_id)}</h3><p>${esc(item.title)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${reward(item)}<p class="decision-details">Проверено: ${esc(dateText(item.reviewed_at))}${item.decision_reason ? `<br>${esc(item.decision_reason)}` : ''}</p>${item.status === 'approved' ? `<div class="actions"><button class="button danger" data-revoke-approval="${esc(item.assignment_id)}">Отменить одобрение</button></div>` : ''}</article>`).join('') : empty('Подтверждённых выполнений пока нет');
+      $('#decisions-list').innerHTML = decisions.length ? decisions.map(item => `<article class="task-card"><div class="task-top"><div class="task-copy"><h3>${esc(item.admin_nickname || item.admin_id)}</h3><p>${esc(item.title)}</p></div><span class="status ${statusClass(item.status)}">${statusLabel(item.status)}</span></div>${submissionComment(item)}${reward(item)}<p class="decision-details">Проверено: ${esc(dateText(item.reviewed_at))}${item.decision_reason ? `<br>${esc(item.decision_reason)}` : ''}</p>${item.status === 'approved' ? `<div class="actions"><button class="button danger" data-revoke-approval="${esc(item.assignment_id)}">Отменить одобрение</button></div>` : ''}</article>`).join('') : empty('Подтверждённых выполнений пока нет');
       if (state.data.review_history_next_cursor) $('#decisions-list').innerHTML += '<button class="button secondary" data-decisions-more>Показать ещё</button>';
     }
   }
@@ -673,7 +679,8 @@
   }
 
   function askDecision({ eyebrow = 'Подтверждение', title, text, reason = false, confirm = 'Подтвердить',
-    reasonLabel = 'Причина', reasonValue = '', requireText = false } = {}) {
+    reasonLabel = 'Причина', reasonValue = '', requireText = false,
+    comment = false, commentValue = '' } = {}) {
     return new Promise(resolve => {
       const dialog = $('#decision-dialog');
       $('#dialog-eyebrow').textContent = eyebrow;
@@ -686,11 +693,15 @@
       textarea.required = requireText;
       textarea.maxLength = requireText ? 1500 : 1000;
       textarea.placeholder = requireText ? 'Кратко опишите результат' : 'Обязательный комментарий';
+      $('#comment-wrap').hidden = !comment;
+      $('#dialog-comment').value = commentValue;
       $('#dialog-confirm').textContent = confirm;
       dialog.returnValue = 'cancel';
       const finish = () => {
         dialog.removeEventListener('close', finish);
-        resolve(dialog.returnValue === 'default' ? $('#dialog-reason').value.trim() : null);
+        if (dialog.returnValue !== 'default') { resolve(null); return; }
+        const reasonText = $('#dialog-reason').value.trim();
+        resolve(comment ? {reason:reasonText, comment:$('#dialog-comment').value.trim()} : reasonText);
       };
       dialog.addEventListener('close', finish);
       dialog.showModal();
@@ -916,19 +927,23 @@
       const assignmentId = submit.dataset.submit;
       const item = activeAssignments().find(row => row.assignment_id === assignmentId);
       const urgent = !!item?.is_urgent;
+      const draft = state.submissionDraft?.id === assignmentId ? state.submissionDraft : null;
       const accepted = await askDecision({
         title:'Отправить на проверку?', text:'Награда будет начислена только после решения руководства.',
-        confirm:'Отправить',
+        confirm:'Отправить', comment:true, commentValue:draft?.comment ?? item?.submission_comment ?? '',
         ...(urgent ? {reason:true, reasonLabel:'Итог выполнения', requireText:true,
-          reasonValue:state.urgentDraft?.id === assignmentId ? state.urgentDraft.text : item.urgent_report || ''} : {}),
+          reasonValue:draft?.report ?? item.urgent_report ?? ''} : {}),
       });
       if (accepted === null) return;
-      if (urgent && !accepted) { toast('Укажите итог выполнения задания.'); return; }
+      if (urgent && !accepted.reason) { toast('Укажите итог выполнения задания.'); return; }
       submit.disabled = true;
-      if (urgent) state.urgentDraft = {id:assignmentId, text:accepted};
+      state.submissionDraft = {id:assignmentId, comment:accepted.comment, report:accepted.reason};
       try {
-        await api('submit', {assignment_id:assignmentId,...effortPayload(assignmentId),...(urgent ? {urgent_report:accepted} : {})});
-        if (urgent) state.urgentDraft = null;
+        await api('submit', {
+          assignment_id:assignmentId, ...effortPayload(assignmentId), submission_comment:accepted.comment,
+          ...(urgent ? {urgent_report:accepted.reason} : {}),
+        });
+        state.submissionDraft = null;
         await reload({quiet:true}); toast('Задание отправлено на проверку');
       } catch (error) { submit.disabled = false; toast(error.message); }
       return;

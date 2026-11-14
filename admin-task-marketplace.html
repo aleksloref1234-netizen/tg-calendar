@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#081326">
   <title>Дополнительные задания</title>
   <link rel="stylesheet" href="admin-task-marketplace.css?v=20261103-1">
-  <link rel="stylesheet" href="admin-task-marketplace-policy.css?v=20261103-4">
+  <link rel="stylesheet" href="admin-task-marketplace-policy.css?v=20261114-3">
   <link rel="stylesheet" href="admin-task-marketplace-catalog.css?v=20261106-2">
   <link rel="stylesheet" href="admin-task-marketplace-urgent.css?v=20261110-1">
   <link rel="stylesheet" href="admin-task-analytics.css?v=20261114-1">
@@ -160,6 +160,7 @@
       <h2 id="dialog-title">Подтвердить действие</h2>
       <p id="dialog-text"></p>
       <label id="reason-wrap" hidden><span id="dialog-reason-label">Причина</span><textarea id="dialog-reason" rows="3" placeholder="Обязательный комментарий"></textarea></label>
+      <label id="comment-wrap" hidden>Комментарий<textarea id="dialog-comment" rows="3" maxlength="1500" placeholder="Необязательно"></textarea></label>
       <div class="dialog-actions"><button class="button secondary" value="cancel" formnovalidate>Отмена</button><button class="button primary" id="dialog-confirm" value="default">Подтвердить</button></div>
     </form>
   </dialog>
@@ -235,6 +236,6 @@
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="admin-task-marketplace.js?v=20261114-1"></script>
+  <script src="admin-task-marketplace.js?v=20261114-3"></script>
 </body>
 </html>

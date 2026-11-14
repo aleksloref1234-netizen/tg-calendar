@@ -18,7 +18,10 @@ function app(fetcher = async action => action === 'bootstrap' ? fixture() : {}) 
     return nodes.get(selector);
   }
   const documentEvents = new Map();
-  const document = {querySelector:node,querySelectorAll:()=>[],addEventListener(type,listener){documentEvents.set(type,listener);}};
+  const document = {
+    querySelector:selector=>selector.startsWith('[data-effort=')&&!nodes.has(selector)?null:node(selector),
+    querySelectorAll:()=>[],addEventListener(type,listener){documentEvents.set(type,listener);}
+  };
   const window = {Telegram:{WebApp:{initData:'signed-telegram-data',ready(){},expand(){}}}};
   const context = {window,document,Intl,Date,AbortController,CSS:{escape:s=>s},queueMicrotask,crypto:{randomUUID:()=>`uuid-${calls.length}`},sessionStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)},setTimeout:()=>0,clearTimeout(){},fetch:async(_url, options)=>{const body=JSON.parse(options.body);calls.push({body,headers:options.headers});const data=await fetcher(body.action,body);return {ok:true,json:async()=>({status:'success',data})};}};
   const testSource = source.replace('  reload();\n})();', '  window.testApp = {state,reload,render,renderAdmin,renderLeader,renderCatalog,renderTaskFocus,renderLeaderboard,loadLeaderboard,templateCard,catalogRewards,takeTask,nightFields,effortPayload,policyBlock,memberAction,openTemplateEditor,moscowInput,askDecision,openWithdrawDialog,submitWithdrawal};\n})();');
@@ -237,10 +240,70 @@ test('confirmation keeps paragraphs, list indentation and untrusted text as lite
   assert.match(policyCss,/#dialog-text\s*\{[^}]*overflow-wrap:\s*anywhere/);
 });
 
+test('submission comment is optional and other confirmation dialogs do not expose it',async()=>{
+  const page=app();
+  const empty=await page.askDecision({title:'Отправить на проверку?',comment:true});
+  assert.equal(empty.comment,'');
+  assert.equal(page.node('#comment-wrap').hidden,false);
+  assert.equal(page.node('#reason-wrap').hidden,true);
+  const text='Первая строка\n\n<script> & пояснение';
+  const result=await page.askDecision({title:'Отправить на проверку?',comment:true,commentValue:text});
+  assert.equal(result.comment,text);
+  assert.equal(page.node('#dialog-comment').value,text);
+  await page.askDecision({title:'Взять задание?'});
+  assert.equal(page.node('#comment-wrap').hidden,true);
+  assert.match(html,/id="dialog-comment"[^>]*maxlength="1500"/);
+  assert.doesNotMatch(html.match(/<textarea id="dialog-comment"[^>]*>/)[0],/\brequired\b/);
+});
+
+test('submit forwards optional comment, retains it on failure and never makes it mandatory',async()=>{
+  const data=fixture();
+  data.own_assignments=[{assignment_id:'commented',status:'in_progress',verification_mode:'manual_review',
+    title:'Task',submission_comment:'Сохранённый комментарий'}];
+  let fail=true;
+  const page=app(async action=>{
+    if(action==='submit'&&fail) throw new Error('Network failure');
+    return data;
+  });
+  page.state.data=data;
+  const button={dataset:{submit:'commented'},disabled:false};
+  const event={target:{closest:selector=>selector==='[data-submit]'?button:null}};
+  await page.documentEvents.get('click')(event);
+  assert.equal(page.calls[0].body.submission_comment,'Сохранённый комментарий');
+  assert.equal(page.state.submissionDraft.comment,'Сохранённый комментарий');
+  assert.equal(button.disabled,false);
+  fail=false;
+  await page.documentEvents.get('click')(event);
+  assert.equal(page.calls.filter(call=>call.body.action==='submit')[1].body.submission_comment,'Сохранённый комментарий');
+  assert.equal(page.state.submissionDraft,null);
+  data.own_assignments[0].submission_comment='';
+  await page.documentEvents.get('click')(event);
+  assert.equal(page.calls.filter(call=>call.body.action==='submit').at(-1).body.submission_comment,'');
+});
+
+test('reviewers and authors see escaped multiline comments on submissions, without placeholder blocks',()=>{
+  const page=app();
+  const assignment={assignment_id:'commented',title:'Task',status:'pending_review',verification_mode:'manual_review',
+    admin_nickname:'Admin',submission_comment:'Первая строка\n\n<img src=x onerror=alert(1)>'};
+  page.state.data.assignments=[assignment];
+  page.state.data.own_assignments=[assignment];
+  page.renderAdmin();
+  page.renderLeader();
+  for(const id of ['#active-list','#review-queue-list']){
+    assert.match(page.node(id).innerHTML,/Комментарий/);
+    assert.match(page.node(id).innerHTML,/Первая строка\n\n&lt;img/);
+    assert.doesNotMatch(page.node(id).innerHTML,/<img src=x/);
+  }
+  assignment.submission_comment='';
+  page.renderLeader();
+  assert.doesNotMatch(page.node('#review-queue-list').innerHTML,/submission-comment/);
+  assert.match(policyCss,/\.task-card \.submission-comment>p\{[^}]*white-space:pre-wrap/);
+});
+
 test('long confirmation rules scroll inside the viewport and load the updated style',()=>{
   assert.match(policyCss,/#decision-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 24px\)/);
   assert.match(policyCss,/#decision-dialog\s*\{[^}]*overflow:\s*auto/);
-  assert.match(html,/admin-task-marketplace-policy\.css\?v=20261103-4/);
+  assert.match(html,/admin-task-marketplace-policy\.css\?v=20261114-3/);
 });
 
 test('wallet renders stored bank separately from this week available amount',()=>{
