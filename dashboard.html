@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-ac-theme="module">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Дашборд Администратора</title>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="admin-app-bridge.js?v=20261026-1"></script>
+  <script src="admin-app-bridge.js?v=20261119-1"></script>
     <script src="admin-stats-runtime.js?v=20261026-1"></script>
     <link rel="stylesheet" href="admin-stats.css?v=20261026-1">
     <script src="webapp-watermark.js" defer></script>
@@ -14,11 +14,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
+            --bg-color:var(--ac-bg);
+            --card-bg:var(--ac-surface);
             --accent-color: #38bdf8;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
+            --text-main:var(--ac-text);
+            --text-sub:var(--ac-muted);
             --danger: #ef4444;
             --warning: #f59e0b;
             --success: #10b981;
@@ -47,10 +47,10 @@
             gap: 7px;
             margin: 0 0 13px;
             padding: 8px 11px;
-            border: 1px solid rgba(56, 189, 248, 0.42);
+            border: 1px solid rgba(255, 133, 133, 0.42);
             border-radius: 10px;
             color: var(--accent-color);
-            background: rgba(56, 189, 248, 0.08);
+            background: rgba(216, 14, 14, 0.08);
             font: inherit;
             font-size: 12px;
             font-weight: 650;
@@ -59,7 +59,7 @@
 
         .back-to-overview:active {
             transform: scale(.98);
-            background: rgba(56, 189, 248, 0.15);
+            background: rgba(216, 14, 14, 0.15);
         }
 
         .marketplace-entry {
@@ -68,10 +68,10 @@
             gap: 9px;
             margin-top: 14px;
             padding: 10px 12px;
-            border: 1px solid rgba(56, 189, 248, 0.42);
+            border: 1px solid rgba(255, 133, 133, 0.42);
             border-radius: 11px;
-            color: #e0f2fe;
-            background: rgba(56, 189, 248, 0.09);
+            color: #f1eff2;
+            background: rgba(216, 14, 14, 0.09);
             font: inherit;
             font-size: 12px;
             font-weight: 700;
@@ -80,7 +80,7 @@
 
         .marketplace-entry:active {
             transform: scale(.98);
-            background: rgba(56, 189, 248, 0.16);
+            background: rgba(216, 14, 14, 0.16);
         }
 
         .marketplace-entry[hidden] { display: none; }
@@ -91,8 +91,8 @@
             width: 23px;
             height: 23px;
             border-radius: 8px;
-            color: #7dd3fc;
-            background: rgba(56, 189, 248, 0.14);
+            color: #ff8585;
+            background: rgba(216, 14, 14, 0.14);
         }
 
         .ui-block-disabled { display: none !important; }
@@ -236,11 +236,11 @@
             font-weight: 700;
         }
 
-        .performance-part-norm { width: 40%; background: rgba(36, 126, 170, .22); }
+        .performance-part-norm { width: 40%; background: rgba(108, 107, 109, 0.22); }
         .performance-part-rating { width: 25%; background: rgba(170, 124, 44, .22); }
-        .performance-part-meeting { width: 20%; background: rgba(85, 114, 156, .22); }
+        .performance-part-meeting { width: 20%; background: rgba(111, 110, 112, 0.22); }
         .performance-part-discipline { width: 10%; background: rgba(63, 128, 109, .22); }
-        .performance-part-violations { width: 5%; background: rgba(107, 95, 143, .22); }
+        .performance-part-violations { width: 5%; background: rgba(103, 102, 104, 0.22); }
         .performance-part-norm .performance-factor-fill { background: #247eaa; }
         .performance-part-rating .performance-factor-fill { background: #aa7c2c; }
         .performance-part-meeting .performance-factor-fill { background: #55729c; }
@@ -264,7 +264,7 @@
         .performance-task-note {
             margin-top: 12px;
             padding-top: 10px;
-            border-top: 1px solid rgba(96, 165, 250, 0.16);
+            border-top: 1px solid rgba(255, 133, 133, 0.16);
             color: var(--text-sub);
             font-size: 11px;
             line-height: 1.6;
@@ -273,7 +273,7 @@
         .help-rating-card {
             margin-bottom: 16px;
             padding: 16px;
-            border-color: rgba(96, 165, 250, 0.24);
+            border-color: rgba(255, 133, 133, 0.24);
         }
 
         .help-rating-layout {
@@ -324,7 +324,7 @@
             min-width: 66px;
             padding: 10px 11px;
             border-radius: 11px;
-            background: rgba(14, 116, 144, 0.34);
+            background: rgba(93, 92, 94, 0.34);
             color: var(--accent-color);
             text-align: center;
         }
@@ -365,7 +365,7 @@
             padding: 15px;
             border: 1px solid rgba(52, 211, 153, 0.32);
             border-radius: 14px;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(56, 189, 248, 0.07));
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(216, 14, 14, 0.07));
         }
 
         .reduced-norm-card::after {
@@ -427,7 +427,7 @@
             position: relative;
             z-index: 1;
             margin: 7px 0 12px;
-            color: #cbd5e1;
+            color: #d6d4d7;
             font-size: 12px;
             line-height: 1.45;
         }
@@ -445,7 +445,7 @@
             padding: 8px;
             border: 1px solid rgba(167, 243, 208, 0.12);
             border-radius: 9px;
-            background: rgba(15, 23, 42, 0.24);
+            background: rgba(23, 22, 24, 0.24);
         }
 
         .reduced-norm-metric span {
@@ -526,8 +526,9 @@
             font-size: 17px;
             margin-bottom: 8px;
         }
-        body{background-color:var(--bg-color);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(56,189,248,.12),transparent 65%);background-size:28px 28px,28px 28px,auto}
+        body{background-color:var(--bg-color);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(216, 14, 14, 0.12),transparent 65%);background-size:28px 28px,28px 28px,auto}
     </style>
+  <link rel="stylesheet" href="yaroslavl-theme.css?v=20261119-1">
 </head>
 <body>
 

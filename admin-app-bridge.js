@@ -28,7 +28,7 @@
   document.documentElement.classList.add('admin-app-embedded');
   document.documentElement.dataset.adminPage=new URL(location.href).pathname.split('/').pop().replace('.html','');
   document.documentElement.classList.toggle('admin-app-reduce-motion',context.preferences.reduce_motion===true);
-  const stylesheet=document.createElement('link');stylesheet.rel='stylesheet';stylesheet.href='admin-app-modules.css?v=20261026-1';
+  const stylesheet=document.createElement('link');stylesheet.rel='stylesheet';stylesheet.href='admin-app-modules.css?v=20261119-1';
   function attachStyles(){document.head.append(stylesheet);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachStyles,{once:true});else attachStyles();
   function dispose(){if(disposed)return;setLeaveState({});disposed=true;for(const unsubscribe of subscriptions.splice(0)){try{unsubscribe();}catch{}}try{native.MainButton?.hide();native.SecondaryButton?.hide();}catch{}}

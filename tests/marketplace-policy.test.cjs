@@ -200,7 +200,7 @@ test('catalog shows meaningful rewards for index-only and hourly tasks and escap
   assert.match(page.catalogRewards({reward_steps:[150,250,350],reward_multiplier:1.25,reward_index:2}),/до \+940/);
   const card=page.templateCard({template_id:'<tag>',title:'<img src=x>',description:'<script>bad</script>',instructions:'one\ntwo',reward_reports:100},new Set());
   assert.doesNotMatch(card,/<img|<script>/);assert.match(card,/&lt;img/);
-  assert.match(html,/admin-task-marketplace-catalog\.css\?v=20261106-2/);
+  assert.match(html,/admin-task-marketplace-catalog\.css\?v=20261119-1/);
 });
 
 test('bank shows only active capped index bonus, never the lifetime total',()=>{
@@ -303,7 +303,7 @@ test('reviewers and authors see escaped multiline comments on submissions, witho
 test('long confirmation rules scroll inside the viewport and load the updated style',()=>{
   assert.match(policyCss,/#decision-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 24px\)/);
   assert.match(policyCss,/#decision-dialog\s*\{[^}]*overflow:\s*auto/);
-  assert.match(html,/admin-task-marketplace-policy\.css\?v=20261114-3/);
+  assert.match(html,/admin-task-marketplace-policy\.css\?v=20261119-1/);
 });
 
 test('wallet renders stored bank separately from this week available amount',()=>{

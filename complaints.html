@@ -1,24 +1,24 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-ac-theme="module">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Статистика по жалобам</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="admin-app-bridge.js?v=20261026-1"></script>
+  <script src="admin-app-bridge.js?v=20261119-1"></script>
   <script src="webapp-watermark.js" defer></script>
   <style>
     :root {
-      --bg: #0f172a;
-      --card: #1e293b;
+      --bg:var(--ac-bg);
+      --card:var(--ac-surface);
       --card-border: rgba(255,255,255,.07);
-      --text: #f8fafc;
-      --sub: #94a3b8;
+      --text:var(--ac-text);
+      --sub:var(--ac-muted);
       --blue: #38bdf8;
       --green: #10b981;
       --yellow: #f59e0b;
       --red: #ef4444;
-      --muted: #64748b;
+      --muted:var(--ac-muted);
     }
     * { box-sizing: border-box; }
     body {
@@ -43,10 +43,10 @@
     .period-quick { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 1px; }
     .period-chip, .period-apply {
       flex: none; min-height: 36px; padding: 8px 11px; border-radius: 10px; cursor: pointer;
-      border: 1px solid var(--card-border); background: rgba(15,23,42,.42); color: var(--sub); font-size: 12px;
+      border: 1px solid var(--card-border); background: rgba(23, 22, 24, 0.42); color: var(--sub); font-size: 12px;
     }
     .period-chip.active, .period-apply {
-      border-color: rgba(56,189,248,.75); color: var(--blue); background: rgba(56,189,248,.08);
+      border-color: rgba(255, 133, 133, 0.75); color: var(--blue); background: rgba(216, 14, 14, 0.08);
     }
     .period-dates { display: none; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 11px; }
     .period-dates.visible { display: grid; }
@@ -54,34 +54,34 @@
     .date-field span { display: block; color: var(--sub); font-size: 10px; margin: 0 0 4px 2px; }
     .date-field input {
       width: 100%; min-width: 0; padding: 9px; border: 1px solid var(--card-border); border-radius: 10px;
-      background: #101e32; color: var(--text); font: inherit; color-scheme: dark;
+      background: #1d1c1e; color: var(--text); font: inherit; color-scheme: dark;
     }
     .compare { margin: 11px 1px 0; color: var(--sub); font-size: 11px; line-height: 1.5; }
     .period-error { margin-top: 9px; color: var(--red); font-size: 11px; line-height: 1.45; }
     .week-problem {
       position: relative; overflow: hidden; padding: 16px 17px; margin-bottom: 14px;
-      border: 1px solid rgba(56,189,248,.28); border-radius: 16px;
-      background: linear-gradient(135deg,rgba(56,189,248,.1),rgba(59,130,246,.025) 62%),var(--card);
+      border: 1px solid rgba(255, 133, 133, 0.28); border-radius: 16px;
+      background: linear-gradient(135deg,rgba(216, 14, 14, 0.1),rgba(178, 14, 14, 0.025) 62%),var(--card);
     }
     .week-problem::before {
       content: ""; position: absolute; inset: 0 0 auto; height: 2px;
-      background: linear-gradient(90deg,var(--blue),#6366f1,transparent);
+      background: linear-gradient(90deg,var(--blue),#a90e0e,transparent);
     }
     .week-problem-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .week-problem h2 { margin: 0; font-size: 14px; line-height: 1.3; }
     .week-problem-period {
-      flex: none; padding: 5px 8px; border: 1px solid rgba(56,189,248,.22);
-      border-radius: 99px; background: rgba(56,189,248,.07); color: var(--blue); font-size: 10px;
+      flex: none; padding: 5px 8px; border: 1px solid rgba(255, 133, 133, 0.22);
+      border-radius: 99px; background: rgba(216, 14, 14, 0.07); color: var(--blue); font-size: 10px;
     }
     .week-problem-title {
       margin-top: 14px; font-size: 18px; font-weight: 760; line-height: 1.3; overflow-wrap: anywhere;
     }
     .week-problem-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
-    .problem-stat { padding: 5px 8px; border-radius: 99px; color: var(--blue); background: rgba(56,189,248,.07); border: 1px solid rgba(56,189,248,.18); font-size: 10px; font-weight: 650; }
+    .problem-stat { padding: 5px 8px; border-radius: 99px; color: var(--blue); background: rgba(216, 14, 14, 0.07); border: 1px solid rgba(255, 133, 133, 0.18); font-size: 10px; font-weight: 650; }
     .problem-summary-label { margin-top: 13px; color: var(--sub); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; }
     .week-problem-summary { margin: 5px 0 0; color: var(--text); font-size: 12px; line-height: 1.5; }
     .problem-detail-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 11px; }
-    .problem-detail { padding: 11px; border-radius: 11px; border: 1px solid var(--card-border); background: rgba(15,23,42,.34); }
+    .problem-detail { padding: 11px; border-radius: 11px; border: 1px solid var(--card-border); background: rgba(23, 22, 24, 0.34); }
     .problem-detail-label { color: var(--blue); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; }
     .problem-detail p { margin: 5px 0 0; color: var(--sub); font-size: 11px; line-height: 1.5; }
     .week-problem.is-empty .week-problem-title,
@@ -100,7 +100,7 @@
     .section-note { color: var(--sub); font-size: 10px; line-height: 1.4; text-align: right; }
     .level-lead {
       margin-top: 12px; padding: 12px; border-radius: 12px;
-      border: 1px solid rgba(56,189,248,.22); background: rgba(56,189,248,.07);
+      border: 1px solid rgba(255, 133, 133, 0.22); background: rgba(216, 14, 14, 0.07);
     }
     .level-lead-label { color: var(--sub); font-size: 10px; }
     .level-lead-value { margin-top: 5px; font-size: 16px; font-weight: 760; line-height: 1.35; }
@@ -121,13 +121,13 @@
       width: 100%; padding: 12px 13px; border-radius: 12px; border: 1px solid var(--card-border);
       color: var(--text); background: var(--card); outline: none; font-size: 14px;
     }
-    #search:focus { border-color: rgba(56,189,248,.75); }
+    #search:focus { border-color: rgba(255, 133, 133, 0.75); }
     .filters { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 1px; }
     .filter {
       white-space: nowrap; padding: 8px 11px; border-radius: 9px; cursor: pointer;
       border: 1px solid var(--card-border); background: var(--card); color: var(--sub); font-size: 12px;
     }
-    .filter.active { border-color: rgba(56,189,248,.75); color: var(--blue); background: rgba(56,189,248,.08); }
+    .filter.active { border-color: rgba(255, 133, 133, 0.75); color: var(--blue); background: rgba(216, 14, 14, 0.08); }
     .list-title { color: var(--sub); font-size: 12px; margin: 4px 2px 9px; }
     #list { display: grid; gap: 10px; padding-bottom: 12px; }
     .admin-card { padding: 14px; cursor: pointer; transition: transform .16s ease, border-color .16s ease; }
@@ -148,19 +148,19 @@
     .metric { color: var(--sub); font-size: 12px; }
     .percent { font-size: 20px; color: var(--blue); font-weight: 760; }
     .bar { height: 9px; background: rgba(255,255,255,.09); border-radius: 99px; overflow: hidden; margin-top: 9px; }
-    .fill { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg,#3b82f6,#38bdf8); transition: width .35s ease; }
+    .fill { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg,#b20e0e,#d80e0e); transition: width .35s ease; }
     .fill.red { background: linear-gradient(90deg,#dc2626,#fb7185); }
     .fill.yellow { background: linear-gradient(90deg,#d97706,#fbbf24); }
     .fill.green { background: linear-gradient(90deg,#059669,#34d399); }
     .details { display: none; border-top: 1px solid var(--card-border); margin-top: 13px; padding-top: 12px; }
     .admin-card.open .details { display: block; }
     .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .small-card { border-radius: 10px; background: rgba(15,23,42,.4); padding: 10px; }
+    .small-card { border-radius: 10px; background: rgba(23, 22, 24, 0.4); padding: 10px; }
     .small-value { margin-top: 4px; font-weight: 700; font-size: 16px; }
     .reviewers { margin: 11px 0 0; color: var(--sub); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
     .cases-title { margin: 15px 0 8px; font-size: 13px; font-weight: 720; }
     .cases { display: grid; gap: 8px; }
-    .case-card { padding: 11px; border-radius: 12px; border: 1px solid var(--card-border); background: rgba(15,23,42,.42); }
+    .case-card { padding: 11px; border-radius: 12px; border: 1px solid var(--card-border); background: rgba(23, 22, 24, 0.42); }
     .case-head { display: flex; align-items: center; justify-content: space-between; gap: 9px; }
     .case-date { color: var(--sub); font-size: 10px; }
     .case-badge { padding: 4px 7px; border-radius: 99px; font-size: 9px; font-weight: 700; color: var(--green); background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.24); }
@@ -176,8 +176,9 @@
     @media (min-width: 560px) { .summary-grid { grid-template-columns: repeat(3, 1fr); } .problem-detail-grid { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 420px) { .period-dates { grid-template-columns: 1fr 1fr; } .period-apply { grid-column: 1 / -1; } }
     @media (max-width: 350px) { .summary-grid { gap: 7px; } .card { padding: 10px; } .value { font-size: 18px; } }
-    body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(56,189,248,.12),transparent 65%);background-size:28px 28px,28px 28px,auto}.ui-block-disabled{display:none!important}
+    body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(216, 14, 14, 0.12),transparent 65%);background-size:28px 28px,28px 28px,auto}.ui-block-disabled{display:none!important}
   </style>
+  <link rel="stylesheet" href="yaroslavl-theme.css?v=20261119-1">
 </head>
 <body>
   <main>

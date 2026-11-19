@@ -143,13 +143,26 @@ test('late load events of removed frames cannot overwrite the current layout',()
 test('layout rules keep back and reload controls accessible and version their assets',()=>{
   const html=read('app.html'),css=read('admin-app.css');
   assert.match(html,/id="module-expand"[^>]+aria-pressed="false"[^>]+aria-controls="module-container"/);
-  assert.match(html,/admin-app\.css\?v=20261106-2/);assert.match(html,/admin-app\.js\?v=20261106-2/);
+  assert.match(html,/admin-app\.css\?v=20261106-2/);assert.match(html,/admin-app\.js\?v=20261119-1/);
   assert.ok(html.indexOf('admin-app-viewport.js')<html.indexOf('src="admin-app.js'));
   assert.match(css,/body\.module-open\{--app-header:0px\}/);
   assert.match(css,/\.module-open \.app-header\{display:none\}/);
   assert.match(css,/body\.module-expanded\{--app-dock:0px\}/);
   assert.match(css,/@media\(pointer:coarse\)\{\.module-open \.module-toolbar \.icon-button\{width:40px;min-height:40px\}/);
   assert.doesNotMatch(css,/#module-(?:back|reload)\s*\{[^}]*display:none/);
+});
+
+test('the home mark and task callout use the themed shell without granting task access',()=>{
+  const h=harness();
+  h.app.showView('home');
+  const main=h.get('app-main');
+  assert.match(main.innerHTML,/class="home-brand"[^>]*><img src="yaroslavl-black-russia\.svg\?v=20261119-1"/);
+  assert.match(main.innerHTML,/class="home-feature" data-section="additional-tasks"/);
+  h.app.state.data.sections.find(section=>section.id==='additional-tasks').allowed=false;
+  h.app.showView('home');
+  assert.doesNotMatch(main.innerHTML,/class="home-feature"|data-section="additional-tasks"/);
+  assert.match(main.innerHTML,/data-section="my-statistics"/);
+  assert.equal(h.fetchCalls,0);
 });
 
 test('native expansion is requested only on a button gesture and survives module reload',()=>{

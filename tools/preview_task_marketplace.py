@@ -94,14 +94,14 @@ def main():
                 self.send(200, "/* No production bridge on the local fixture. */", "text/javascript")
                 return
             filename = (ROOT / path.lstrip("/")).resolve()
-            if not filename.is_relative_to(ROOT) or not filename.is_file() or filename.suffix not in {".html", ".css", ".js"}:
+            if not filename.is_relative_to(ROOT) or not filename.is_file() or filename.suffix not in {".html", ".css", ".js", ".svg"}:
                 self.send(404, "Not found", "text/plain")
                 return
             content = filename.read_text(encoding="utf-8")
             if filename.suffix == ".html":
                 content = content.replace("https://telegram.org/js/telegram-web-app.js", "/__fixture/telegram.js").replace("Для администраторов", "ТЕСТОВЫЕ ДАННЫЕ")
                 if not args.unified:
-                    content = content.replace('src="admin-app-bridge.js?v=20261026-1"', 'src="/__fixture/bridge.js"')
+                    content = content.replace('src="admin-app-bridge.js?v=20261119-1"', 'src="/__fixture/bridge.js"')
             content = content.replace("https://tg-admin-bot-1k1g.onrender.com", f"http://127.0.0.1:{args.port}")
             self.send(200, content, (mimetypes.guess_type(str(filename))[0] or "text/plain") + "; charset=utf-8")
 

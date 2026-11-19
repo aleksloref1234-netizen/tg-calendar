@@ -1,19 +1,19 @@
-.wallet-week{position:relative;z-index:1;margin:0 0 14px;padding:13px 14px;border:1px solid #294664;border-radius:15px;background:#0a192c}
+.wallet-week{position:relative;z-index:1;margin:0 0 14px;padding:13px 14px;border:1px solid #424143;border-radius:15px;background:#171618}
 .review-history{margin-top:16px}.review-history>.list{padding:0 12px 12px}
 #dialog-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
-.submission-comment{margin-top:12px;padding:11px 13px;border-left:2px solid #3f7093;border-radius:0 10px 10px 0;background:#0a1d30}
-.submission-comment>b{display:block;margin-bottom:5px;color:#c9e4f6;font-size:11px}
-.task-card .submission-comment>p{color:#afc5dc;white-space:pre-wrap;overflow-wrap:anywhere}
+.submission-comment{margin-top:12px;padding:11px 13px;border-left:2px solid #676668;border-radius:0 10px 10px 0;background:#1a191b}
+.submission-comment>b{display:block;margin-bottom:5px;color:#e1dfe2;font-size:11px}
+.task-card .submission-comment>p{color:#c4c2c5;white-space:pre-wrap;overflow-wrap:anywhere}
 #comment-wrap{margin-top:12px}
 #decision-dialog{max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain;border-radius:22px}
 #withdraw-dialog{max-height:calc(100dvh - 24px);overflow:auto;border-radius:22px}
 #withdraw-amount{margin-top:7px}#withdraw-dialog .withdraw-hint{font-size:11px;line-height:1.6}#withdraw-dialog .withdraw-error{color:#ffabb6;font-size:12px;line-height:1.5}
-.wallet-week p{margin:9px 0 4px;color:#a9c7df;font-size:11px}.wallet-week small{color:#7894b2;font-size:10px}
-.owner-controls{display:grid;gap:12px}.owner-controls label,.effort-fields label{display:grid;gap:6px;font-size:11px;color:#91aac5}
-.owner-controls input,.owner-controls select,.effort-fields input,.effort-fields select{width:100%;padding:11px;border:1px solid #31506f;border-radius:11px;background:#09182b;color:#fff;font:inherit;min-width:0}
+.wallet-week p{margin:9px 0 4px;color:#c4c2c5;font-size:11px}.wallet-week small{color:#929093;font-size:10px}
+.owner-controls{display:grid;gap:12px}.owner-controls label,.effort-fields label{display:grid;gap:6px;font-size:11px;color:#a8a6a9}
+.owner-controls input,.owner-controls select,.effort-fields input,.effort-fields select{width:100%;padding:11px;border:1px solid #4b4a4c;border-radius:11px;background:#161517;color:#fff;font:inherit;min-width:0}
 .owner-danger{display:grid;gap:10px;margin-top:12px;padding-top:15px;border-top:1px solid #6d3746}.owner-danger p{line-height:1.6}
-.effort-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}.effort-fields small{grid-column:1/-1;color:#91aac5;font-size:10px}
-.night-settings{border:1px solid #31506f;border-radius:13px;padding:13px}.night-settings legend{font-size:12px;color:#91dafa}.night-settings>label{display:flex;align-items:center;gap:8px}.night-settings input[type=checkbox]{width:auto}.night-settings small{display:block;line-height:1.6;margin-top:10px;color:#91aac5;font-size:10px}
+.effort-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}.effort-fields small{grid-column:1/-1;color:#a8a6a9;font-size:10px}
+.night-settings{border:1px solid #4b4a4c;border-radius:13px;padding:13px}.night-settings legend{font-size:12px;color:#91dafa}.night-settings>label{display:flex;align-items:center;gap:8px}.night-settings input[type=checkbox]{width:auto}.night-settings small{display:block;line-height:1.6;margin-top:10px;color:#a8a6a9;font-size:10px}
 .hour-tariffs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.hour-tariffs label{min-width:0}
-#create-dialog{max-height:92dvh;overflow:auto;border-radius:22px}.review-overdue{border-color:#806336}.decision-details{margin-top:12px;font-size:11px;color:#91aac5;white-space:pre-line}
+#create-dialog{max-height:92dvh;overflow:auto;border-radius:22px}.review-overdue{border-color:#806336}.decision-details{margin-top:12px;font-size:11px;color:#a8a6a9;white-space:pre-line}
 @media(max-width:420px){.effort-fields{grid-template-columns:1fr}.hour-tariffs{grid-template-columns:1fr}.mini-stats{flex-wrap:wrap}}

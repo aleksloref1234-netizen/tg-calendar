@@ -1,0 +1,192 @@
+/* YAROSLAVL 68 — visual layer only. Existing layouts, statuses and safe areas stay owned by their screens. */
+html[data-ac-theme] {
+  color-scheme: dark;
+  --ac-bg: #08080a;
+  --ac-surface: #171719;
+  --ac-raised: #211e20;
+  --ac-input: #121214;
+  --ac-line: #ffffff24;
+  --ac-strong-line: #ff696958;
+  --ac-text: #f5f5f6;
+  --ac-muted: #b1abb0;
+  --ac-red: #d80000;
+  --ac-red-light: #ff8585;
+  --ac-positive: #79dfbd;
+  --ac-primary: linear-gradient(135deg, var(--ac-red), #a10000);
+  --ac-hero: radial-gradient(ellipse at 0 0, #8e000063, transparent 75%), linear-gradient(135deg, #3d1717, var(--ac-raised) 76%);
+  --ac-canvas: radial-gradient(ellipse at 13% 0, #6604048a, transparent 465px), var(--ac-bg);
+  --ac-card: linear-gradient(150deg, #202022, var(--ac-surface) 72%);
+  --ac-glass: linear-gradient(150deg, #373333ed, #211f1ff2 78%);
+  --ac-shadow: 0 10px 34px #0005, inset 0 1px #fff1;
+  background-color: var(--ac-bg);
+  accent-color: var(--ac-red);
+}
+
+html[data-ac-theme] body { background: var(--ac-canvas); }
+html[data-ac-theme] :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--ac-red-light);
+  outline-offset: 3px;
+}
+html[data-ac-theme] :is(button.primary, .btn.primary, .button.primary, .btn-primary, .primary-button, button.primary-action):not(.hot-live button) {
+  background: var(--ac-primary);
+  border-color: var(--ac-strong-line);
+  color: #fff;
+}
+html[data-ac-theme] :is(.filter, .tab, .source-tab, .date-chip).active,
+html[data-ac-theme] :is(.tabs, .nav, .role-switch, .ranking-periods) > button.active {
+  background: #541a1a;
+  border-color: var(--ac-strong-line);
+  color: var(--ac-text);
+}
+html[data-ac-theme] :is(input, textarea)::placeholder { color: var(--ac-muted); opacity: .8; }
+html[data-ac-theme] dialog::backdrop { background-color: #080707c4; }
+html[data-ac-theme] :is(.eyebrow, .kicker) { color: var(--ac-red-light); }
+
+/* Shared module chrome. Don't repaint KPI grades, alert cards or chart series. */
+html[data-ac-theme]:not([data-ac-theme="shell"]) :is(.hero, .leader-hero, .settings-hero, .support-hero) {
+  background: var(--ac-hero);
+  border-color: var(--ac-strong-line);
+}
+html[data-ac-theme]:not([data-ac-theme="shell"]) :is(.modal, .dialog-card, .drawer-card, .confirm-card) {
+  background: var(--ac-card);
+  border-color: var(--ac-line);
+  color: var(--ac-text);
+}
+html[data-ac-theme] :is(.modal, .dialog-card, .drawer-card, .confirm-card) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]), select, textarea) {
+  background: var(--ac-input);
+  border-color: var(--ac-line);
+  color: var(--ac-text);
+}
+
+/* The unified shell uses its own existing sizes and Telegram inset calculations. */
+html[data-ac-theme="shell"] {
+  --app-bg: var(--ac-bg);
+  --app-card: var(--ac-surface);
+  --app-raised: var(--ac-raised);
+  --app-line: var(--ac-line);
+  --app-text: var(--ac-text);
+  --app-muted: var(--ac-muted);
+  --app-accent: var(--ac-red-light);
+  --app-green: var(--ac-positive);
+}
+html[data-ac-theme="shell"] .app-header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  background: linear-gradient(145deg, #371313f5, #111012f5 68%);
+  border-color: var(--ac-line);
+}
+html[data-ac-theme="shell"] .module-open .app-header { display: none; }
+html[data-ac-theme="shell"] .brand { justify-self: center; text-align: center; }
+html[data-ac-theme="shell"] .brand small { color: #ffc1c1; font-size: 10px; }
+html[data-ac-theme="shell"] :is(.app-header .icon-button, .account-button, .module-toolbar .icon-button, dialog .icon-button) {
+  border: 1px solid var(--ac-line);
+  border-radius: 50%;
+  background: linear-gradient(155deg, #fff2, #fff1);
+}
+html[data-ac-theme="shell"] .app-header :is(.icon-button, .account-button) {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+html[data-ac-theme="shell"] .avatar {
+  background: linear-gradient(145deg, #603636, #2a2224 70%);
+  border-color: #ffb7b746;
+  box-shadow: none;
+}
+html[data-ac-theme="shell"] .profile-hero .avatar { box-shadow: 0 0 0 7px #d8000018, 0 0 0 8px #ff7d7d38; }
+html[data-ac-theme="shell"] :is(.gate-emblem, .role-badge) {
+  border-color: var(--ac-strong-line);
+  background: var(--ac-hero);
+  color: #ffc3c3;
+  box-shadow: none;
+}
+html[data-ac-theme="shell"] .home-brand { display: grid; place-items: center; margin: 0 0 18px; min-height: 70px; }
+html[data-ac-theme="shell"] .home-brand img { display: block; width: min(90%, 300px); height: auto; }
+html[data-ac-theme="shell"] .home-feature {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  padding: 13px;
+  border-radius: 21px;
+  border: 1px solid var(--ac-strong-line);
+  background: var(--ac-hero);
+  box-shadow: var(--ac-shadow);
+}
+html[data-ac-theme="shell"] .home-feature:active { transform: scale(.99); }
+html[data-ac-theme="shell"] .home-feature .tool-icon { width: 42px; height: 42px; }
+html[data-ac-theme="shell"] .home-feature .row-copy small { color: #efcccc; }
+html[data-ac-theme="shell"] .home-feature-arrow {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--ac-line);
+  background: #17080870;
+  color: #ffc3c3;
+}
+html[data-ac-theme="shell"] .home-feature-arrow svg { width: 16px; height: 16px; }
+html[data-ac-theme="shell"] .home-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 12px 0 23px;
+  padding: 15px;
+  background: var(--ac-card);
+  border-color: var(--ac-line);
+}
+html[data-ac-theme="shell"] .home-intro::after { content: none; }
+html[data-ac-theme="shell"] .welcome { margin: 0; }
+html[data-ac-theme="shell"] :is(.tool, .tool.locked, .list-group, .empty) { background: var(--ac-card); border-color: var(--ac-line); }
+html[data-ac-theme="shell"] .tool:hover { border-color: var(--ac-strong-line); box-shadow: 0 8px 24px #0004; }
+html[data-ac-theme="shell"] :is(.tool-icon, .tool.locked .tool-icon) { background: #ffffff0d; color: var(--ac-text); box-shadow: inset 0 1px #fff1; }
+html[data-ac-theme="shell"] :is(.home-feature .tool-icon, .tool:not(.locked):hover .tool-icon) { color: #ffc3c3; background: #d8000026; }
+html[data-ac-theme="shell"] .list-row + .list-row { border-top-color: var(--ac-line); }
+html[data-ac-theme="shell"] :is(.catalog-search, .filter:not(.active)) { background: var(--ac-input); border-color: var(--ac-line); }
+html[data-ac-theme="shell"] .switch { background: #4b4548; }
+html[data-ac-theme="shell"] .switch::after { background: #f5f5f6; }
+html[data-ac-theme="shell"] .list-row[aria-checked="true"] .switch { background: var(--ac-red); }
+html[data-ac-theme="shell"] .module-toolbar { background: #151213; border-color: var(--ac-line); }
+html[data-ac-theme="shell"] #module-expand[aria-pressed="true"] { background: #541a1a; color: #ffc3c3; border-color: var(--ac-strong-line); }
+html[data-ac-theme="shell"] .app-dock {
+  background: var(--ac-glass);
+  border-color: var(--ac-line);
+  box-shadow: var(--ac-shadow);
+  backdrop-filter: blur(12px);
+}
+html[data-ac-theme="shell"] .app-dock > button { color: var(--ac-muted); }
+html[data-ac-theme="shell"] .app-dock > button[aria-current] { color: var(--ac-text); }
+html[data-ac-theme="shell"] .app-dock > button[aria-current] svg { color: var(--ac-red-light); }
+html[data-ac-theme="shell"] .app-dock .dock-selection {
+  border-color: #ff9e9e35;
+  background: radial-gradient(ellipse at 45% 0, #cc14144f, #ffffff0c 82%);
+}
+html[data-ac-theme="shell"] > body > dialog { background: var(--ac-card); border-color: var(--ac-strong-line); box-shadow: var(--ac-shadow); }
+html[data-ac-theme="shell"] dialog p { color: var(--ac-muted); }
+html[data-ac-theme="shell"] .app-toast { background: var(--ac-raised); border: 1px solid var(--ac-line); color: var(--ac-text); }
+
+/* Marketplace-specific depth. Hot tasks keep their separate effects and colours. */
+html[data-ac-theme="tasks"] :is(.ambient-a, .ambient-b) { border-color: #d80000; opacity: .08; }
+html[data-ac-theme="tasks"] :is(.brand-mark, .loader) { border-color: var(--ac-line); }
+html[data-ac-theme="tasks"] .brand-mark { background: var(--ac-primary); box-shadow: 0 5px 15px #d8000040; }
+html[data-ac-theme="tasks"] .loader { border-top-color: var(--ac-red); }
+html[data-ac-theme="tasks"] #admin-view .hero { background: var(--ac-hero); border-color: var(--ac-strong-line); }
+html[data-ac-theme="tasks"] :is(.hero, .leader-hero)::after { border-color: #d8000026; }
+html[data-ac-theme="tasks"] #admin-view :is(.level-card, .wallet-grid > div) { background: #121214ad; border-color: var(--ac-line); }
+html[data-ac-theme="tasks"] #admin-view .level-progress { background: var(--ac-bg); }
+html[data-ac-theme="tasks"] #admin-view .level-progress > i { background: linear-gradient(90deg, var(--ac-red), #ff6454); }
+html[data-ac-theme="tasks"] :is(.role-switch, .tabs, .catalog-card:not(.hot-card), .task-card:not(.hot-card)) { border-color: var(--ac-line); }
+html[data-ac-theme="tasks"] :is(.role-switch, .tabs) { background: var(--ac-input); }
+html[data-ac-theme="tasks"] :is(.role-switch, .tabs) > button.active { box-shadow: inset 0 0 0 1px var(--ac-strong-line); }
+html[data-ac-theme="tasks"] :is(.button.primary, .button.secondary, .button.ghost) { border-radius: 999px; }
+html[data-ac-theme="tasks"] .button.secondary { border-color: var(--ac-line); background: var(--ac-glass); }
+html[data-ac-theme="tasks"] :is(.catalog-card:not(.hot-card), .task-card:not(.hot-card), .ta-card) { background: var(--ac-card); }
+html[data-ac-theme="tasks"] .catalog-card:not(.hot-card) .task-icon { background: #d800001f; color: #ffc3c3; }
+html[data-ac-theme="tasks"] .task-rules summary { color: #ffc3c3; }

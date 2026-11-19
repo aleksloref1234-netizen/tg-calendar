@@ -72,7 +72,7 @@ test('take confirmation does not show an unnecessary comment field', () => {
   assert.match(script, /\$\('#reason-wrap'\)\.hidden = !reason/);
   assert.match(script, /title:'Взять задание\?'[^\n]+confirm:'Взять'/);
   assert.match(css, /\[hidden\]\{display:none!important\}/);
-  assert.match(html, /admin-task-marketplace\.css\?v=20261103-1/);
+  assert.match(html, /admin-task-marketplace\.css\?v=20261119-1/);
 });
 
 test('task levels show XP progress and are configurable by master', () => {

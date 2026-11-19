@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-ac-theme="module">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#08080a">
   <title>Логи · Admin Control BOT</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="admin-app-bridge.js?v=20261026-1"></script>
+  <script src="admin-app-bridge.js?v=20261119-1"></script>
   <script src="webapp-watermark.js" defer></script>
   <style>
-    :root { --bg:#0f172a; --card:#1e293b; --line:rgba(148,163,184,.18); --text:#f8fafc; --sub:#94a3b8; --blue:#38bdf8; --green:#10b981; --yellow:#f59e0b; --red:#fb7185; }
+    :root { --bg:var(--ac-bg); --card:var(--ac-surface); --line:var(--ac-line); --text:var(--ac-text); --sub:var(--ac-muted); --blue:#38bdf8; --green:#10b981; --yellow:#f59e0b; --red:#fb7185; }
     * { box-sizing:border-box; }
     body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
     main { max-width:780px; padding:16px; margin:0 auto; }
@@ -24,10 +24,10 @@
     .summary-note { max-width:210px; color:var(--sub); font-size:11px; line-height:1.4; text-align:right; }
     .controls { display:grid; gap:10px; margin-bottom:14px; }
     #search { width:100%; min-height:45px; padding:12px 13px; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:12px; outline:none; font-size:14px; }
-    #search:focus { border-color:rgba(56,189,248,.75); }
+    #search:focus { border-color:rgba(255, 133, 133, 0.75); }
     .filters { display:flex; gap:7px; overflow-x:auto; padding:2px 0; scrollbar-width:none; }
     .filter { flex:none; padding:8px 11px; border:1px solid var(--line); border-radius:10px; color:var(--sub); background:var(--card); font-size:12px; cursor:pointer; }
-    .filter.active { color:var(--blue); border-color:rgba(56,189,248,.75); background:rgba(56,189,248,.08); }
+    .filter.active { color:var(--blue); border-color:rgba(255, 133, 133, 0.75); background:rgba(216, 14, 14, 0.08); }
     .filter.problem.active { color:var(--red); border-color:rgba(251,113,133,.72); background:rgba(251,113,133,.08); }
     .count { margin-left:4px; color:var(--text); font-weight:800; }
     .control-label { margin:3px 2px -3px; color:var(--sub); font-size:11px; }
@@ -56,14 +56,15 @@
     .entry.open .chevron { transform:rotate(180deg); }
     .details { display:none; margin-top:12px; padding-top:11px; border-top:1px solid var(--line); }
     .entry.open .details { display:block; }
-    .detail-row { display:grid; grid-template-columns:1fr; gap:3px; padding:7px 0; color:#cbd5e1; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+    .detail-row { display:grid; grid-template-columns:1fr; gap:3px; padding:7px 0; color:#d6d4d7; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
     .detail-row + .detail-row { border-top:1px solid rgba(148,163,184,.1); }
     .details-empty { color:var(--sub); font-size:12px; }
     .empty,.error { padding:25px 17px; color:var(--sub); line-height:1.45; text-align:center; }
     .error strong { display:block; margin-bottom:7px; color:var(--red); }
     #loading { padding:54px 20px; color:var(--sub); text-align:center; font-size:14px; }
-    body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(56,189,248,.12),transparent 65%);background-size:28px 28px,28px 28px,auto}.ui-block-disabled{display:none!important}
+    body{background-color:var(--bg);background-image:linear-gradient(rgba(119,140,163,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(119,140,163,.055) 1px,transparent 1px),radial-gradient(900px 420px at 100% -120px,rgba(216, 14, 14, 0.12),transparent 65%);background-size:28px 28px,28px 28px,auto}.ui-block-disabled{display:none!important}
   </style>
+  <link rel="stylesheet" href="yaroslavl-theme.css?v=20261119-1">
 </head>
 <body>
   <main>

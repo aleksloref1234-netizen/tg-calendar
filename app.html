@@ -1,17 +1,18 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-ac-theme="shell">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0b1528">
+  <meta name="theme-color" content="#08080a">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org; style-src 'self'; img-src 'self' https://t.me https://*.telegram.org https://telegram.org https://*.telegram-cdn.org https://telegram-cdn.org; connect-src 'self' https://tg-admin-bot-1k1g.onrender.com; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <title>Admin Control · Единое приложение</title>
   <link rel="stylesheet" href="admin-app.css?v=20261106-2">
+  <link rel="stylesheet" href="yaroslavl-theme.css?v=20261119-1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="admin-app-model.js?v=20261026-1" defer></script>
   <script src="admin-app-viewport.js?v=20261106-1" defer></script>
-  <script src="admin-app.js?v=20261106-2" defer></script>
+  <script src="admin-app.js?v=20261119-1" defer></script>
 </head>
 <body>
   <div id="app-gate" class="app-gate" role="status" aria-live="polite">
@@ -21,8 +22,9 @@
   </div>
   <div id="admin-app" hidden>
     <header class="app-header">
-      <button class="brand" type="button" data-view="home" aria-label="На главную"><span class="brand-mark">AC</span><span>ADMIN CONTROL<small id="server-label">YAROSLAVL · 68</small></span></button>
-      <div class="header-actions"><button type="button" class="icon-button" data-view="notifications" aria-label="Настройки уведомлений" data-icon="bell"></button><button type="button" class="account-button" data-view="profile" aria-label="Открыть профиль"><span class="avatar avatar-small" data-avatar></span></button></div>
+      <button type="button" class="account-button" data-view="profile" aria-label="Открыть профиль"><span class="avatar avatar-small" data-avatar></span></button>
+      <button class="brand" type="button" data-view="home" aria-label="На главную"><span>ADMIN CONTROL<small id="server-label">YAROSLAVL · 68</small></span></button>
+      <button type="button" class="icon-button" data-view="notifications" aria-label="Настройки уведомлений" data-icon="bell"></button>
     </header>
     <main id="app-main" class="app-main" aria-live="polite"></main>
     <section id="module-view" class="module-view" hidden aria-label="Открытый раздел">
