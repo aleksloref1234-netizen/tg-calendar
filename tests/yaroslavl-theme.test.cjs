@@ -24,7 +24,22 @@ test('published Mini App entry pages opt into the same versioned shell and modul
   assert.match(css, /--ac-bg:\s*#08080a/);
   assert.match(css, /\.app-dock\s*\{[^}]*backdrop-filter:\s*blur\(/);
   assert.match(read('admin-app-modules.css'), /background:var\(--ac-canvas\)/);
-  assert.match(read('admin-app-bridge.js'), /admin-app-modules\.css\?v=20261119-1/);
+  assert.match(read('admin-app-bridge.js'), /admin-app-modules\.css\?v=20261119-2/);
+});
+
+test('embedded dashboard keeps the shared card palette and distinct index zones', () => {
+  const dashboard = read('dashboard.html');
+  const modules = read('admin-app-modules.css');
+  assert.match(dashboard, /admin-app-bridge\.js\?v=20261119-2/);
+  assert.match(dashboard, /--accent-color:\s*var\(--ac-red-light\)/);
+  for (const selector of ['.card', '.chart-container']) {
+    assert.ok(dashboard.match(/[^{}]+\{[^{}]+\}/g).some(rule =>
+      rule.trimStart().startsWith(selector + ' {') && rule.includes('background: var(--ac-card)')
+    ), selector);
+  }
+  assert.match(modules, /\[data-admin-page="dashboard"\] :is\(\.card:not\(\.performance-card\),\.chart-container\)\{border-radius:20px\}/);
+  assert.match(dashboard, /\.progress-bar-fill\s*\{[^}]+background: linear-gradient\(90deg, var\(--ac-red\)/);
+  for (const zone of ['green', 'yellow', 'red']) assert.ok(dashboard.includes('.performance-card.zone-' + zone));
 });
 
 test('the approved Black Russia mark is a local, passive image with its original proportions', () => {

@@ -6,7 +6,7 @@
     <title>Дашборд Администратора</title>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="admin-app-bridge.js?v=20261119-1"></script>
+    <script src="admin-app-bridge.js?v=20261119-2"></script>
     <script src="admin-stats-runtime.js?v=20261026-1"></script>
     <link rel="stylesheet" href="admin-stats.css?v=20261026-1">
     <script src="webapp-watermark.js" defer></script>
@@ -16,7 +16,7 @@
         :root {
             --bg-color:var(--ac-bg);
             --card-bg:var(--ac-surface);
-            --accent-color: #38bdf8;
+            --accent-color: var(--ac-red-light);
             --text-main:var(--ac-text);
             --text-sub:var(--ac-muted);
             --danger: #ef4444;
@@ -118,10 +118,10 @@
         }
 
         .card {
-            background: var(--card-bg);
+            background: var(--ac-card);
             border-radius: 12px;
             padding: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--ac-line);
         }
 
         .card-label {
@@ -309,7 +309,7 @@
             height: 7px;
             overflow: hidden;
             border-radius: 999px;
-            background: rgba(148, 163, 184, 0.16);
+            background: var(--ac-line);
         }
 
         .help-rating-fill {
@@ -471,11 +471,11 @@
         }
 
         .chart-container {
-            background: var(--card-bg);
+            background: var(--ac-card);
             border-radius: 16px;
             padding: 16px;
             margin-bottom: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--ac-line);
         }
 
         .chart-wrapper {
@@ -494,7 +494,7 @@
         }
 
         .progress-bar-fill {
-            background: linear-gradient(90deg, #3b82f6, #38bdf8);
+            background: linear-gradient(90deg, var(--ac-red), #ff6454);
             height: 100%;
             width: 0%;
             transition: width 0.5s ease-in-out;
