@@ -51,3 +51,15 @@ test('the approved Black Russia mark is a local, passive image with its original
   assert.equal(png.readUInt32BE(16), 1200);
   assert.equal(png.readUInt32BE(20), 216);
 });
+
+test('the training center header reuses the home logo and keeps its title and avatar', () => {
+  const homeLogo = read('admin-app.js').match(/src="(yaroslavl-black-russia\.svg[^"]*)"/)[1];
+  const training = read('training-center.html');
+  const header = training.match(/<header class="top">([\s\S]*?)<\/header>/)[1];
+  const image = header.match(/<img\b[^>]*>/)[0];
+  assert.ok(image.includes('src="' + homeLogo + '"'));
+  assert.match(image, /width="1200" height="216" alt="BLACK RUSSIA"/);
+  assert.match(header, /<h1>Учебный центр<\/h1>/);
+  assert.match(header, /id="avatar"/);
+  assert.match(training, /\.brand-logo\{[^}]*width:min\(190px,100%\);height:auto/);
+});
