@@ -14,6 +14,7 @@
     @media(max-width:650px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.directions{grid-template-columns:1fr}.custom{grid-template-columns:1fr 1fr}.custom .apply{grid-column:1/-1}.hero{padding:18px}.app{padding-inline:9px}}
   </style>
   <link rel="stylesheet" href="yaroslavl-theme.css?v=20261119-1">
+  <link rel="stylesheet" href="supervisor-payouts.css?v=2">
 </head>
 <body>
   <main class="app">
@@ -49,11 +50,40 @@
         <div class="filters" id="application-filters"><button class="chip active" data-status="active">На рассмотрении</button><button class="chip" data-status="reserved">Резерв</button><button class="chip" data-status="approved">Одобрены</button><button class="chip" data-status="rejected">Отказаны</button><button class="chip" data-status="all">Все</button></div>
         <div class="records" id="applications"></div>
       </section>
-      <section class="view" data-view-panel="assignments" data-ui-block="assignments"><div class="records" id="assignments"></div></section>
+      <section class="view" data-view-panel="assignments" data-ui-block="assignments">
+        <div id="payout-banner" class="payout-banner" hidden>
+          <div><h2>Репорты следящим</h2><p>Заполните форму, и репорт отправится напрямую в статистику администратора.</p></div>
+          <button class="action" id="payout-refresh" type="button">Обновить</button>
+        </div>
+        <div class="payout-feedback" id="payout-feedback" role="status"></div>
+        <div class="records" id="assignments"></div>
+      </section>
       <section class="view" data-view-panel="vacancies" data-ui-block="vacancies"><div class="notice">Лимит можно менять отдельно для каждой должности. Нельзя установить меньше числа уже занятых мест.</div><div class="records" id="vacancies"></div></section>
       <section class="view" data-view-panel="history" data-ui-block="history"><div class="records" id="history"></div></section>
     </div>
   </main>
+  <dialog class="payout-dialog" id="payout-dialog" aria-labelledby="payout-title">
+    <form id="payout-form">
+      <div class="payout-kicker">НАЧИСЛЕНИЕ ЗА РАБОТУ</div>
+      <h2 id="payout-title">Вывести репорты</h2>
+      <div class="payout-recipient"><strong id="payout-nick"></strong><span id="payout-position"></span></div>
+      <label class="field"><span>Количество репортов</span><input id="payout-amount" type="number" min="1" step="1" inputmode="numeric" required></label>
+      <div class="payout-feedback" id="payout-error" role="alert"></div>
+      <div class="payout-buttons"><button class="action" id="payout-cancel" type="button">Отмена</button><button type="submit" class="action payout-primary" id="payout-submit">Поставить в очередь</button></div>
+    </form>
+  </dialog>
+  <dialog class="payout-dialog" id="payout-rollback-dialog" aria-labelledby="payout-rollback-title">
+    <form id="payout-rollback-form">
+      <div class="payout-kicker">ИСПРАВЛЕНИЕ ВЫВОДА</div>
+      <h2 id="payout-rollback-title">Откатить вывод?</h2>
+      <div class="payout-recipient"><strong id="payout-rollback-nick"></strong><span id="payout-rollback-amount"></span></div>
+      <p class="payout-note">Если репорты уже выведены, бот вычтет эту сумму. Если вывод ещё в очереди, он будет отменён.</p>
+      <label class="field"><span>Причина отката</span><input id="payout-rollback-reason" maxlength="300" required></label>
+      <div class="payout-feedback" id="payout-rollback-error" role="alert"></div>
+      <div class="payout-buttons"><button class="action" id="payout-rollback-cancel" type="button">Назад</button><button type="submit" class="action payout-primary" id="payout-rollback-submit">Подтвердить откат</button></div>
+    </form>
+  </dialog>
+  <script src="supervisor-payouts.js?v=2"></script>
   <script>
     const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();
     const API='https://tg-admin-bot-1k1g.onrender.com/api/supervisors';
@@ -66,10 +96,10 @@
     function canManage(item){return (data.can_manage_scopes||[]).includes(item.direction_key)}function applicationActions(item){if(!canManage(item))return '';if(item.status==='pending')return `<div class="actions"><button class="action approve" data-decision="approved" data-id="${esc(item.application_id)}">Одобрить</button><button class="action reserve" data-decision="reserved" data-id="${esc(item.application_id)}">В резерв</button><button class="action reject" data-decision="rejected" data-id="${esc(item.application_id)}">Отказать</button></div>`;if(item.status==='reserved')return `<div class="actions"><button class="action approve" data-decision="approved" data-id="${esc(item.application_id)}">Одобрить</button><button class="action reject" data-decision="rejected" data-id="${esc(item.application_id)}">Отказать</button></div>`;return ''}
     function applicationCard(item){const reason=item.rejection_reason?`<div><b>Причина отказа:</b> ${esc(item.rejection_reason)}</div>`:'';return `<article class="record"><div class="record-top"><div><div class="record-name">${esc(item.applicant_nick)}</div><div class="record-sub">${esc(item.position_title)} · ${esc(item.created_at)}</div></div><span class="badge ${esc(item.status)}">${esc(statusLabels[item.status]||item.status)}</span></div><div class="details"><div><b>Уровень:</b> ${esc(item.admin_level)} · <b>на посту:</b> ${esc(item.days_on_role)} дн.</div><div><b>Индекс успеваемости:</b> ${esc(item.performance_index||'Нет данных')}</div><div><b>Опыт:</b> ${esc(item.experience||'Не указан')}</div><div><b>ПК / фрапс:</b> ${esc(item.has_pc||'—')} / ${esc(item.can_record_fraps||'—')}</div><div><b>Время:</b> ${esc(item.time_commitment||'Не указано')}</div><div><b>Причина подачи:</b> ${esc(item.motivation||'Не указана')}</div>${reason}${applicationActions(item)}</div></article>`}
     function renderApplications(){const q=$('application-search').value.trim().toLowerCase();const items=(data.applications||[]).filter(item=>{const statusOk=statusFilter==='all'||(statusFilter==='active'&&item.status==='pending')||item.status===statusFilter;return statusOk&&`${item.applicant_nick} ${item.position_title}`.toLowerCase().includes(q)});$('applications').innerHTML=items.length?items.map(applicationCard).join(''):'<div class="empty">Заявлений по выбранному фильтру нет.</div>'}
-    function renderAssignments(){$('assignments').innerHTML=(data.active_assignments||[]).map(item=>`<article class="record"><div class="record-top"><div><div class="record-name">${esc(item.applicant_nick)}</div><div class="record-sub">${esc(item.position_title)}</div></div><span class="badge active">Действующий</span></div><div class="details"><div><b>Назначен:</b> ${esc(item.assigned_at||'Не указано')}</div><div><b>Источник:</b> ${item.source==='admin_table_import'?'Первичный импорт из таблицы':'Одобренное заявление'}</div>${canManage(item)?`<div class="actions"><button class="action remove" data-remove="${esc(item.assignment_id)}">Снять следящего</button></div>`:''}</div></article>`).join('')||'<div class="empty">Действующих следящих в доступных направлениях нет.</div>'}
+    function renderAssignments(){$('assignments').innerHTML=(data.active_assignments||[]).map(item=>`<article class="record"><div class="record-top"><div><div class="record-name">${esc(item.applicant_nick)}</div><div class="record-sub">${esc(item.position_title)}</div></div><span class="badge active">Действующий</span></div><div class="details"><div><b>Назначен:</b> ${esc(item.assigned_at||'Не указано')}</div><div><b>Источник:</b> ${item.source==='admin_table_import'?'Первичный импорт из таблицы':'Одобренное заявление'}</div>${canManage(item)?`<div class="payout-row">${payoutControls.badge(item)}<button class="action remove" data-remove="${esc(item.assignment_id)}">Снять следящего</button></div>`:''}</div></article>`).join('')||'<div class="empty">Действующих следящих в доступных направлениях нет.</div>'}
     function renderVacancies(){$('vacancies').innerHTML=(data.positions||[]).map(item=>{const manage=canManage(item);return `<article class="record"><div class="record-top"><div><div class="record-name">${esc(item.title)}</div><div class="record-sub">${esc(item.direction_label)} · занято ${item.occupied} · свободно ${item.available}</div></div><span class="badge ${item.available?'active':'pending'}">${item.available?'Открыта':'Заполнена'}</span></div><div class="details"><div class="capacity-row"><label class="field capacity-field"><span>Всего мест</span><input class="capacity" type="number" min="${item.occupied}" max="50" value="${item.capacity}" data-capacity="${esc(item.position_key)}" ${manage?'':'disabled'}></label>${manage?`<button class="action save" data-save-capacity="${esc(item.position_key)}">Сохранить</button>`:''}</div><div>${item.pending} ожидают решения · ${item.reserve} в резерве</div></div></article>`}).join('')||'<div class="empty">Вакансии не найдены.</div>'}
     function renderHistory(){$('history').innerHTML=(data.assignment_history||[]).map(item=>`<article class="record"><div class="record-top"><div><div class="record-name">${esc(item.applicant_nick)}</div><div class="record-sub">${esc(item.position_title)}</div></div><span class="badge removed">Снят</span></div><div class="details"><div><b>Период:</b> ${esc(item.assigned_at||'—')} — ${esc(item.ended_at||'—')}</div><div><b>Причина снятия:</b> ${esc(item.removal_reason||'Не указана')}</div><div><b>Обработал:</b> ${esc(item.decided_by_nick||'Не указано')}</div></div></article>`).join('')||'<div class="empty">История снятий пока пуста.</div>'}
-    function render(){applyConfig(data.ui_config||{});$('updated').textContent=`Данные обновлены: ${data.updated_at||'—'} МСК`;renderOverview();renderApplications();renderAssignments();renderVacancies();renderHistory();$('loading').hidden=true;$('error').hidden=true;$('content').hidden=false}
+    function render(){applyConfig(data.ui_config||{});$('updated').textContent=`Данные обновлены: ${data.updated_at||'—'} МСК`;renderOverview();renderApplications();renderAssignments();renderVacancies();renderHistory();$('loading').hidden=true;$('error').hidden=true;$('content').hidden=false;payoutControls.update()}
     function formatDate(value){const [y,m,d]=String(value||'').split('-');return y&&m&&d?`${d}.${m}.${y}`:value||'—'}const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     function dateRange(days,month=false){const end=new Date();end.setHours(12,0,0,0);const start=new Date(end);month?start.setDate(1):start.setDate(start.getDate()-days+1);return{from:iso(start),to:iso(end)}}
     async function api(payload={}){if(busy)return;busy=true;const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),30000);try{if(!tg?.initData)throw new Error('Откройте страницу кнопкой из Telegram-бота.');const response=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-Telegram-Init-Data':tg.initData},body:JSON.stringify({...payload,date_from:currentDates.from,date_to:currentDates.to}),cache:'no-store',signal:controller.signal});let result={};try{result=await response.json()}catch(_e){throw new Error(`HTTP ${response.status}`)}if(!response.ok||result.status!=='success')throw new Error(result.message||`HTTP ${response.status}`);data=result.data||{};render()}catch(error){if(error.name==='AbortError')throw new Error('Сервер отвечает дольше 30 секунд. Повторите запрос.');throw error}finally{clearTimeout(timer);busy=false}}
@@ -83,6 +113,7 @@
     $('applications').addEventListener('click',event=>{const button=event.target.closest('[data-decision]');if(!button)return;const decision=button.dataset.decision;let reason='';if(decision==='rejected'){reason=prompt('Укажите причину отказа:')?.trim()||'';if(!reason)return}if(!confirm(decision==='approved'?'Одобрить заявление?':decision==='reserved'?'Перевести заявление в резерв?':'Отказать в заявлении?'))return;act({action:'decide_application',application_id:button.dataset.id,decision,reason},button)});
     $('assignments').addEventListener('click',event=>{const button=event.target.closest('[data-remove]');if(!button)return;const reason=prompt('Укажите причину снятия следящего:')?.trim()||'';if(!reason)return;if(confirm('Снять следящего и открыть вакансию?'))act({action:'remove_assignment',assignment_id:button.dataset.remove,reason},button)});
     $('vacancies').addEventListener('click',event=>{const button=event.target.closest('[data-save-capacity]');if(!button)return;const input=document.querySelector(`[data-capacity="${button.dataset.saveCapacity}"]`);const capacity=Number(input?.value);if(!Number.isInteger(capacity)||capacity<0||capacity>50)return alert('Укажите целое число от 0 до 50.');act({action:'set_capacity',position_key:button.dataset.saveCapacity,capacity},button)});
+    const payoutControls=window.createSupervisorPayouts({api:API,tg,esc,getOverview:()=>data,renderAssignments});
     currentDates=dateRange(30);$('date-from').value=currentDates.from;$('date-to').value=currentDates.to;const initialView=new URLSearchParams(location.search).get('view');if(initialView==='management')document.querySelector('.tab[data-view="applications"]')?.click();load();
   </script>
 </body>

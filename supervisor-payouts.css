@@ -1,0 +1,19 @@
+.payout-banner[hidden]{display:none}
+.payout-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;border:1px solid #6e3338;border-radius:16px;background:linear-gradient(120deg,#381c21,#232023)}
+.payout-banner p{margin:5px 0 0;color:var(--sub);font-size:12px}
+.payout-row,.payout-buttons{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.payout-row{margin-top:5px}
+.payout-feedback{font-size:12px;color:var(--sub)}
+.payout-feedback:not(:empty){margin-top:9px}
+.action.payout-primary{color:#fff;background:#aa252f;border-color:#dc6168;font-weight:750}
+.action.payout-primary:hover:not(:disabled){background:#bc2935}
+.payout-dialog{width:min(430px,calc(100% - 24px));max-height:calc(100% - 24px);padding:19px;border:1px solid #784047;border-radius:17px;background:#222024;color:var(--text);box-shadow:0 16px 48px #0009}
+.payout-dialog::backdrop{background:#0c080bd0}
+.payout-kicker{color:var(--blue);font-size:10px;font-weight:800;letter-spacing:.09em;margin-bottom:5px}
+.payout-recipient{display:grid;gap:4px;padding:10px;border:1px solid var(--soft);border-radius:11px;margin:15px 0}
+.payout-recipient span,.payout-note{font-size:12px;color:var(--sub)}
+.payout-buttons{margin-top:14px;justify-content:flex-end}
+#payout-error{color:#ff9d9f}
+#payout-rollback-error{color:#ff9d9f}
+.payout-state-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.action.payout-undo{color:#f0acb3;border-color:#81474e}
