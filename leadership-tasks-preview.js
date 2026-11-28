@@ -66,14 +66,25 @@
     ]
   };
 
+  let liveWeekStart = null;
+  let progressTimer;
   const state = {
     role: 'main',
-    dateMode: 'week',
+    dateMode: PREVIEW_MODE ? todayIso() : moscowTodayIso(),
     planWeek: 0,
     masterPriority: 'all',
     masterStatus: 'all',
     masterRole: 'all',
     masterSearch: '',
+    boardRole: 'all',
+    boardLate: false,
+    boardExpanded: new Set(),
+    progress: {},
+    pending: new Map(),
+    markPaused: false,
+    markStorageUnavailable: false,
+    markError: '',
+    markSaved: false,
     activeTask: null,
     viewer: null,
     persistence: PREVIEW_MODE ? {
@@ -88,6 +99,50 @@
     loading: !PREVIEW_MODE,
     tasks: loadTasks()
   };
+
+  const icons = {
+    list:'<path d="m3 7 2 2 4-4m3 2h9M3 16l2 2 4-4m3 2h9"/>',
+    check:'<path d="m5 12 4 4 10-10"/>',
+    square:'<rect x="5" y="5" width="14" height="14" rx="3"/>',
+    clock:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+    alert:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4m0 3v.2"/>',
+    calendar:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M4 10h16m-11 5h6"/>',
+    board:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 5v14m6-14v14"/>',
+    chart:'<path d="M4 4v16h16M8 15l4-5 4 2 4-6"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>'
+  };
+  function icon(name) {
+    return '<svg class="tracker-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || icons.list) + '</svg>';
+  }
+  document.querySelectorAll('[data-tracker-icon]').forEach(node => { node.innerHTML = icon(node.dataset.trackerIcon); });
+
+  let localMarkStorage;
+  try { localMarkStorage = window.localStorage; } catch (_) {}
+  const markQueue = PREVIEW_MODE ? null : window.LeadershipTaskMarks.create({
+    storage: localMarkStorage,
+    send: apiRequest,
+    onChange({ entries, paused, storageUnavailable }) {
+      state.pending = new Map(entries.map(item => [item.occurrence_id, item]));
+      state.markPaused = paused;
+      state.markStorageUnavailable = storageUnavailable;
+      if (!state.loading) renderAll();
+    },
+    onProgress: applyLiveProgress,
+    onConfirmed(item, result) {
+      const index = state.tasks.findIndex(task => task.id === item.occurrence_id);
+      if (index >= 0 && result) state.tasks[index] = {
+        ...state.tasks[index],
+        status: result.status,
+        comment: result.comment,
+        completedAt: result.completed_at,
+        markRevision: result.mark_revision
+      };
+      state.markSaved = true;
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    },
+    onRejected(_item, error) { state.markError = error.message; showToast(error.message); },
+    onResync() { loadLiveData({ quiet: true }); }
+  });
 
   function allDays() { return [0, 1, 2, 3, 4, 5, 6]; }
 
@@ -127,6 +182,8 @@
     return PREVIEW_MODE || item.date === moscowTodayIso();
   }
 
+  function currentToday() { return PREVIEW_MODE ? todayIso() : moscowTodayIso(); }
+
   function mondayOf(base = new Date(), weekOffset = 0) {
     const date = new Date(base);
     date.setHours(12, 0, 0, 0);
@@ -136,7 +193,10 @@
   }
 
   function weekDates(weekOffset = 0) {
-    const monday = mondayOf(new Date(), weekOffset);
+    const monday = liveWeekStart && !PREVIEW_MODE
+      ? new Date(liveWeekStart + 'T12:00:00')
+      : mondayOf(new Date(currentToday() + 'T12:00:00'));
+    monday.setDate(monday.getDate() + 7 * weekOffset);
     return allDays().map(index => {
       const date = new Date(monday);
       date.setDate(monday.getDate() + index);
@@ -209,20 +269,29 @@
   }
 
   async function apiRequest(action, payload = {}) {
-    const response = await fetch(API_URL, {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Telegram-Init-Data': tg ? (tg.initData || '') : ''
       },
-      body: JSON.stringify({ action, ...payload })
-    });
-    let result = {};
-    try { result = await response.json(); } catch (_) {}
-    if (!response.ok || result.status !== 'success') {
-      throw new Error(result.message || 'Не удалось обработать запрос');
+        body: JSON.stringify({ action, ...payload }),
+        signal: controller.signal
+      });
+      let result = {};
+      try { result = await response.json(); } catch (_) {}
+      if (!response.ok || result.status !== 'success') {
+        const error = new Error(result.message || 'Не удалось обработать запрос');
+        error.status = response.status;
+        throw error;
+      }
+      return result.data || {};
+    } finally {
+      clearTimeout(timeout);
     }
-    return result.data || {};
   }
 
   async function loadLiveData({ quiet = false } = {}) {
@@ -236,20 +305,59 @@
       state.viewer = data.viewer || null;
       state.persistence = data.persistence || null;
       state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
+      applyLiveProgress(data);
       state.role = APP_MODE === 'master'
         ? (roles.some(role => role.id === state.role) ? state.role : roles[0].id)
         : (data.viewer?.is_ga
           ? (roles.some(role => role.id === state.role) ? state.role : roles[0].id)
           : (data.viewer?.role_id || roles[0].id));
       state.loading = false;
+      markQueue.useViewer(state.viewer?.user_id);
       initRoleSelect(true);
       initMasterRoleOptions();
       renderAll();
+      watchPendingProgress();
     } catch (error) {
       state.loading = false;
       if (!quiet) showFatalError(error.message || 'Не удалось загрузить задачник');
       else showToast(error.message || 'Не удалось обновить данные');
     }
+  }
+
+  function applyLiveProgress(data) {
+    if (data.week_start && data.week_start !== liveWeekStart) {
+      liveWeekStart = data.week_start;
+      state.progress = {};
+    }
+    for (const [role, next] of Object.entries(data.progress || {})) {
+      state.progress[role] = next.updating ? { ...state.progress[role], updating: true } : next;
+    }
+  }
+
+  function watchPendingProgress(attempt = 0) {
+    clearTimeout(progressTimer);
+    const incomplete = Object.values(state.progress).some(role => role.updating);
+    if (PREVIEW_MODE || state.pending.size || !incomplete || attempt >= 7) return;
+    progressTimer = setTimeout(async () => {
+      if (document.hidden || state.pending.size) return;
+      try {
+        applyLiveProgress(await apiRequest('task_sync_status', { keys: [] }));
+        renderAll();
+      } catch (error) {
+        if (error.status === 403 || error.status === 400) return;
+      }
+      watchPendingProgress(attempt + 1);
+    }, Math.min(30000, 7000 * (attempt + 1)));
+  }
+
+  function progressLabel(role, fallback) {
+    if (PREVIEW_MODE) return { value: fallback + '%', note: 'КПД недели' };
+    const value = state.progress[role];
+    const pending = [...state.pending.keys()].some(id => state.tasks.some(task => task.id === id && task.role === role));
+    return {
+      value: value?.total_tasks ? Math.round(value.kpi_value * 100) + '%' : '—',
+      note: value?.updating || pending ? 'КПД обновляется' : 'КПД недели'
+    };
   }
 
   function showFatalError(message) {
@@ -295,14 +403,6 @@
     return 'задач';
   }
 
-  function visibleTasks() {
-    const currentWeek = weekDates();
-    const own = state.tasks.filter(item => item.role === state.role);
-    return own.filter(item => state.dateMode === 'week'
-      ? currentWeek.includes(item.date)
-      : item.date === state.dateMode);
-  }
-
   function initRoleSelect(refresh = false) {
     const select = document.getElementById('role-select');
     if (!select) return;
@@ -345,99 +445,149 @@
     document.getElementById('identity-role').textContent = state.viewer?.role_title || role.title;
   }
 
-  function renderDateStrip() {
+  function isRisk(item) {
+    return item.status === 'failed' || (item.status === 'todo' && item.date < currentToday());
+  }
+
+  function timeLabel(item) {
+    return item.due === DEFAULT_DUE_TIME ? 'до 00:00' : 'до ' + item.due;
+  }
+
+  function effectiveTask(task) {
+    const pending = state.pending.get(task.id);
+    return pending ? { ...task, status: pending.status, comment: pending.comment, pending: true } : task;
+  }
+
+  function dateRange(dates) {
+    const start = formatDate(dates[0], { day: 'numeric', month: 'short' });
+    const end = formatDate(dates[6], { day: 'numeric', month: 'short' });
+    return start + ' — ' + end;
+  }
+
+  function renderDateStrip(personal) {
     const days = weekDates();
-    if (state.dateMode !== 'week' && !days.includes(state.dateMode)) state.dateMode = 'week';
-    const dates = [
-      { mode: 'week', title: 'Вся неделя', label: `${formatDate(days[0], { day: '2-digit', month: '2-digit' })}–${formatDate(days[6], { day: '2-digit', month: '2-digit' })}` },
-      ...days.map((date, index) => ({
-        mode: date,
-        title: DAY_NAMES[index],
-        label: formatDate(date, { day: '2-digit', month: '2-digit' })
-      }))
-    ];
-    document.getElementById('date-strip').innerHTML = dates.map(item => `<button class="date-chip ${state.dateMode === item.mode ? 'active' : ''}" data-date-mode="${item.mode}" aria-pressed="${state.dateMode === item.mode}" type="button"><strong>${item.title}</strong><span>${item.label}</span></button>`).join('');
-    document.querySelectorAll('[data-date-mode]').forEach(button => button.addEventListener('click', () => {
-      state.dateMode = button.dataset.dateMode;
-      renderPersonal();
-    }));
+    if (state.dateMode !== 'week' && state.dateMode !== 'late' && !days.includes(state.dateMode)) state.dateMode = 'week';
+    document.getElementById('tracker-period').textContent = formatDate(currentToday(), { day: 'numeric', month: 'long' });
+    document.getElementById('tracker-date-caption').textContent = dateRange(days);
+    const late = personal.filter(isRisk).length;
+    const button = document.getElementById('personal-overdue');
+    button.innerHTML = icon('alert') + '<span>Без результата: ' + late + '</span>';
+    button.setAttribute('aria-pressed', String(state.dateMode === 'late'));
+    button.disabled = !late && state.dateMode !== 'late';
+    document.getElementById('personal-week-all').setAttribute('aria-pressed', String(state.dateMode === 'week'));
+    document.getElementById('date-strip').innerHTML = days.map((date,index) => {
+      const selected = state.dateMode === date;
+      const current = date === currentToday();
+      return '<button class="date-chip' + (selected ? ' active' : '') + '" type="button" data-date-mode="' + date
+        + '" data-has-tasks="' + personal.some(task => task.date === date) + '" aria-pressed="' + selected + '"'
+        + (current ? ' aria-current="date"' : '') + ' aria-label="' + escapeHtml(DAY_NAMES[index] + ', ' + formatDate(date, { day:'numeric', month:'long' }))
+        + '"><span>' + DAY_SHORT[index] + '</span><strong>' + Number(date.slice(-2)) + '</strong><i aria-hidden="true"></i></button>';
+    }).join('');
   }
 
   function renderPersonal() {
-    renderDateStrip();
+    const days = weekDates();
+    const personal = state.tasks.filter(item => item.role === state.role && days.includes(item.date)).map(effectiveTask);
+    renderDateStrip(personal);
     const weekMode = state.dateMode === 'week';
-    const byPriority = (a, b) => ({ high: 0, medium: 1, normal: 2 }[a.priority] - { high: 0, medium: 1, normal: 2 }[b.priority]) || a.due.localeCompare(b.due);
-    const tasks = visibleTasks().sort((a, b) => (weekMode ? a.date.localeCompare(b.date) : 0) || byPriority(a, b));
-    const done = tasks.filter(item => item.status === 'done').length;
-    const progress = tasks.length ? Math.round(done / tasks.length * 100) : 0;
-    document.getElementById('metric-total').textContent = tasks.length;
-    document.getElementById('metric-done').textContent = done;
-    document.getElementById('metric-scope').textContent = weekMode ? 'на текущую неделю' : `на ${formatDate(state.dateMode, { day: '2-digit', month: '2-digit' })}`;
-    document.getElementById('progress-value').textContent = `${progress}%`;
-    document.getElementById('progress-fill').style.width = `${progress}%`;
-    document.getElementById('progress-note').textContent = weekMode ? `Выполнено ${done} из ${tasks.length}. Недельный КПД формируется автоматически.` : `Выполнено ${done} из ${tasks.length}. Отметка сразу попадает в недельную статистику.`;
-    document.getElementById('tasks-heading').textContent = weekMode ? 'Расписание на неделю' : DAY_NAMES[weekDates().indexOf(state.dateMode)];
-    document.getElementById('tasks-note').textContent = weekMode ? 'по дням' : tasks.length ? 'сначала срочные' : 'задач нет';
+    const lateMode = state.dateMode === 'late';
+    const tasks = personal.filter(item => weekMode || (lateMode ? isRisk(item) : item.date === state.dateMode));
+    const order = { high: 0, medium: 1, normal: 2 };
+    tasks.sort((a,b) => a.date.localeCompare(b.date) || (a.status === 'done') - (b.status === 'done') || order[a.priority] - order[b.priority] || a.due.localeCompare(b.due));
+    const done = personal.filter(item => item.status === 'done').length;
+    const progress = personal.length ? Math.round(done / personal.length * 100) : 0;
+    const kpi = progressLabel(state.role, progress);
+    document.getElementById('tracker-progress-count').textContent = done + ' из ' + personal.length;
+    document.getElementById('progress-fill').style.width = progress + '%';
+    document.getElementById('tracker-progress-bar').setAttribute('aria-valuenow', String(progress));
+    document.getElementById('tracker-personal-kpi').innerHTML = escapeHtml(kpi.value) + '<small>' + escapeHtml(kpi.note) + '</small>';
+    const markState = document.getElementById('tracker-mark-state');
+    const pending = state.pending.size;
+    markState.hidden = !(pending || state.markSaved);
+    markState.textContent = state.markPaused ? 'Откройте задачник заново в Telegram, чтобы отправить отметки.'
+      : pending && state.markStorageUnavailable ? 'Сохраняем… Не закрывайте окно: сохранение на устройстве недоступно.'
+      : pending ? ([...state.pending.values()].every(item => item.export_key) ? 'Принято · ожидает выгрузки в таблицу' : 'Сохраняем отметку…')
+      : state.markSaved ? 'Отметка сохранена в таблице' : '';
+    const errorNode = document.getElementById('tracker-mark-error');
+    errorNode.hidden = !state.markError;
+    errorNode.textContent = state.markError;
+    document.getElementById('tasks-heading').textContent = weekMode ? 'Расписание на неделю'
+      : lateMode ? 'Без результата' : state.dateMode === currentToday() ? 'Сегодня' : DAY_NAMES[days.indexOf(state.dateMode)];
+    document.getElementById('tasks-note').textContent = tasks.length + ' ' + taskWord(tasks.length);
     const list = document.getElementById('tasks-list');
-    if (!tasks.length && !weekMode) {
-      list.innerHTML = '<div class="card empty"><strong>На этот период задач нет</strong>Следующая задача появится по недельному графику этой должности.</div>';
-      return;
-    }
+    if (!tasks.length) { list.innerHTML = '<div class="tracker-empty">На этот период задач нет</div>'; return; }
     list.innerHTML = weekMode
-      ? weekDates().map((date, index) => {
+      ? days.map((date,index) => {
         const dayTasks = tasks.filter(item => item.date === date);
-        return `<section class="day-group" aria-label="${DAY_NAMES[index]}">
-          <div class="day-group-head"><h3>${DAY_NAMES[index]}</h3><span>${formatDate(date, { day: '2-digit', month: '2-digit' })} · ${dayTasks.length} ${taskWord(dayTasks.length)}</span></div>
-          <div class="day-group-tasks">${dayTasks.length ? dayTasks.map(taskCard).join('') : '<div class="card day-empty">Задач нет</div>'}</div>
-        </section>`;
+        return '<section class="day-group"><div class="day-group-head"><h3>' + DAY_NAMES[index] + '</h3><span>'
+          + escapeHtml(formatDate(date, { day:'numeric', month:'short' })) + ' · ' + dayTasks.length + '</span></div>'
+          + '<div class="day-group-tasks">' + (dayTasks.map(taskRow).join('') || '<div class="tracker-empty">Без задач</div>') + '</div></section>';
       }).join('')
-      : tasks.map(taskCard).join('');
-    bindTaskActions();
+      : tasks.map(taskRow).join('');
   }
 
-  function taskCard(item) {
-    const statusClass = item.status === 'done' ? 'done' : item.status === 'failed' ? 'failed' : '';
-    const markingOpen = canMarkTask(item);
-    const disabled = item.status !== 'todo' || isGaTeamPreview() || !markingOpen ? 'disabled' : '';
-    const completion = item.completedAt ? ` · отметка ${escapeHtml(item.completedAt)}` : '';
-    const comment = item.comment ? `<div class="task-comment">${escapeHtml(item.comment)}</div>` : '';
-    const category = visibleCategory(item.category);
-    const categoryTag = category ? `<span class="tag">${escapeHtml(category)}</span>` : '';
-    return `<article class="card task ${statusClass}" data-task-id="${item.id}" data-open-task="${item.id}" tabindex="0" role="button" aria-label="Открыть задачу ${escapeHtml(item.title)}">
-      <div class="task-overline"><span class="tag ${item.priority}">${priorityLabel(item.priority)}</span>${categoryTag}<span class="tag ${item.status === 'done' ? 'done' : item.status === 'todo' ? 'blue' : 'high'}">${statusLabel(item.status)}</span></div>
-      <div class="task-title">${escapeHtml(item.title)}</div>
-      <div class="task-meta">${formatDate(item.date, { weekday: 'long', day: '2-digit', month: 'long' })} · ${escapeHtml(item.repeat)}${completion}</div>
-      ${comment}
-      ${!markingOpen && item.status === 'todo' ? '<div class="task-comment">Отметка доступна только в день задачи до 00:00 МСК.</div>' : ''}
-      <div class="task-footer"><div class="task-time">До ${item.due}<span>Расчётное время: ${item.minutes} минут</span></div><div class="task-actions"><button class="btn danger" data-fail="${item.id}" ${disabled} type="button">Не выполнено</button><button class="btn success" data-done="${item.id}" ${disabled} type="button">Выполнено</button></div></div>
-    </article>`;
+  function taskRow(item) {
+    const risk = isRisk(item);
+    const action = APP_MODE === 'team' && !isGaTeamPreview() && canMarkTask(item) && item.status === 'todo';
+    const id = escapeHtml(item.id);
+    const subtitle = item.pending ? 'Ожидает сохранения' : item.status === 'todo' && risk ? 'Просрочено' : statusLabel(item.status);
+    return '<article class="tracker-row" data-status="' + escapeHtml(item.status) + '" data-risk="' + risk + '">'
+      + (action ? '<button class="tracker-row-check" type="button" data-done="' + id + '" aria-label="Выполнить: '
+        + escapeHtml(item.title) + '"' + (item.pending ? ' disabled' : '') + '>' + icon('square') + '</button>'
+        : '<span class="tracker-row-icon" aria-hidden="true">' + icon(risk ? 'alert' : item.status === 'done' ? 'check' : 'list') + '</span>')
+      + '<button class="tracker-row-open" type="button" data-open-task="' + id + '"><b>' + escapeHtml(item.title)
+      + '</b><small>' + escapeHtml(subtitle) + '</small></button><span class="tracker-row-time">' + escapeHtml(timeLabel(item)) + '</span></article>';
   }
 
-  function bindTaskActions() {
-    document.querySelectorAll('[data-done]').forEach(button => button.addEventListener('click', event => {
-      event.stopPropagation();
-      updateTask(button.dataset.done, {
-      status: 'done',
-      completedAt: `${formatDate(todayIso(), { day: '2-digit', month: '2-digit' })} ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`,
-      comment: ''
-      }, 'Задача отмечена выполненной');
-    }));
-    document.querySelectorAll('[data-fail]').forEach(button => button.addEventListener('click', event => {
-      event.stopPropagation();
-      openFailure(button.dataset.fail);
-    }));
-    document.querySelectorAll('[data-open-task]').forEach(card => {
-      card.addEventListener('click', () => openTaskDetails(card.dataset.openTask));
-      card.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          openTaskDetails(card.dataset.openTask);
-        }
-      });
-    });
+  function renderBoard() {
+    const board = document.getElementById('tracker-board');
+    if (!board || (!PREVIEW_MODE && !state.viewer?.is_ga)) return;
+    const roleSelect = document.getElementById('board-role');
+    if (!roleSelect.dataset.loaded || state.boardRoles !== roles) {
+      roleSelect.innerHTML = '<option value="all">Все должности</option>' + roles.map(role =>
+        '<option value="' + escapeHtml(role.id) + '">' + escapeHtml(role.title) + '</option>').join('');
+      roleSelect.dataset.loaded = '1';
+      state.boardRoles = roles;
+    }
+    roleSelect.value = state.boardRole;
+    const days = weekDates();
+    document.getElementById('board-period').textContent = dateRange(days);
+    const order = { high: 0, medium: 1, normal: 2 };
+    const all = state.tasks.filter(item => days.includes(item.date) && (state.boardRole === 'all' || item.role === state.boardRole))
+      .map(effectiveTask).sort((a,b) => a.date.localeCompare(b.date) || order[a.priority] - order[b.priority] || a.due.localeCompare(b.due));
+    const risk = all.filter(isRisk);
+    const button = document.getElementById('board-overdue');
+    button.innerHTML = icon('alert') + '<span>Без результата: ' + risk.length + '</span>';
+    button.disabled = !risk.length && !state.boardLate;
+    button.setAttribute('aria-pressed', String(state.boardLate));
+    document.getElementById('board-count').textContent = (state.boardLate ? risk.length : all.length) + ' '
+      + taskWord(state.boardLate ? risk.length : all.length);
+    const cols = state.boardLate ? [['risk','Требуют внимания',risk]] : [
+      ['todo','К выполнению',all.filter(t => t.status === 'todo' && !isRisk(t))],
+      ['risk','Требуют внимания',risk],
+      ['done','Готово',all.filter(t => t.status === 'done')]
+    ];
+    board.innerHTML = cols.map(([key,title,items]) => {
+      const expanded = state.boardExpanded.has(key);
+      return '<section class="tracker-column" data-column="' + key + '"><h3>' + title + '<span>' + items.length + '</span></h3>'
+        + '<div class="tracker-column-items" id="tracker-column-' + key + '">'
+        + ((expanded ? items : items.slice(0,6)).map(boardCard).join('') || '<div class="tracker-empty">Нет задач</div>') + '</div>'
+        + (items.length > 6 ? '<button class="btn tracker-more" type="button" data-board-more="' + key
+          + '" aria-controls="tracker-column-' + key + '" aria-expanded="' + expanded + '">'
+          + (expanded ? 'Свернуть' : 'Ещё ' + (items.length - 6)) + '</button>' : '') + '</section>';
+    }).join('');
   }
 
-  async function updateTask(id, patch, message) {
+  function boardCard(item) {
+    const risk = isRisk(item), role = getRole(item.role);
+    return '<button class="tracker-board-task" type="button" data-open-task="' + escapeHtml(item.id) + '" data-risk="' + risk + '">'
+      + icon(risk ? 'alert' : item.status === 'done' ? 'check' : 'list')
+      + '<span><b>' + escapeHtml(item.title) + '</b><small>' + escapeHtml(role.title) + '</small><em>'
+      + escapeHtml(formatDate(item.date,{day:'numeric',month:'short'}) + ' · ' + timeLabel(item)
+        + (risk ? ' · ' + (item.status === 'failed' ? 'Не выполнено' : 'Просрочено') : '')) + '</em></span></button>';
+  }
+
+  function updateTask(id, patch, message) {
     if (isGaTeamPreview()) {
       showToast('В режиме просмотра ГА отметки не изменяются');
       return;
@@ -449,29 +599,17 @@
       showToast('Отметка доступна только в день задачи до 00:00 МСК');
       return;
     }
+    if (!PREVIEW_MODE) {
+      state.markError = '';
+      state.markSaved = false;
+      markQueue.add(current, patch);
+      return;
+    }
     state.tasks[index] = { ...current, ...patch, history: withHistory(current, message) };
     saveTasks();
     renderAll();
-    if (PREVIEW_MODE) {
-      showToast(message);
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-      return;
-    }
-    showToast('Отметка принята');
-    try {
-      await apiRequest('set_status', {
-        occurrence_id: current.id,
-        task_id: current.task_id,
-        status: patch.status,
-        comment: patch.comment || ''
-      });
-      await loadLiveData({ quiet: true });
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    } catch (error) {
-      state.tasks[index] = current;
-      renderAll();
-      showToast(error.message || 'Не удалось сохранить отметку');
-    }
+    showToast(message);
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
   }
 
   function openFailure(id) {
@@ -510,8 +648,9 @@
   }
 
   function openTaskDetails(id) {
-    const item = state.tasks.find(taskItem => taskItem.id === id);
-    if (!item) return;
+    const task = state.tasks.find(taskItem => taskItem.id === id);
+    if (!task) return;
+    const item = effectiveTask(task);
     state.activeTask = id;
     if (APP_MODE === 'master') {
       openMasterTaskEditor(item);
@@ -530,7 +669,7 @@
       ['Повторение', item.repeat]
     ].map(([label, value]) => `<div class="detail-cell"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
     document.getElementById('task-detail-description').textContent = item.description || 'Описание для этой задачи пока не добавлено.';
-    const readonly = isGaTeamPreview();
+    const readonly = isGaTeamPreview() || item.pending;
     const closedDay = !canMarkTask(item);
     document.getElementById('detail-reopen').hidden = readonly || closedDay || item.status === 'todo';
     document.getElementById('detail-fail').hidden = readonly || closedDay || item.status !== 'todo';
@@ -616,15 +755,16 @@
   function renderChart() {
     const dates = weekDates();
     const values = dates.map(date => {
-      if (date > todayIso()) return null;
+      if (date > currentToday()) return null;
       const dayTasks = state.tasks.filter(item => item.role === state.role && item.date === date);
       const done = dayTasks.filter(item => item.status === 'done').length;
       return dayTasks.length ? Math.round(done / dayTasks.length * 100) : 0;
     });
-    const actual = values.filter(value => value !== null);
-    const kpi = actual.length ? Math.round(actual.reduce((sum, value) => sum + value, 0) / actual.length) : 0;
+    const weekTasks = state.tasks.filter(item => item.role === state.role && dates.includes(item.date));
+    const ratio = weekTasks.length ? Math.round(100 * weekTasks.filter(t => t.status === 'done').length / weekTasks.length) : 0;
+    const kpi = progressLabel(state.role, ratio);
     document.getElementById('chart-title').textContent = getRole().title;
-    document.getElementById('weekly-kpi').innerHTML = `${kpi}%<span>недельный КПД</span>`;
+    document.getElementById('weekly-kpi').innerHTML = escapeHtml(kpi.value) + '<span>' + escapeHtml(kpi.note) + '</span>';
     const points = values.map((value, index) => ({ x: 50 + index * 88, y: value === null ? 174 : 24 + (100 - value) * 1.42, value, index }));
     const actualPoints = points.filter(point => point.value !== null);
     const line = actualPoints.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ');
@@ -1081,12 +1221,56 @@
   }
 
   function openView(name) {
-    document.querySelectorAll('.nav-btn').forEach(item => item.classList.toggle('active', item.dataset.view === name));
+    document.body.dataset.trackerView = name;
+    document.querySelectorAll('.nav-btn').forEach(item => {
+      const active = item.dataset.view === name;
+      item.classList.toggle('active', active);
+      if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
+    });
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === `view-${name}`));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   document.querySelectorAll('.nav-btn').forEach(button => button.addEventListener('click', () => openView(button.dataset.view)));
+  document.getElementById('view-personal')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-date-mode], #personal-week-all, #personal-overdue, [data-open-task], [data-done]');
+    if (!button) return;
+    if (button.dataset.openTask) { openTaskDetails(button.dataset.openTask); return; }
+    if (button.dataset.done) {
+      updateTask(button.dataset.done, { status:'done', completedAt:nowStamp(), comment:'' }, 'Задача отмечена выполненной');
+      return;
+    }
+    state.dateMode = button.dataset.dateMode || (button.id === 'personal-overdue' && state.dateMode !== 'late' ? 'late'
+      : button.id === 'personal-overdue' ? currentToday() : 'week');
+    renderPersonal();
+    if (button.dataset.dateMode) document.querySelector('[data-date-mode="' + button.dataset.dateMode + '"]')?.focus();
+  });
+  document.getElementById('view-board')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-open-task], [data-board-more], #board-overdue');
+    if (!button) return;
+    if (button.dataset.openTask) { openTaskDetails(button.dataset.openTask); return; }
+    const key = button.dataset.boardMore;
+    if (key) {
+      if (state.boardExpanded.has(key)) state.boardExpanded.delete(key); else state.boardExpanded.add(key);
+    } else state.boardLate = !state.boardLate;
+    renderBoard();
+    if (key) document.querySelector('[data-board-more="' + key + '"]')?.focus();
+  });
+  document.getElementById('board-role')?.addEventListener('change', event => {
+    state.boardRole = event.target.value;
+    state.boardLate = false;
+    state.boardExpanded.clear();
+    renderBoard();
+  });
+  const boardRefresh = document.getElementById('board-refresh');
+  if (boardRefresh && !PREVIEW_MODE) {
+    boardRefresh.hidden = false;
+    boardRefresh.addEventListener('click', async () => {
+      boardRefresh.disabled = true;
+      try { await loadLiveData({ quiet: true }); }
+      finally { boardRefresh.disabled = false; }
+    });
+  }
   document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => closeModal(button.dataset.close)));
   document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.addEventListener('click', event => {
     if (event.target === backdrop) closeModal(backdrop.id);
@@ -1144,6 +1328,7 @@
   function renderAll() {
     renderIdentity();
     if (document.getElementById('view-personal')) renderPersonal();
+    renderBoard();
     if (document.getElementById('view-progress')) renderProgress();
     renderPersistenceStatus();
     if (document.getElementById('view-plan')) renderPlan();
@@ -1154,6 +1339,12 @@
   initMasterControls();
   if (PREVIEW_MODE) renderAll();
   else loadLiveData();
+  window.addEventListener('online', () => markQueue?.retry());
+  window.addEventListener('pagehide', event => { if (!event.persisted) markQueue?.dispose(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    if (state.pending.size) markQueue?.retry(); else watchPendingProgress();
+  });
   window.addEventListener('storage', event => {
     if (!PREVIEW_MODE) return;
     if (event.key !== STORAGE_KEY) return;

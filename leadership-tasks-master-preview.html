@@ -9,13 +9,14 @@
   <script src="webapp-watermark.js" defer></script>
   <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261119-1">
   <link rel="stylesheet" href="yaroslavl-theme.css?v=20261119-1">
+  <link rel="stylesheet" href="leadership-tasks-workspace.css?v=1">
 </head>
-<body data-mode="master">
+<body data-mode="master" data-tracker-view="board" class="tracker-workspace">
   <main>
     <header class="card hero">
       <a class="back-link" href="leadership-tasks-preview.html?v=20261003-2">Выбор окна</a>
       <div class="hero-row">
-        <div><div class="eyebrow">Admin Control BOT</div><h1>Центр контроля задач</h1><p class="hero-sub">Закрытое окно ГА: общая статистика, контроль сроков и постановка задач руководителям.</p></div>
+        <div><div class="eyebrow">Yaroslavl · Admin Control</div><h1>Задачник руководства</h1></div>
         <span class="preview-pill">Только для ГА</span>
       </div>
       <div class="identity">
@@ -25,7 +26,36 @@
       </div>
     </header>
 
-    <section class="view active" id="view-progress">
+    <section class="view active" id="view-board">
+      <header class="tracker-board-head"><div><div class="eyebrow">Руководство · эта неделя</div><h2>Командная доска</h2></div><span class="tracker-period" id="board-period"></span></header>
+      <div class="tracker-board-filters">
+        <label><span>Ответственный</span><select id="board-role" aria-label="Ответственный на доске"><option value="all">Все должности</option></select></label>
+        <button class="btn tracker-late" id="board-overdue" type="button" aria-pressed="false"></button>
+        <span class="section-note" id="board-count" aria-live="polite"></span>
+        <button class="btn tracker-board-refresh" id="board-refresh" type="button" hidden>Обновить</button>
+      </div>
+      <div class="tracker-board" id="tracker-board"></div>
+    </section>
+
+    <section class="view" id="view-personal">
+      <div class="card toolbar tracker-week">
+        <div class="tracker-week-head"><div><span class="eyebrow">Неделя · МСК</span><h2 id="tracker-period">План недели</h2></div><button class="btn tracker-late" id="personal-overdue" type="button" aria-pressed="false"></button></div>
+        <div class="date-strip" id="date-strip" aria-label="Дни недели"></div>
+        <div class="tracker-week-foot"><button class="btn tracker-week-all" id="personal-week-all" type="button" aria-pressed="false">Вся неделя</button><span id="tracker-date-caption" class="section-note"></span></div>
+      </div>
+      <div class="card tracker-progress">
+        <div class="tracker-progress-main"><div><div class="eyebrow">Выполнение за неделю</div><strong id="tracker-progress-count">—</strong></div><div class="tracker-kpi" id="tracker-personal-kpi">—</div></div>
+        <div class="progress-bar" id="tracker-progress-bar" role="progressbar" aria-label="Выполнение за неделю" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="tracker-sync" id="tracker-mark-state" role="status" hidden></div>
+        <div class="tracker-sync tracker-sync-error" id="tracker-mark-error" role="alert" hidden></div>
+      </div>
+      <section class="section tracker-agenda">
+        <div class="section-head"><h2 id="tasks-heading">Задачи</h2><span class="section-note" id="tasks-note" aria-live="polite"></span></div>
+        <div class="tasks" id="tasks-list"></div>
+      </section>
+    </section>
+
+    <section class="view" id="view-progress">
       <article class="card owner-intro">
         <div class="eyebrow">Общая картина</div><h2>Контроль руководства</h2>
         <p>Показатели всех должностей, задачи без результата и персональная динамика выбранного руководителя.</p>
@@ -104,10 +134,12 @@
     </section>
   </main>
 
-  <nav class="bottom-nav" aria-label="Разделы центра контроля">
-    <button class="nav-btn active" data-view="progress" type="button"><strong>01</strong>Обзор</button>
-    <button class="nav-btn" data-view="create" type="button"><strong>02</strong>Поставить задачу</button>
-    <button class="nav-btn" data-view="registry" type="button"><strong>03</strong>Реестр</button>
+  <nav class="bottom-nav tracker-master-nav" aria-label="Разделы задачника">
+    <button class="nav-btn active" data-view="board" type="button"><i data-tracker-icon="board" aria-hidden="true"></i>Команда</button>
+    <button class="nav-btn" data-view="personal" type="button"><i data-tracker-icon="calendar" aria-hidden="true"></i>По роли</button>
+    <button class="nav-btn" data-view="progress" type="button"><i data-tracker-icon="chart" aria-hidden="true"></i>КПД</button>
+    <button class="nav-btn" data-view="create" type="button"><i data-tracker-icon="plus" aria-hidden="true"></i>Поставить</button>
+    <button class="nav-btn" data-view="registry" type="button"><i data-tracker-icon="list" aria-hidden="true"></i>Реестр</button>
   </nav>
 
   <div class="modal-backdrop" id="master-task-modal" role="dialog" aria-modal="true" aria-labelledby="master-task-modal-title">
@@ -157,6 +189,7 @@
   </div>
 
   <div class="toast" id="toast" aria-live="polite"></div>
-  <script src="leadership-tasks-preview.js?v=20261016-2"></script>
+  <script src="leadership-task-marks.js?v=1"></script>
+  <script src="leadership-tasks-preview.js?v=20261128-1"></script>
 </body>
 </html>

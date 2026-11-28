@@ -9,14 +9,15 @@
   <script src="webapp-watermark.js" defer></script>
   <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261119-1">
   <link rel="stylesheet" href="yaroslavl-theme.css?v=20261119-1">
+  <link rel="stylesheet" href="leadership-tasks-workspace.css?v=1">
 </head>
-<body data-mode="team">
+<body data-mode="team" class="tracker-workspace">
   <main>
     <header class="card hero">
       <a class="back-link" id="portal-back-link" href="leadership-tasks-preview.html?v=20261002-1" hidden>Выбор окна</a>
       <div class="hero-row">
-        <div><div class="eyebrow">Admin Control BOT</div><h1>Мой задачник</h1><p class="hero-sub">Только личные задачи руководителя, отметки выполнения и собственный недельный график.</p></div>
-        <span class="preview-pill">Для руководителя</span>
+        <div><div class="eyebrow">Yaroslavl · Admin Control</div><h1>Мои задачи</h1></div>
+        <span class="preview-pill">Личный план</span>
       </div>
       <div class="identity">
         <div class="avatar" id="avatar">AE</div>
@@ -31,18 +32,19 @@
     </div>
 
     <section class="view active" id="view-personal">
-      <div class="card toolbar"><div class="date-strip" id="date-strip" aria-label="Расписание по дням недели"></div></div>
-      <div class="summary-grid personal-summary">
-        <article class="card metric"><div class="metric-label">Задач</div><div class="metric-value blue" id="metric-total">0</div><div class="metric-note" id="metric-scope">на текущую неделю</div></article>
-        <article class="card metric"><div class="metric-label">Выполнено</div><div class="metric-value green" id="metric-done">0</div><div class="metric-note">отмечено в системе</div></article>
+      <div class="card toolbar tracker-week">
+        <div class="tracker-week-head"><div><span class="eyebrow">Неделя · МСК</span><h2 id="tracker-period">План недели</h2></div><button class="btn tracker-late" id="personal-overdue" type="button" aria-pressed="false"></button></div>
+        <div class="date-strip" id="date-strip" aria-label="Дни недели"></div>
+        <div class="tracker-week-foot"><button class="btn tracker-week-all" id="personal-week-all" type="button" aria-pressed="false">Вся неделя</button><span id="tracker-date-caption" class="section-note"></span></div>
       </div>
-      <article class="card progress-card">
-        <div class="progress-top"><span class="progress-title">Мой прогресс</span><span class="progress-value" id="progress-value">0%</span></div>
-        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-        <div class="progress-note" id="progress-note">Выполненные задачи сразу учитываются в недельном КПД.</div>
-      </article>
-      <section class="section">
-        <div class="section-head"><h2 id="tasks-heading">Расписание на неделю</h2><span class="section-note" id="tasks-note">по дням</span></div>
+      <div class="card tracker-progress">
+        <div class="tracker-progress-main"><div><div class="eyebrow">Выполнение за неделю</div><strong id="tracker-progress-count">—</strong></div><div class="tracker-kpi" id="tracker-personal-kpi">—</div></div>
+        <div class="progress-bar" id="tracker-progress-bar" role="progressbar" aria-label="Выполнение за неделю" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="tracker-sync" id="tracker-mark-state" role="status" hidden></div>
+        <div class="tracker-sync tracker-sync-error" id="tracker-mark-error" role="alert" hidden></div>
+      </div>
+      <section class="section tracker-agenda">
+        <div class="section-head"><h2 id="tasks-heading">Задачи</h2><span class="section-note" id="tasks-note" aria-live="polite"></span></div>
         <div class="tasks" id="tasks-list"></div>
       </section>
     </section>
@@ -65,8 +67,8 @@
   </main>
 
   <nav class="bottom-nav two" aria-label="Разделы задачника">
-    <button class="nav-btn active" data-view="personal" type="button"><strong>01</strong>Мои задачи</button>
-    <button class="nav-btn" data-view="plan" type="button"><strong>02</strong>Моя неделя</button>
+    <button class="nav-btn active" data-view="personal" type="button"><i data-tracker-icon="list" aria-hidden="true"></i>Мои задачи</button>
+    <button class="nav-btn" data-view="plan" type="button"><i data-tracker-icon="calendar" aria-hidden="true"></i>Моя неделя</button>
   </nav>
 
   <div class="modal-backdrop" id="failure-modal" role="dialog" aria-modal="true" aria-labelledby="failure-title">
@@ -107,6 +109,7 @@
   </div>
 
   <div class="toast" id="toast" aria-live="polite"></div>
-  <script src="leadership-tasks-preview.js?v=20261016-2"></script>
+  <script src="leadership-task-marks.js?v=1"></script>
+  <script src="leadership-tasks-preview.js?v=20261128-1"></script>
 </body>
 </html>
