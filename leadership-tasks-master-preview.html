@@ -9,7 +9,7 @@
   <script src="webapp-watermark.js" defer></script>
   <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261119-1">
   <link rel="stylesheet" href="yaroslavl-theme.css?v=20261119-1">
-  <link rel="stylesheet" href="leadership-tasks-workspace.css?v=1">
+  <link rel="stylesheet" href="leadership-tasks-workspace.css?v=3">
 </head>
 <body data-mode="master" data-tracker-view="board" class="tracker-workspace">
   <main>
@@ -28,6 +28,16 @@
 
     <section class="view active" id="view-board">
       <header class="tracker-board-head"><div><div class="eyebrow">Руководство · эта неделя</div><h2>Командная доска</h2></div><span class="tracker-period" id="board-period"></span></header>
+      <div class="tracker-board-progress" id="board-week-summary" hidden>
+        <div class="tracker-board-progress-head">
+          <div class="tracker-progress-caption"><i class="tracker-progress-icon" data-tracker-icon="chart" aria-hidden="true"></i><span>Итоги недели</span></div>
+          <strong id="board-progress-count"></strong>
+        </div>
+        <div class="tracker-week-track" id="board-progress-bar" role="progressbar" aria-label="Выполнение задач за неделю" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+          <span data-progress-part="done" hidden></span><span data-progress-part="risk" hidden></span><span data-progress-part="remaining" hidden></span>
+        </div>
+        <div class="tracker-progress-legend" id="board-progress-legend" aria-hidden="true"></div>
+      </div>
       <div class="tracker-board-filters">
         <label><span>Ответственный</span><select id="board-role" aria-label="Ответственный на доске"><option value="all">Все должности</option></select></label>
         <button class="btn tracker-late" id="board-overdue" type="button" aria-pressed="false"></button>
@@ -45,7 +55,10 @@
       </div>
       <div class="card tracker-progress">
         <div class="tracker-progress-main"><div><div class="eyebrow">Выполнение за неделю</div><strong id="tracker-progress-count">—</strong></div><div class="tracker-kpi" id="tracker-personal-kpi">—</div></div>
-        <div class="progress-bar" id="tracker-progress-bar" role="progressbar" aria-label="Выполнение за неделю" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="tracker-week-track" id="tracker-progress-bar" role="progressbar" aria-label="Выполнение задач за неделю" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+          <span data-progress-part="done" hidden></span><span data-progress-part="risk" hidden></span><span data-progress-part="remaining" hidden></span>
+        </div>
+        <div class="tracker-progress-legend" id="tracker-progress-legend" aria-hidden="true"></div>
         <div class="tracker-sync" id="tracker-mark-state" role="status" hidden></div>
         <div class="tracker-sync tracker-sync-error" id="tracker-mark-error" role="alert" hidden></div>
       </div>
@@ -101,6 +114,11 @@
           <div class="form-grid">
             <label class="field wide"><span>Название задачи</span><input id="task-title" maxlength="120" placeholder="Что необходимо выполнить" required></label>
             <label class="field wide"><span>Описание и ожидаемый результат</span><textarea id="task-description" maxlength="600" placeholder="Что именно должно быть сделано и как проверить результат"></textarea></label>
+            <fieldset class="tracker-icon-field wide" data-icon-picker="task">
+              <legend>Иконка задачи</legend>
+              <div class="tracker-icon-picker" id="task-icon-picker"></div>
+              <div class="tracker-icon-sample" id="task-icon-sample"></div>
+            </fieldset>
             <label class="field"><span>Должность</span><select id="task-role"></select></label>
             <label class="field"><span>Приоритет</span><select id="task-priority"><option value="high">Критический</option><option value="medium">Высокий</option><option value="normal" selected>Плановый</option></select></label>
             <label class="field"><span>День выполнения</span><select id="task-day"></select></label>
@@ -135,7 +153,7 @@
   </main>
 
   <nav class="bottom-nav tracker-master-nav" aria-label="Разделы задачника">
-    <button class="nav-btn active" data-view="board" type="button"><i data-tracker-icon="board" aria-hidden="true"></i>Команда</button>
+    <button class="nav-btn active" data-view="board" type="button" aria-current="page"><i data-tracker-icon="board" aria-hidden="true"></i>Команда</button>
     <button class="nav-btn" data-view="personal" type="button"><i data-tracker-icon="calendar" aria-hidden="true"></i>По роли</button>
     <button class="nav-btn" data-view="progress" type="button"><i data-tracker-icon="chart" aria-hidden="true"></i>КПД</button>
     <button class="nav-btn" data-view="create" type="button"><i data-tracker-icon="plus" aria-hidden="true"></i>Поставить</button>
@@ -145,12 +163,17 @@
   <div class="modal-backdrop" id="master-task-modal" role="dialog" aria-modal="true" aria-labelledby="master-task-modal-title">
     <div class="modal">
       <div class="modal-head">
-        <div><div class="eyebrow">Редактирование задачи</div><h3 id="master-task-modal-title">Задача</h3></div>
+        <div class="tracker-modal-heading"><span class="tracker-modal-icon" id="edit-task-heading-icon" aria-hidden="true"></span><div><div class="eyebrow">Редактирование задачи</div><h3 id="master-task-modal-title">Задача</h3></div></div>
         <button class="modal-close" data-close="master-task-modal" type="button">×</button>
       </div>
       <div class="form-grid modal-form-grid">
         <label class="field wide"><span>Название</span><input id="edit-task-title" maxlength="120"></label>
         <label class="field wide"><span>Описание и ожидаемый результат</span><textarea id="edit-task-description" maxlength="600"></textarea></label>
+        <fieldset class="tracker-icon-field wide" data-icon-picker="edit-task">
+          <legend>Иконка задачи</legend>
+          <div class="tracker-icon-picker" id="edit-task-icon-picker"></div>
+          <div class="tracker-icon-sample" id="edit-task-icon-sample"></div>
+        </fieldset>
         <label class="field"><span>Ответственный</span><select id="edit-task-role" disabled></select></label>
         <label class="field"><span>Приоритет</span><select id="edit-task-priority"><option value="high">Критический</option><option value="medium">Высокий</option><option value="normal">Плановый</option></select></label>
         <label class="field"><span>Дата</span><input id="edit-task-date" type="date"></label>
@@ -190,6 +213,6 @@
 
   <div class="toast" id="toast" aria-live="polite"></div>
   <script src="leadership-task-marks.js?v=1"></script>
-  <script src="leadership-tasks-preview.js?v=20261128-1"></script>
+  <script src="leadership-tasks-preview.js?v=20261128-3"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
   const tg=window.Telegram?.WebApp, model=window.AdminAppModel;
   const $=id=>document.getElementById(id), esc=model.escape;
   const base=new URL('.',location.href);
-  const state={data:null,view:'home',group:'all',search:'',section:null,moduleURL:null,frame:null,moduleExpanded:false,loadedAt:0,recent:[],preferenceBusy:false};
+  const state={data:null,view:'home',group:'all',search:'',section:null,moduleURL:null,frame:null,moduleExpanded:false,moduleOwnDock:false,loadedAt:0,recent:[],preferenceBusy:false};
   const viewport=window.AdminAppViewport.create({telegram:tg,root:document.documentElement,onExit:()=>setModuleExpanded(false),onNotice:toast});
   let bootstrapRequest=null,frameTimer=null,toastTimer=null,bootstrapSerial=0;
   let leaveAction=null;
@@ -41,18 +41,27 @@
   function applyPreferences(){document.documentElement.classList.toggle('reduce-motion',state.data?.preferences?.reduce_motion===true);}
   function rememberSection(id){state.recent=[id,...state.recent.filter(key=>key!==id)].slice(0,6);try{sessionStorage.setItem(`admin-app-recent:${state.data.viewer.telegram_id}`,JSON.stringify(state.recent));}catch{}}
   function readRecent(){try{const ids=JSON.parse(sessionStorage.getItem(`admin-app-recent:${state.data.viewer.telegram_id}`)||'[]');state.recent=Array.isArray(ids)?ids.filter(id=>state.data.sections.some(s=>s.id===id&&s.allowed)).slice(0,6):[];}catch{state.recent=[];}}
+  function setModuleDock(target){
+    const page=target?.url.pathname.split('/').pop();
+    const ownsDock=target?.section.id==='leadership-tasks' &&
+      (page==='leadership-tasks-team-preview.html'||page==='leadership-tasks-master-preview.html');
+    state.moduleOwnDock=ownsDock;
+    document.body.classList.toggle('module-own-dock',ownsDock);
+  }
   function setModuleExpanded(expanded){
     const active=Boolean(expanded&&state.frame&&state.view==='module');
     state.moduleExpanded=active;
     document.body.classList.toggle('module-expanded',active);
-    const label=active?'Вернуть нижнее меню':'Развернуть раздел';
+    const label=state.moduleOwnDock
+      ? (active?'Выйти из полноэкранного режима':'Полноэкранный режим')
+      : (active?'Вернуть нижнее меню':'Развернуть раздел');
     const button=$('module-expand');
     button.setAttribute('aria-pressed',String(active));
     button.setAttribute('aria-label',label);
     button.title=label;
     button.innerHTML=icon(active?'minimize':'maximize');
   }
-  function closeFrame({keepExpanded=false}={}){clearTimeout(frameTimer);frameTimer=null;if(state.frame){try{state.frame.contentWindow?.AdminControlEmbed?.dispose();}catch{}state.frame.remove();state.frame=null;}$('module-container').replaceChildren();$('module-view').hidden=true;state.section=null;state.moduleURL=null;if(!keepExpanded){setModuleExpanded(false);viewport.leave();}document.body.classList.remove('module-open');}
+  function closeFrame({keepExpanded=false}={}){clearTimeout(frameTimer);frameTimer=null;if(state.frame){try{state.frame.contentWindow?.AdminControlEmbed?.dispose();}catch{}state.frame.remove();state.frame=null;}$('module-container').replaceChildren();$('module-view').hidden=true;state.section=null;state.moduleURL=null;setModuleDock(null);if(!keepExpanded){setModuleExpanded(false);viewport.leave();}document.body.classList.remove('module-open');}
   function lockSection(section){$('access-title').textContent=section?.title||'Раздел закрыт';$('access-reason').textContent=section?.reason||'Доступ к разделу не выдан вашей должности.';$('access-dialog').showModal();}
   function tool(section){return `<button type="button" class="tool ${section.allowed?'':'locked'}" data-section="${esc(section.id)}"><span class="tool-top"><span class="tool-icon">${icon(section.icon)}</span><span class="tool-hint">${section.allowed?icon('arrow-right'):`${icon('lock')} Закрыт`}</span></span><b>${esc(section.title)}</b><small>${esc(section.description)}</small></button>`;}
   function listRow(title,description,glyph,attrs){return `<button type="button" class="list-row" ${attrs}><span class="tool-icon">${icon(glyph)}</span><span class="row-copy"><b>${esc(title)}</b><small>${esc(description)}</small></span>${icon('chevron')}</button>`;}
@@ -102,6 +111,7 @@
     frame.referrerPolicy='no-referrer';
     frame.setAttribute('allow','clipboard-write');
     state.frame=frame;
+    setModuleDock(target);
     setModuleExpanded(expanded);
     frame.addEventListener('load',()=>{
       if(state.frame!==frame)return;
@@ -111,6 +121,8 @@
         if(!current){frameError('Этот переход недоступен в едином приложении.');return;}
         state.section=current.section;
         state.moduleURL=current.url.href;
+        setModuleDock(current);
+        setModuleExpanded(state.moduleExpanded);
         $('module-title').textContent=current.section.title;
         $('module-subtitle').textContent=model.GROUPS[current.section.group]||'Раздел';
       } catch {

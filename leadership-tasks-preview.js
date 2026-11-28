@@ -109,10 +109,52 @@
     calendar:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M4 10h16m-11 5h6"/>',
     board:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 5v14m6-14v14"/>',
     chart:'<path d="M4 4v16h16M8 15l4-5 4 2 4-6"/>',
+    shield:'<path d="m12 3 7 3v5c0 4-3 7-7 10-4-3-7-6-7-10V6Z"/><path d="m9 12 2 2 4-4"/>',
+    messages:'<path d="M20 11.5a8 8 0 0 1-8 7.5c-1.3 0-2.5-.3-3.6-.8L4 20l1.5-4A7.2 7.2 0 0 1 4 11.5 8 8 0 0 1 12 4a8 8 0 0 1 8 7.5Z"/><path d="M8 11.5h8"/>',
+    phone:'<path d="M7 3H4a1 1 0 0 0-1 1 17 17 0 0 0 17 17 1 1 0 0 0 1-1v-3l-4-2-1.5 1.5a13 13 0 0 1-8-8L9 7Z"/>',
+    users:'<circle cx="10" cy="8" r="3"/><path d="M4 19v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1m1-14a3 3 0 0 1 0 6m1 3a4 4 0 0 1 3 4v1"/>',
+    report:'<path d="M6 3h8l4 4v14H6Zm8 0v5h5M9 12h6m-6 4h6"/>',
+    flag:'<path d="M5 21V4m0 1c5-4 8 4 14 0v9c-6 4-9-4-14 0"/>',
     plus:'<path d="M12 5v14M5 12h14"/>'
+  };
+  const taskIcons = {
+    list:['Задача','mint'], calendar:['Календарь','blue'], shield:['Контроль','mint'],
+    messages:['Чат','blue'], phone:['Созвон','mint'], users:['Состав','lilac'],
+    report:['Отчёт','blue'], flag:['Приоритет','rose'], chart:['Аналитика','amber']
   };
   function icon(name) {
     return '<svg class="tracker-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || icons.list) + '</svg>';
+  }
+  function taskIconKey(value) { return typeof value === 'string' && Object.prototype.hasOwnProperty.call(taskIcons,value) ? value : 'list'; }
+  function taskBadge(value, { effect = false, mark = '' } = {}) {
+    const key = taskIconKey(value);
+    return '<span class="tracker-task-badge' + (effect ? ' tracker-icon-pop' : '') + '" data-task-icon="' + key
+      + '" data-tone="' + taskIcons[key][1] + '" aria-hidden="true">' + icon(key)
+      + (mark ? '<span class="tracker-badge-mark" data-mark="' + mark + '">' + icon(mark) + '</span>' : '') + '</span>';
+  }
+  function chosenTaskIcon(prefix) {
+    return taskIconKey(document.querySelector('input[name="' + prefix + '-icon"]:checked')?.value);
+  }
+  function renderIconSample(prefix, effect) {
+    const value = chosenTaskIcon(prefix);
+    const sample = document.getElementById(prefix + '-icon-sample');
+    if (sample) sample.innerHTML = taskBadge(value,{ effect }) + '<span>' + taskIcons[value][0] + '</span>';
+    const heading = document.getElementById(prefix + '-heading-icon');
+    if (heading) heading.innerHTML = taskBadge(value,{ effect });
+  }
+  function setTaskIcon(prefix, value, effect = false) {
+    const radio = document.querySelector('input[name="' + prefix + '-icon"][value="' + taskIconKey(value) + '"]');
+    if (radio) radio.checked = true;
+    renderIconSample(prefix, effect);
+  }
+  for (const picker of document.querySelectorAll('[data-icon-picker]')) {
+    const prefix = picker.dataset.iconPicker;
+    document.getElementById(prefix + '-icon-picker').innerHTML = Object.entries(taskIcons).map(([key,[label]]) =>
+      '<label class="tracker-icon-choice"><input type="radio" name="' + prefix + '-icon" value="' + key
+      + '"' + (key === 'list' ? ' checked' : '') + '><span>' + taskBadge(key) + '<small>' + label + '</small></span></label>'
+    ).join('');
+    picker.addEventListener('change', () => renderIconSample(prefix, true));
+    renderIconSample(prefix, false);
   }
   document.querySelectorAll('[data-tracker-icon]').forEach(node => { node.innerHTML = icon(node.dataset.trackerIcon); });
 
@@ -485,6 +527,28 @@
     }).join('');
   }
 
+  function renderWeekTrack(id, { total, done, risk }) {
+    const track = document.getElementById(id + '-progress-bar');
+    const groups = [
+      ['done', 'Готово', done],
+      ['risk', 'Требуют внимания', risk],
+      ['remaining', 'К выполнению', total - done - risk]
+    ];
+    track.setAttribute('aria-valuenow', String(total ? Math.round(done / total * 100) : 0));
+    track.setAttribute('aria-valuetext', total
+      ? groups.map(([,label,count]) => label + ': ' + count).join('. ')
+      : 'Нет задач на неделю');
+    for (const [key,,count] of groups) {
+      const part = track.querySelector('[data-progress-part="' + key + '"]');
+      part.style.flexGrow = count;
+      part.hidden = count === 0;
+    }
+    document.getElementById(id + '-progress-legend').innerHTML = groups
+      .filter(([, , count]) => count > 0)
+      .map(([key,label,count]) => '<span data-progress-key="' + key + '">' + label + ' <b>' + count + '</b></span>')
+      .join('');
+  }
+
   function renderPersonal() {
     const days = weekDates();
     const personal = state.tasks.filter(item => item.role === state.role && days.includes(item.date)).map(effectiveTask);
@@ -498,8 +562,7 @@
     const progress = personal.length ? Math.round(done / personal.length * 100) : 0;
     const kpi = progressLabel(state.role, progress);
     document.getElementById('tracker-progress-count').textContent = done + ' из ' + personal.length;
-    document.getElementById('progress-fill').style.width = progress + '%';
-    document.getElementById('tracker-progress-bar').setAttribute('aria-valuenow', String(progress));
+    renderWeekTrack('tracker', { total: personal.length, done, risk: personal.filter(isRisk).length });
     document.getElementById('tracker-personal-kpi').innerHTML = escapeHtml(kpi.value) + '<small>' + escapeHtml(kpi.note) + '</small>';
     const markState = document.getElementById('tracker-mark-state');
     const pending = state.pending.size;
@@ -533,8 +596,8 @@
     const subtitle = item.pending ? 'Ожидает сохранения' : item.status === 'todo' && risk ? 'Просрочено' : statusLabel(item.status);
     return '<article class="tracker-row" data-status="' + escapeHtml(item.status) + '" data-risk="' + risk + '">'
       + (action ? '<button class="tracker-row-check" type="button" data-done="' + id + '" aria-label="Выполнить: '
-        + escapeHtml(item.title) + '"' + (item.pending ? ' disabled' : '') + '>' + icon('square') + '</button>'
-        : '<span class="tracker-row-icon" aria-hidden="true">' + icon(risk ? 'alert' : item.status === 'done' ? 'check' : 'list') + '</span>')
+        + escapeHtml(item.title) + '"' + (item.pending ? ' disabled' : '') + '>' + taskBadge(item.icon,{mark:'square'}) + '</button>'
+        : '<span class="tracker-row-icon" aria-hidden="true">' + taskBadge(item.icon,{mark:risk ? 'alert' : item.status === 'done' ? 'check' : ''}) + '</span>')
       + '<button class="tracker-row-open" type="button" data-open-task="' + id + '"><b>' + escapeHtml(item.title)
       + '</b><small>' + escapeHtml(subtitle) + '</small></button><span class="tracker-row-time">' + escapeHtml(timeLabel(item)) + '</span></article>';
   }
@@ -556,6 +619,10 @@
     const all = state.tasks.filter(item => days.includes(item.date) && (state.boardRole === 'all' || item.role === state.boardRole))
       .map(effectiveTask).sort((a,b) => a.date.localeCompare(b.date) || order[a.priority] - order[b.priority] || a.due.localeCompare(b.due));
     const risk = all.filter(isRisk);
+    const done = all.filter(t => t.status === 'done');
+    document.getElementById('board-week-summary').hidden = false;
+    document.getElementById('board-progress-count').textContent = 'Готово: ' + done.length + ' из ' + all.length;
+    renderWeekTrack('board', { total: all.length, done: done.length, risk: risk.length });
     const button = document.getElementById('board-overdue');
     button.innerHTML = icon('alert') + '<span>Без результата: ' + risk.length + '</span>';
     button.disabled = !risk.length && !state.boardLate;
@@ -565,7 +632,7 @@
     const cols = state.boardLate ? [['risk','Требуют внимания',risk]] : [
       ['todo','К выполнению',all.filter(t => t.status === 'todo' && !isRisk(t))],
       ['risk','Требуют внимания',risk],
-      ['done','Готово',all.filter(t => t.status === 'done')]
+      ['done','Готово',done]
     ];
     board.innerHTML = cols.map(([key,title,items]) => {
       const expanded = state.boardExpanded.has(key);
@@ -581,7 +648,7 @@
   function boardCard(item) {
     const risk = isRisk(item), role = getRole(item.role);
     return '<button class="tracker-board-task" type="button" data-open-task="' + escapeHtml(item.id) + '" data-risk="' + risk + '">'
-      + icon(risk ? 'alert' : item.status === 'done' ? 'check' : 'list')
+      + taskBadge(item.icon,{mark:risk ? 'alert' : item.status === 'done' ? 'check' : ''})
       + '<span><b>' + escapeHtml(item.title) + '</b><small>' + escapeHtml(role.title) + '</small><em>'
       + escapeHtml(formatDate(item.date,{day:'numeric',month:'short'}) + ' · ' + timeLabel(item)
         + (risk ? ' · ' + (item.status === 'failed' ? 'Не выполнено' : 'Просрочено') : '')) + '</em></span></button>';
@@ -659,6 +726,7 @@
     const modal = document.getElementById('task-detail-modal');
     if (!modal) return;
     document.getElementById('task-detail-title').textContent = item.title;
+    document.getElementById('task-detail-icon').innerHTML = taskBadge(item.icon,{effect:true});
     const category = visibleCategory(item.category);
     const categoryTag = category ? `<span class="tag">${escapeHtml(category)}</span>` : '';
     document.getElementById('task-detail-tags').innerHTML = `<span class="tag ${item.priority}">${priorityLabel(item.priority)}</span>${categoryTag}<span class="tag ${item.status === 'done' ? 'done' : item.status === 'failed' ? 'high' : 'blue'}">${statusLabel(item.status)}</span>`;
@@ -795,7 +863,7 @@
       return;
     }
     list.innerHTML = items.map(item => `<article class="card registry-item" data-edit-task="${item.id}" tabindex="0" role="button" aria-label="Открыть и изменить задачу ${escapeHtml(item.title)}">
-      <div class="registry-top"><div><div class="task-overline"><span class="tag ${item.priority}">${priorityLabel(item.priority)}</span><span class="tag">${escapeHtml(getRole(item.role).title)}</span><span class="tag ${item.status === 'done' ? 'done' : item.status === 'failed' ? 'high' : 'blue'}">${statusLabel(item.status)}</span></div><div class="task-title">${escapeHtml(item.title)}</div></div><div class="registry-date">${formatDate(item.date, { weekday: 'short', day: '2-digit', month: '2-digit' })}<strong>${item.due}</strong></div></div>
+      <div class="registry-top"><div><div class="task-overline"><span class="tag ${item.priority}">${priorityLabel(item.priority)}</span><span class="tag">${escapeHtml(getRole(item.role).title)}</span><span class="tag ${item.status === 'done' ? 'done' : item.status === 'failed' ? 'high' : 'blue'}">${statusLabel(item.status)}</span></div><div class="task-title tracker-registry-title">${taskBadge(item.icon)}<span>${escapeHtml(item.title)}</span></div></div><div class="registry-date">${formatDate(item.date, { weekday: 'short', day: '2-digit', month: '2-digit' })}<strong>${item.due}</strong></div></div>
       <div class="task-meta">${[visibleCategory(item.category), item.fixed ? 'фиксированный день' : 'разрешена недельная ротация', 'нажмите, чтобы изменить'].filter(Boolean).map(escapeHtml).join(' · ')}</div>
     </article>`).join('');
     document.querySelectorAll('[data-edit-task]').forEach(card => {
@@ -815,6 +883,7 @@
     state.activeTask = item.id;
     document.getElementById('master-task-modal-title').textContent = item.title;
     document.getElementById('edit-task-title').value = item.title;
+    setTaskIcon('edit-task', item.icon, true);
     document.getElementById('edit-task-description').value = item.description || '';
     document.getElementById('edit-task-role').value = item.role;
     document.getElementById('edit-task-priority').value = item.priority;
@@ -898,6 +967,7 @@
     }
     const priority = document.getElementById('edit-task-priority').value;
     const status = document.getElementById('edit-task-status').value;
+    const selectedIcon = chosenTaskIcon('edit-task');
     if (!PREVIEW_MODE) {
       closeModal('master-task-modal');
       showToast('Изменения приняты');
@@ -906,6 +976,7 @@
           occurrence_id: current.id,
           task_id: current.task_id,
           title,
+          icon: selectedIcon,
           description: document.getElementById('edit-task-description').value.trim(),
           priority,
           date,
@@ -930,6 +1001,7 @@
     state.tasks[index] = {
       ...current,
       title,
+      icon: selectedIcon,
       description: document.getElementById('edit-task-description').value.trim(),
       priority,
       date,
@@ -1043,12 +1115,14 @@
       const plannedDay = Number(document.getElementById('task-day').value);
       const priority = prioritySelect.value;
       const allowRotation = priority !== 'high' && rotationCheckbox.checked;
+      const selectedIcon = chosenTaskIcon('task');
       const date = weekDates()[plannedDay];
       if (!PREVIEW_MODE) {
         showToast('Задача принята');
         try {
           await apiRequest('create_task', {
             title,
+            icon: selectedIcon,
             description: document.getElementById('task-description').value.trim(),
             role_id: role,
             date,
@@ -1058,6 +1132,7 @@
             rotation_allowed: allowRotation
           });
           form.reset();
+          setTaskIcon('task','list');
           document.getElementById('task-due').value = DEFAULT_DUE_TIME;
           document.getElementById('task-minutes').value = '30';
           daySelect.value = String((new Date().getDay() + 6) % 7);
@@ -1078,6 +1153,7 @@
         baseDay: plannedDay,
         plannedDay,
         title,
+        icon: selectedIcon,
         description: document.getElementById('task-description').value.trim(),
         category: 'Поручение ГА',
         due: document.getElementById('task-due').value || DEFAULT_DUE_TIME,
@@ -1091,6 +1167,7 @@
       });
       saveTasks();
       form.reset();
+      setTaskIcon('task','list');
       document.getElementById('task-due').value = DEFAULT_DUE_TIME;
       document.getElementById('task-minutes').value = '30';
       daySelect.value = String((new Date().getDay() + 6) % 7);

@@ -9,7 +9,7 @@
   <script src="webapp-watermark.js" defer></script>
   <link rel="stylesheet" href="leadership-tasks-preview.css?v=20261119-1">
   <link rel="stylesheet" href="yaroslavl-theme.css?v=20261119-1">
-  <link rel="stylesheet" href="leadership-tasks-workspace.css?v=1">
+  <link rel="stylesheet" href="leadership-tasks-workspace.css?v=3">
 </head>
 <body data-mode="team" class="tracker-workspace">
   <main>
@@ -39,7 +39,10 @@
       </div>
       <div class="card tracker-progress">
         <div class="tracker-progress-main"><div><div class="eyebrow">Выполнение за неделю</div><strong id="tracker-progress-count">—</strong></div><div class="tracker-kpi" id="tracker-personal-kpi">—</div></div>
-        <div class="progress-bar" id="tracker-progress-bar" role="progressbar" aria-label="Выполнение за неделю" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="tracker-week-track" id="tracker-progress-bar" role="progressbar" aria-label="Выполнение задач за неделю" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+          <span data-progress-part="done" hidden></span><span data-progress-part="risk" hidden></span><span data-progress-part="remaining" hidden></span>
+        </div>
+        <div class="tracker-progress-legend" id="tracker-progress-legend" aria-hidden="true"></div>
         <div class="tracker-sync" id="tracker-mark-state" role="status" hidden></div>
         <div class="tracker-sync tracker-sync-error" id="tracker-mark-error" role="alert" hidden></div>
       </div>
@@ -67,7 +70,7 @@
   </main>
 
   <nav class="bottom-nav two" aria-label="Разделы задачника">
-    <button class="nav-btn active" data-view="personal" type="button"><i data-tracker-icon="list" aria-hidden="true"></i>Мои задачи</button>
+    <button class="nav-btn active" data-view="personal" type="button" aria-current="page"><i data-tracker-icon="list" aria-hidden="true"></i>Мои задачи</button>
     <button class="nav-btn" data-view="plan" type="button"><i data-tracker-icon="calendar" aria-hidden="true"></i>Моя неделя</button>
   </nav>
 
@@ -84,7 +87,7 @@
   <div class="modal-backdrop" id="task-detail-modal" role="dialog" aria-modal="true" aria-labelledby="task-detail-title">
     <div class="modal">
       <div class="modal-head">
-        <div><div class="eyebrow">Карточка задачи</div><h3 id="task-detail-title">Задача</h3></div>
+        <div class="tracker-modal-heading"><span class="tracker-modal-icon" id="task-detail-icon" aria-hidden="true"></span><div><div class="eyebrow">Карточка задачи</div><h3 id="task-detail-title">Задача</h3></div></div>
         <button class="modal-close" data-close="task-detail-modal" type="button">×</button>
       </div>
       <div class="detail-tags" id="task-detail-tags"></div>
@@ -110,6 +113,6 @@
 
   <div class="toast" id="toast" aria-live="polite"></div>
   <script src="leadership-task-marks.js?v=1"></script>
-  <script src="leadership-tasks-preview.js?v=20261128-1"></script>
+  <script src="leadership-tasks-preview.js?v=20261128-3"></script>
 </body>
 </html>

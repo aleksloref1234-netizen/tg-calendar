@@ -7,7 +7,7 @@ const model=require('../admin-app-model.js');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 const base='https://example.test/tg-calendar/';
 
-function harness(){
+function harness({master=false,taskPage=master?'leadership-tasks-master-preview.html':'leadership-tasks-team-preview.html'}={}){
   const nodes=new Map(),timers=new Map(),frames=[],nativeEvents=new Map();
   let timerId=0,expandCalls=0,fetchCalls=0;
   function node(){
@@ -46,9 +46,10 @@ function harness(){
     fetch(){fetchCalls++;throw new Error('Unexpected network request');},
   });
   const app=window.layoutTest;
-  app.state.data={viewer:{telegram_id:101,nickname:'Test_Admin'},preferences:{},server:{name:'Test',number:'68'},sections:model.sections([
+  app.state.data={viewer:{telegram_id:101,nickname:'Test_Admin',is_master:master},preferences:{},server:{name:'Test',number:'68'},sections:model.sections([
     {id:'additional-tasks',title:'Дополнительные задания',group:'personal',path:'admin-task-marketplace.html',allowed:true},
     {id:'my-statistics',title:'Моя статистика',group:'personal',path:'dashboard.html',allowed:true},
+    {id:'leadership-tasks',title:'Задачник руководства',group:'management',path:taskPage,allowed:true},
   ])};
   app.state.loadedAt=Date.now();
   const target=id=>{const section=app.state.data.sections.find(row=>row.id===id);return model.target(section.path,app.state.data.sections,base,app.state.data.viewer);};
@@ -94,6 +95,50 @@ test('closing a section disposes its frame and restores ordinary shell mode',()=
   assert.equal(h.timers.size,0);
   h.app.setModuleExpanded(true);
   assert.equal(h.app.state.moduleExpanded,false);
+});
+
+test('leadership task dock replaces the shell dock, survives refresh and resets on back',()=>{
+  for(const master of [false,true]){
+    const h=harness({master});h.app.mountModule(h.target('leadership-tasks'));
+    assert.ok(h.body.classes.has('module-own-dock'));
+    assert.equal(h.get('module-expand').getAttribute('aria-label'),'Полноэкранный режим');
+    h.app.setModuleExpanded(true);
+    h.app.setModuleExpanded(false);
+    assert.ok(h.body.classes.has('module-own-dock'));
+    h.get('module-reload').events.get('click')();
+    assert.ok(h.body.classes.has('module-own-dock'));
+    h.get('module-back').events.get('click')();
+    assert.equal(h.app.state.frame,null);
+    assert.equal(h.app.state.view,'catalog');
+    assert.ok(!h.body.classes.has('module-own-dock'));
+    h.app.mountModule(h.target('additional-tasks'));
+    assert.ok(!h.body.classes.has('module-own-dock'));
+    assert.equal(h.fetchCalls,0);
+  }
+});
+
+test('legacy leadership chooser keeps the shell dock until a real task page loads',()=>{
+  const h=harness({master:true,taskPage:'leadership-tasks-preview.html'});
+  h.app.mountModule(h.target('leadership-tasks'));
+  assert.ok(!h.body.classes.has('module-own-dock'));
+  const frame=h.app.state.frame;
+  frame.contentWindow.location.href=base+'leadership-tasks-master-preview.html';
+  frame.events.get('load')();
+  assert.ok(h.body.classes.has('module-own-dock'));
+  frame.contentWindow.location.href=base+'leadership-tasks-preview.html';
+  frame.events.get('load')();
+  assert.ok(!h.body.classes.has('module-own-dock'));
+  assert.equal(h.app.state.frame,frame);
+});
+
+test('a failed frame navigation clears the task dock state',()=>{
+  const h=harness({master:true});h.app.mountModule(h.target('leadership-tasks'));
+  const frame=h.app.state.frame;
+  frame.contentWindow.location.href='https://example.invalid/not-an-app';
+  frame.events.get('load')();
+  assert.ok(!h.body.classes.has('module-own-dock'));
+  assert.ok(!h.body.classes.has('module-open'));
+  assert.equal(h.get('app-main').hidden,false);
 });
 
 test('reload and in-section navigation retain expanded mode but a fresh entry does not',()=>{
@@ -143,11 +188,13 @@ test('late load events of removed frames cannot overwrite the current layout',()
 test('layout rules keep back and reload controls accessible and version their assets',()=>{
   const html=read('app.html'),css=read('admin-app.css');
   assert.match(html,/id="module-expand"[^>]+aria-pressed="false"[^>]+aria-controls="module-container"/);
-  assert.match(html,/admin-app\.css\?v=20261106-2/);assert.match(html,/admin-app\.js\?v=20261119-1/);
+  assert.match(html,/admin-app\.css\?v=20261128-2/);assert.match(html,/admin-app\.js\?v=20261128-2/);
   assert.ok(html.indexOf('admin-app-viewport.js')<html.indexOf('src="admin-app.js'));
   assert.match(css,/body\.module-open\{--app-header:0px\}/);
   assert.match(css,/\.module-open \.app-header\{display:none\}/);
   assert.match(css,/body\.module-expanded\{--app-dock:0px\}/);
+  assert.match(css,/body\.module-own-dock\{--app-dock:0px\}/);
+  assert.match(css,/\.module-own-dock \.app-dock\{display:none\}/);
   assert.match(css,/@media\(pointer:coarse\)\{\.module-open \.module-toolbar \.icon-button\{width:40px;min-height:40px\}/);
   assert.doesNotMatch(css,/#module-(?:back|reload)\s*\{[^}]*display:none/);
 });
